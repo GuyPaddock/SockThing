@@ -1,17 +1,15 @@
 package com.github.fireduck64.sockthing;
 
-import java.lang.Math;
-
-import java.util.Map;
-import java.util.UUID;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-
+import java.util.Map;
 import java.util.TreeSet;
-
-import java.net.Socket;
-import java.net.ServerSocket;
+import java.util.UUID;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import org.json.JSONObject;
 
@@ -22,22 +20,20 @@ import com.github.fireduck64.sockthing.output.OutputMonsterShareFees;
 import com.github.fireduck64.sockthing.sharesaver.DBShareSaver;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaverMessaging;
-import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.core.Address;
+import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Block;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import com.google.bitcoin.core.NetworkParameters;
 
 public class StratumServer
 {
-    private BitcoinRPC bitcoin_rpc;
-    private long max_idle_time = 300L * 1000L * 1000L * 1000L;//5 minutes in nanos
+    private final BitcoinRPC bitcoin_rpc;
+    private final long max_idle_time = 300L * 1000L * 1000L * 1000L;//5 minutes in nanos
     //private long max_idle_time = 3L * 1000L * 1000L * 1000L;//3 seconds
 
-    
-    private Map<String, StratumConnection> conn_map=new HashMap<String, StratumConnection>(1024, 0.5f);
 
-    private Config config;
+    private final Map<String, StratumConnection> conn_map=new HashMap<String, StratumConnection>(1024, 0.5f);
+
+    private final Config config;
     private AuthHandler auth_handler;
     private NetworkParameters network_params;
     private ShareSaver share_saver;
@@ -52,18 +48,18 @@ public class StratumServer
      * Nothing should read this, anything interested should call getCurrentBlockTemplate() instead
      */
     private JSONObject cached_block_template;
-    
-    private Map<String, UserSessionData> user_session_data_map=new HashMap<String, UserSessionData>(1024, 0.5f);
+
+    private final Map<String, UserSessionData> user_session_data_map=new HashMap<String, UserSessionData>(1024, 0.5f);
 
     private volatile int current_block;
     private volatile long current_block_update_time;
 
-    private Semaphore new_block_notify_object;
+    private final Semaphore new_block_notify_object;
 
     private volatile double block_difficulty;
 
     private volatile long block_reward;
-    private StratumServer server;
+    private final StratumServer server;
 
     public StratumServer(Config config)
     {
@@ -80,13 +76,14 @@ public class StratumServer
     }
     public void start()
     {
-
+        new NotifyListenerUDP(this).start();
         new TimeoutThread().start();
         new NewBlockThread().start();
         new PruneThread().start();
 
         List<String> ports = config.getList("port");
-        for(String s : ports)
+
+        for (String s : ports)
         {
             int port = Integer.parseInt(s);
             new ListenThread(port).start();
@@ -97,9 +94,8 @@ public class StratumServer
             witty_remarks.start();
         }
 
-        //pplns_agent.start();
-
-
+        if (pplns_agent != null)
+          pplns_agent.start();
     }
 
     public void setAuthHandler(AuthHandler auth_handler)
@@ -187,9 +183,223 @@ public class StratumServer
         this.network_params = network_params;
     }
 
-    public class ListenThread extends Thread
+    public static void main(String args[]) throws Exception
     {
-        private int port;
+        if (args.length != 1)
+        {
+            System.out.println("Expected exactly one argument, a config file");
+            System.out.println("java -jar SockThing.jar pool.cfg");
+            return;
+        }
+
+        Config conf = new Config(args[0]);
+
+        conf.require("pay_to_address");
+        conf.require("network");
+        conf.require("instance_id");
+        conf.require("coinbase_text");
+        conf.require("saver_messaging_enabled");
+        conf.require("witty_remarks_enabled");
+
+        StratumServer server = new StratumServer(conf);
+
+        server.setInstanceId(conf.get("instance_id"));
+        server.setMetricsReporter(new MetricsReporter(server));
+
+        server.setAuthHandler(new AddressDifficultyAuthHandler(server));
+
+        if (conf.getBoolean("saver_messaging_enabled"))
+        {
+            server.setShareSaver(new ShareSaverMessaging(server, new DBShareSaver(conf)));
+        }
+        else
+        {
+            server.setShareSaver(new DBShareSaver(conf));
+        }
+
+
+        String network = conf.get("network");
+        if (network.equals("prodnet"))
+        {
+            server.setNetworkParameters(NetworkParameters.prodNet());
+        }
+        else if (network.equals("testnet"))
+        {
+            server.setNetworkParameters(NetworkParameters.testNet3());
+        }
+
+        server.setOutputMonster(new OutputMonsterShareFees(conf, server.getNetworkParameters()));
+
+        if (conf.getBoolean("witty_remarks_enabled"))
+        {
+            server.setWittyRemarks(new WittyRemarks());
+        }
+
+        server.setPPLNSAgent(new PPLNSAgent(server));
+
+        server.start();
+    }
+    /**
+     * 0 - not stale (current)
+     * 1 - slightly stale
+     * 2 - really stale
+     */
+    public int checkStale(int next_block)
+    {
+        if (next_block == current_block + 1)
+        {
+            return 0;
+        }
+        if (next_block == current_block)
+        {
+            if (current_block_update_time + 10000 > System.currentTimeMillis())
+            {
+                return 1;
+            }
+        }
+        return 2;
+
+
+    }
+
+    public void notifyNewBlock()
+    {
+        new_block_notify_object.release(1);
+    }
+
+    public JSONObject getCurrentBlockTemplate()
+        throws java.io.IOException, org.json.JSONException
+    {
+        JSONObject c = cached_block_template;
+        if (c != null) return c;
+
+        JSONObject post;
+        post = new JSONObject(bitcoin_rpc.getSimplePostRequest("getblocktemplate"));
+        c = bitcoin_rpc.sendPost(post).getJSONObject("result");
+
+        cached_block_template=c;
+
+        getMetricsReporter().metricCount("getblocktemplate",1.0);
+        return c;
+
+    }
+    public double getDifficulty()
+        throws java.io.IOException, org.json.JSONException
+    {
+        JSONObject post;
+        post = new JSONObject(bitcoin_rpc.getSimplePostRequest("getdifficulty"));
+        return bitcoin_rpc.sendPost(post).getDouble("result");
+    }
+    public String submitBlock(Block blk)
+    {
+        String result="N";
+        for(int i=0; i<10; i++)
+        {
+            System.out.println("Attempting block submit");
+            result = submitBlockAttempt(blk);
+            if(result.equals("Y")) return result;
+        }
+        return result;
+    }
+    public UserSessionData getUserSessionData(PoolUser pu)
+    {
+        synchronized(user_session_data_map)
+        {
+            UserSessionData ud = user_session_data_map.get(pu.getWorkerName());
+            if (ud == null) ud = new UserSessionData(this);
+            user_session_data_map.put(pu.getWorkerName(), ud);
+            return ud;
+
+        }
+
+    }
+
+    private void updateBlockReward()
+        throws Exception
+    {
+        block_reward =  getCurrentBlockTemplate().getLong("coinbasevalue");
+    }
+
+    private void updateBlockDifficulty()
+        throws Exception
+    {
+        String hexString = "0x" + getCurrentBlockTemplate().getString("bits");
+        Long hexInt = Long.decode(hexString).longValue();
+
+        block_difficulty = HexUtil.difficultyFromHex(hexInt);
+    }
+
+    private void triggerUpdate(boolean clean)
+        throws Exception
+    {
+        System.out.println("Update triggered. Clean: " + clean);
+
+        cached_block_template = null;
+
+        long t1_get_block = System.currentTimeMillis();
+        JSONObject block_template = getCurrentBlockTemplate();
+        long t2_get_block = System.currentTimeMillis();
+
+        getMetricsReporter().metricTime("GetBlockTemplateTime", t2_get_block - t1_get_block);
+
+        if (clean)
+        {
+            // Needs the new block template cached before we update.
+            updateBlockReward();
+            updateBlockDifficulty();
+        }
+
+        long t1_update_connection = System.currentTimeMillis();
+
+        LinkedList<Map.Entry<String, StratumConnection> > lst= new LinkedList<Map.Entry<String, StratumConnection> >();
+        synchronized(conn_map)
+        {
+            lst.addAll(conn_map.entrySet());
+        }
+
+        for(Map.Entry<String, StratumConnection> me : lst)
+        {
+            me.getValue().sendRealJob(block_template, clean);
+
+        }
+
+        long t2_update_connection = System.currentTimeMillis();
+
+        getMetricsReporter().metricTime("UpdateConnectionsTime", t2_update_connection - t1_update_connection);
+
+    }
+
+
+    private String submitBlockAttempt(Block blk)
+    {
+        try
+        {
+            JSONObject result = bitcoin_rpc.submitBlock(blk);
+
+            System.out.println("Block result: " + result.toString(2));
+
+            if (result.isNull("error") && result.isNull("result"))
+            {
+                return "Y";
+            }
+            else
+            {
+                System.out.println("Block submit error:  "+ result.get("error"));
+                return "N";
+            }
+
+        }
+        catch(Throwable t)
+        {
+            t.printStackTrace();
+            return "N";
+        }
+
+    }
+
+    protected class ListenThread extends Thread
+    {
+        private final int port;
         public ListenThread(int port)
         {
             this.port = port;
@@ -197,6 +407,7 @@ public class StratumServer
         }
 
 
+        @Override
         public void run()
         {
             System.out.println("Listening on port: " + port);
@@ -237,7 +448,7 @@ public class StratumServer
         }
     }
 
-    public class TimeoutThread extends Thread
+    protected class TimeoutThread extends Thread
     {
         public TimeoutThread()
         {
@@ -245,10 +456,11 @@ public class StratumServer
             setDaemon(true);
         }
 
+        @Override
         public void run()
-        {   
+        {
             while(true)
-            {   
+            {
                 LinkedList<Map.Entry<String, StratumConnection> > lst= new LinkedList<Map.Entry<String, StratumConnection> >();
 
                 synchronized(conn_map)
@@ -267,12 +479,12 @@ public class StratumServer
                         {
                             conn_map.remove(me.getKey());
                         }
-                    }   
+                    }
                 }
 
                 try{Thread.sleep(30000);}catch(Throwable t){}
 
-                
+
 
             }
 
@@ -283,7 +495,7 @@ public class StratumServer
     /**
      * Prunes jobs out of user_session_data_map
      */
-    public class PruneThread extends Thread
+    protected class PruneThread extends Thread
     {
         public PruneThread()
         {
@@ -291,6 +503,7 @@ public class StratumServer
             setDaemon(true);
 
         }
+        @Override
         public void run()
         {
             while(true)
@@ -301,7 +514,7 @@ public class StratumServer
                     doRun();
                 }
                 catch(Throwable t)
-                {           
+                {
                     t.printStackTrace();
                 }
             }
@@ -342,29 +555,6 @@ public class StratumServer
         }
     }
 
-    /**
-     * 0 - not stale (current)
-     * 1 - slightly stale
-     * 2 - really stale
-     */
-    public int checkStale(int next_block)
-    {
-        if (next_block == current_block + 1)
-        {
-            return 0;
-        }
-        if (next_block == current_block)
-        {
-            if (current_block_update_time + 10000 > System.currentTimeMillis())
-            {
-                return 1;
-            }
-        }
-        return 2;
-
-        
-    }
-
     public class NewBlockThread extends Thread
     {
         int last_block;
@@ -380,9 +570,10 @@ public class StratumServer
             setName("NewBlockThread");
             last_update_time=System.currentTimeMillis();
             last_success_time=System.currentTimeMillis();
-            
+
         }
 
+        @Override
         public void run()
         {
             while(true)
@@ -432,7 +623,7 @@ public class StratumServer
 
             if (last_update_time + TEMPLATE_REFRESH_TIME < System.currentTimeMillis())
             {
-                
+
                 triggerUpdate(false);
                 last_update_time = System.currentTimeMillis();
                 last_success_time = System.currentTimeMillis();
@@ -440,209 +631,6 @@ public class StratumServer
             }
 
         }
-    }
-
-    public void notifyNewBlock()
-    {
-        new_block_notify_object.release(1);
-    }
-
-    private double difficultyFromHex(Long bits)
-    {
-        double max_body = Math.log(0x00ffff), scaland = Math.log(256);
-        return Math.exp(max_body - Math.log(bits & 0x00ffffff) + scaland * (0x1d - ((bits & 0xff000000) >> 24)));
-    }
-
-    private void updateBlockReward()
-        throws Exception
-    {
-        block_reward =  getCurrentBlockTemplate().getLong("coinbasevalue");
-    }
-    
-    private void updateBlockDifficulty()
-        throws Exception
-    {
-        String hexString = "0x" + getCurrentBlockTemplate().getString("bits");
-        Long hexInt = Long.decode(hexString).longValue();
-
-        block_difficulty = difficultyFromHex(hexInt);
-    }
-
-    private void triggerUpdate(boolean clean)
-        throws Exception
-    {
-        System.out.println("Update triggered. Clean: " + clean);
-
-        cached_block_template = null;
-
-        long t1_get_block = System.currentTimeMillis();
-        JSONObject block_template = getCurrentBlockTemplate();
-        long t2_get_block = System.currentTimeMillis();
-
-        getMetricsReporter().metricTime("GetBlockTemplateTime", t2_get_block - t1_get_block);
-
-        if (clean)
-        {
-            // Needs the new block template cached before we update.
-            updateBlockReward();
-            updateBlockDifficulty();
-        }
-
-        long t1_update_connection = System.currentTimeMillis();
-
-        LinkedList<Map.Entry<String, StratumConnection> > lst= new LinkedList<Map.Entry<String, StratumConnection> >();
-        synchronized(conn_map)
-        {
-            lst.addAll(conn_map.entrySet());
-        }
-
-        for(Map.Entry<String, StratumConnection> me : lst)
-        {
-            me.getValue().sendRealJob(block_template, clean);
-
-        }
-        
-        long t2_update_connection = System.currentTimeMillis();
-
-        getMetricsReporter().metricTime("UpdateConnectionsTime", t2_update_connection - t1_update_connection);
-
-    }
-
-
-    public static void main(String args[]) throws Exception
-    {
-        if (args.length != 1)
-        {
-            System.out.println("Expected exactly one argument, a config file");
-            System.out.println("java -jar SockThing.jar pool.cfg");
-            return;
-        }
-
-        Config conf = new Config(args[0]);
-
-        conf.require("pay_to_address");
-        conf.require("network");
-        conf.require("instance_id");
-        conf.require("coinbase_text");
-        conf.require("saver_messaging_enabled");
-        conf.require("witty_remarks_enabled");
-        
-        StratumServer server = new StratumServer(conf);
-
-        server.setInstanceId(conf.get("instance_id"));
-        server.setMetricsReporter(new MetricsReporter(server));
-
-        server.setAuthHandler(new AddressDifficultyAuthHandler(server));
-
-        if (conf.getBoolean("saver_messaging_enabled"))
-        {
-            server.setShareSaver(new ShareSaverMessaging(server, new DBShareSaver(conf)));
-        }
-        else
-        {
-            server.setShareSaver(new DBShareSaver(conf));
-        }
-
-
-        String network = conf.get("network");
-        if (network.equals("prodnet"))
-        {
-            server.setNetworkParameters(NetworkParameters.prodNet());
-        }
-        else if (network.equals("testnet"))
-        {
-            server.setNetworkParameters(NetworkParameters.testNet3());
-        }
-        
-        server.setOutputMonster(new OutputMonsterShareFees(conf, server.getNetworkParameters()));
-
-        if (conf.getBoolean("witty_remarks_enabled"))
-        {
-            server.setWittyRemarks(new WittyRemarks());
-        }
-        //server.setPPLNSAgent(new PPLNSAgent(server));
-
-        new NotifyListenerUDP(server).start();        
-        server.start();
-    }
-
-
-    public JSONObject getCurrentBlockTemplate()
-        throws java.io.IOException, org.json.JSONException
-    {
-        JSONObject c = cached_block_template;
-        if (c != null) return c;
-
-        JSONObject post;
-        post = new JSONObject(bitcoin_rpc.getSimplePostRequest("getblocktemplate"));
-        c = bitcoin_rpc.sendPost(post).getJSONObject("result");
-
-        cached_block_template=c;
-
-        getMetricsReporter().metricCount("getblocktemplate",1.0);
-        return c;
-
-    }
-
-    public double getDifficulty()
-        throws java.io.IOException, org.json.JSONException
-    {
-        JSONObject post;
-        post = new JSONObject(bitcoin_rpc.getSimplePostRequest("getdifficulty"));
-        return bitcoin_rpc.sendPost(post).getDouble("result");
-    }
-
-    public String submitBlock(Block blk)
-    {
-        String result="N";
-        for(int i=0; i<10; i++)
-        {
-            System.out.println("Attempting block submit");
-            result = submitBlockAttempt(blk);
-            if(result.equals("Y")) return result;
-        }
-        return result;
-    }
-
-
-    private String submitBlockAttempt(Block blk)
-    {
-        try
-        {
-            JSONObject result = bitcoin_rpc.submitBlock(blk);
-
-            System.out.println("Block result: " + result.toString(2));
-
-            if (result.isNull("error") && result.isNull("result"))
-            {
-                return "Y"; 
-            }
-            else
-            {
-                System.out.println("Block submit error:  "+ result.get("error"));
-                return "N";
-            }
-
-        }
-        catch(Throwable t)
-        {
-            t.printStackTrace();
-            return "N";
-        }
-        
-    }
-
-    public UserSessionData getUserSessionData(PoolUser pu)
-    {
-        synchronized(user_session_data_map)
-        {
-            UserSessionData ud = user_session_data_map.get(pu.getWorkerName());
-            if (ud == null) ud = new UserSessionData(this);
-            user_session_data_map.put(pu.getWorkerName(), ud);
-            return ud;
-
-        }
-
     }
 
 }

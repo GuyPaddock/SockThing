@@ -2,11 +2,11 @@
 package com.github.fireduck64.sockthing;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.PreparedStatement;
-import java.util.HashMap;
-import java.util.Collection;
+import java.sql.ResultSet;
 import java.text.DecimalFormat;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 
@@ -14,7 +14,7 @@ import java.util.Map;
  * NOTE: this is not what HHTT currently uses for PPLNS calculation.
  * It is very similar but because of the very small payments that could end up
  * going to miners I thought it was better to do the PPLNS credits outside of the coinbase
- * transaction and use the existing HHTT payment rules so that miners don't get a bunch 
+ * transaction and use the existing HHTT payment rules so that miners don't get a bunch
  * of very small payments
  */
 public class PPLNSAgent extends Thread
@@ -23,7 +23,7 @@ public class PPLNSAgent extends Thread
 
     private long last_check;
     private HashMap<String, Double> last_map;
-    private StratumServer server;
+    private final StratumServer server;
 
     public PPLNSAgent(StratumServer server)
     {
@@ -45,6 +45,7 @@ public class PPLNSAgent extends Thread
     /**
      * Do the actual update in this thread to avoid ever blocking work generation
      */
+    @Override
     public void run()
     {
         while(true)
@@ -71,7 +72,7 @@ public class PPLNSAgent extends Thread
         throws java.sql.SQLException, org.json.JSONException, java.io.IOException
     {
         if (System.currentTimeMillis() > last_check + DB_CHECK_MS)
-        {  
+        {
             Connection conn = null;
             try
             {
@@ -92,18 +93,17 @@ public class PPLNSAgent extends Thread
                     long share_diff = rs.getLong("difficulty");
                     double apply_diff = Math.min(share_diff, network_diff - diff1shares);
 
-                    /*System.out.println("Diffs:" + 
+                    /*System.out.println("Diffs:" +
                         " share " + share_diff +
                         " apply " + apply_diff +
                         " network " + network_diff +
                         " shares " + diff1shares);*/
 
-                         
+
 
                     diff1shares+=apply_diff;
 
                     double fee = 0.0175+(0.1325/Math.pow(share_diff,0.6));
-                    fee=0.0;
                     double slice = 25.0 *(1.0-(fee))*apply_diff/network_diff;
 
                     if (!slice_map.containsKey(user))
@@ -116,7 +116,7 @@ public class PPLNSAgent extends Thread
                     }
 
 
-                    
+
                 }
                 rs.close();
                 ps.close();
@@ -130,8 +130,8 @@ public class PPLNSAgent extends Thread
                 }
                 System.out.println("Total: " + sum(slice_map.values()));
                 last_map = slice_map;
-            
-            
+
+
                 last_check=System.currentTimeMillis();
             }
             finally
