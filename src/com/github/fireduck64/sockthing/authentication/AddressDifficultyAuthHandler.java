@@ -1,11 +1,11 @@
 package com.github.fireduck64.sockthing.authentication;
+
 import java.util.StringTokenizer;
 
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Address;
-import com.google.bitcoin.core.NetworkParameters;
 
 public class AddressDifficultyAuthHandler implements AuthHandler
 {
@@ -42,6 +42,7 @@ public class AddressDifficultyAuthHandler implements AuthHandler
      * Return PoolUser object if the user is legit.
      * Return null if the user is unknown/not allowed/incorrect
      */
+    @Override
     public PoolUser authenticate(String username, String password)
     {
         PoolUser pu = new PoolUser(username);
