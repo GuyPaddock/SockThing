@@ -1,6 +1,8 @@
 
 package com.google.bitcoin.core;
 
+import com.github.fireduck64.sockthing.PoolUser;
+import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.TransactionInput;
@@ -14,8 +16,6 @@ import java.nio.ByteBuffer;
 
 import java.util.Random;
 
-import sockthing.StratumServer;
-import sockthing.PoolUser;
 
 
 
