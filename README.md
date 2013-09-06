@@ -1,9 +1,10 @@
-SockThing
-=========
+SockThing+
+==========
+SockThing Plus, an improvement on the original SockThing: Bitcoin Stratum Mining Pool Server by RedBottle Design.
 
-Bitcoin Stratum Mining Pool Server
+This version should be comparable in terms of features but more straightforward to maintain.
 
-See http://hhtt.1209k.com/sockthing.php
+See http://hhtt.1209k.com/sockthing.php for original documentation.
 
 
 
