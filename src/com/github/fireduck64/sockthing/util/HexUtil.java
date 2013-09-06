@@ -1,4 +1,4 @@
-package com.github.fireduck64.sockthing;
+package com.github.fireduck64.sockthing.util;
 
 import java.nio.ByteBuffer;
 

@@ -1,8 +1,7 @@
-package com.github.fireduck64.sockthing.shares;
+package com.github.fireduck64.sockthing.sharesaver;
 
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
-import com.github.fireduck64.sockthing.ShareSaveException;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.google.bitcoin.core.Sha256Hash;
@@ -85,19 +84,19 @@ public class ShareSaverMessaging implements ShareSaver
             msg.put("worker", pu.getWorkerName());
             msg.put("difficulty", pu.getDifficulty());
             msg.put("source", source);
-            msg.put("our_result", submit_result.our_result);
-            msg.put("upstream_result", submit_result.upstream_result);
-            msg.put("reason", submit_result.reason);
+            msg.put("our_result", submit_result.getOurResult());
+            msg.put("upstream_result", submit_result.getUpstreamResult());
+            msg.put("reason", submit_result.getReason());
             msg.put("unique_id", unique_id);
             msg.put("block_difficulty", block_difficulty);
             msg.put("block_reward", block_reward);
-            msg.put("height", submit_result.height);
+            msg.put("height", submit_result.getHeight());
 
             String hash_str = null;
-            if (submit_result.hash != null) hash_str = submit_result.hash.toString();
+            if (submit_result.getHash() != null) hash_str = submit_result.getHash().toString();
             msg.put("hash", hash_str);
 
-            msg.put("client", submit_result.client_version);
+            msg.put("client", submit_result.getClientVersion());
 
             sns.publish(new PublishRequest(topic_arn, msg.toString(2), "share - " + pu.getName()));
         }
@@ -135,7 +134,7 @@ public class ShareSaverMessaging implements ShareSaver
         }
 
         public void doRun()
-            throws com.github.fireduck64.sockthing.ShareSaveException, org.json.JSONException
+            throws com.github.fireduck64.sockthing.sharesaver.ShareSaveException, org.json.JSONException
         {
             ReceiveMessageRequest recv_req = new ReceiveMessageRequest(queue_url);
             recv_req.setWaitTimeSeconds(20);
@@ -176,29 +175,29 @@ public class ShareSaverMessaging implements ShareSaver
                 if (save_msg.has("hash"))
                 {
                     String hash_str = save_msg.getString("hash");
-                    res.hash = new Sha256Hash(hash_str);
+                    res.setHash(new Sha256Hash(hash_str));
                 }
                 if (save_msg.has("our_result"))
                 {
-                    res.our_result=save_msg.getString("our_result");
+                    res.setOurResult(save_msg.getString("our_result"));
                 }
                 if (save_msg.has("upstream_result"))
                 {
-                    res.upstream_result=save_msg.getString("upstream_result");
+                    res.setUpstreamResult(save_msg.getString("upstream_result"));
                 }
                 if (save_msg.has("reason"))
                 {
-                    res.reason=save_msg.getString("reason");
+                    res.setReason(save_msg.getString("reason"));
                 }
                 if (save_msg.has("client"))
                 {
-                    res.client_version = save_msg.getString("client");
+                    res.setClientVersion(save_msg.getString("client"));
                 }
                 if (save_msg.has("height"))
                 {
-                    res.height = save_msg.getInt("height");
+                    res.setHeight(save_msg.getInt("height"));
                 } else { 
-                    res.height = -1; // Meaning unknown
+                    res.setHeight(-1); // Meaning unknown
                 }
 
                 inner_saver.saveShare(pu, res, source, unique_id, block_difficulty, block_reward);

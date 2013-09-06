@@ -1,45 +1,44 @@
 package com.github.fireduck64.sockthing;
 
-import org.json.JSONObject;
-import org.json.JSONArray;
-
-import com.github.fireduck64.sockthing.tools.DiffMath;
-import com.google.bitcoin.core.Coinbase;
-import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.core.Address;
-import com.google.bitcoin.core.Transaction;
-import com.google.bitcoin.core.Block;
 import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
 
 import org.apache.commons.codec.binary.Hex;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
+import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
+import com.github.fireduck64.sockthing.tools.DiffMath;
+import com.github.fireduck64.sockthing.util.HexUtil;
+import com.google.bitcoin.core.Block;
+import com.google.bitcoin.core.Coinbase;
+import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Sha256Hash;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.security.MessageDigest;
-import java.util.HashSet;
+import com.google.bitcoin.core.Transaction;
 
 public class JobInfo
 {
     private NetworkParameters network_params;
-    private StratumServer server;
-    private String job_id;
-    private JSONObject block_template;
-    private byte[] extranonce1;
-    private PoolUser pool_user;
-    private HashSet<String> submits;
-    private Sha256Hash share_target;
-    private double difficulty;
-    private long value;
+    private final StratumServer server;
+    private final String job_id;
+    private final JSONObject block_template;
+    private final byte[] extranonce1;
+    private final PoolUser pool_user;
+    private final HashSet<String> submits;
+    private final Sha256Hash share_target;
+    private final double difficulty;
+    private final long value;
 
-    private Coinbase coinbase;
+    private final Coinbase coinbase;
 
     public JobInfo(StratumServer server, PoolUser pool_user, String job_id, JSONObject block_template, byte[] extranonce1)
         throws org.json.JSONException
     {
         this.pool_user = pool_user;
         this.server = server;
-        this.network_params = network_params;
         this.job_id = job_id;
         this.block_template = block_template;
         this.extranonce1 = extranonce1;
@@ -107,7 +106,7 @@ public class JobInfo
 
         params.put(job_id);
         params.put(HexUtil.swapBytesInsideWord(HexUtil.swapEndianHexString(block_template.getString("previousblockhash")))); //correct
-        params.put(Hex.encodeHexString(coinbase.getCoinbase1())); 
+        params.put(Hex.encodeHexString(coinbase.getCoinbase1()));
         params.put(Hex.encodeHexString(coinbase.getCoinbase2()));
         params.put(getMerkleRoots());
         params.put(protocol); //correct
@@ -126,13 +125,13 @@ public class JobInfo
         try
         {
             validateSubmitInternal(params, submit_result);
-     
+
 
         }
         catch(Throwable t)
         {
-            submit_result.our_result="N";
-            submit_result.reason="Exception: " + t;
+            submit_result.setOurResult("N");
+            submit_result.setReason("Exception: " + t);
         }
         finally
         {
@@ -143,12 +142,12 @@ public class JobInfo
             catch(ShareSaveException e)
             {
 
-                submit_result.our_result="N";
-                submit_result.reason="Exception: " + e;
+                submit_result.setOurResult("N");
+                submit_result.setReason("Exception: " + e);
             }
 
         }
-        
+
     }
 
     public void validateSubmitInternal(JSONArray params, SubmitResult submit_result)
@@ -165,8 +164,8 @@ public class JobInfo
         {
             if (submits.contains(submit_cannonical_string))
             {
-                submit_result.our_result="N";
-                submit_result.reason="duplicate";
+                submit_result.setOurResult("N");
+                submit_result.setReason("duplicate");
                 return;
             }
             submits.add(submit_cannonical_string);
@@ -175,13 +174,13 @@ public class JobInfo
         int stale = server.checkStale(getHeight());
         if (stale >= 2)
         {
-            submit_result.our_result="N";
-            submit_result.reason="quite stale";
+            submit_result.setOurResult("N");
+            submit_result.setReason("quite stale");
             return;
         }
         if (stale==1)
         {
-            submit_result.reason="slightly stale";
+            submit_result.setReason("slightly stale");
         }
 
 
@@ -202,10 +201,10 @@ public class JobInfo
         {
             coinbase.setExtranonce2(extranonce2);
             coinbase_hash = coinbase.genTx().getHash();
- 
+
 
             Sha256Hash merkle_root = new Sha256Hash(HexUtil.swapEndianHexString(coinbase_hash.toString()));
-        
+
             JSONArray branches = getMerkleRoots();
             for(int i=0; i<branches.length(); i++)
             {
@@ -242,27 +241,26 @@ public class JobInfo
 
                 Sha256Hash blockhash = new Sha256Hash(HexUtil.swapEndianHexString(new Sha256Hash(md.digest()).toString()));
                 System.out.println("Found block hash: " + blockhash);
-                submit_result.hash = blockhash;
+                submit_result.setHash(blockhash);
 
                 if (blockhash.toString().compareTo(share_target.toString()) < 0)
                 {
-                    submit_result.our_result="Y";
+                    submit_result.setOurResult("Y");
                 }
                 else
                 {
-                    submit_result.our_result="N";
-                    submit_result.reason="H-not-zero";
+                    submit_result.setOurResult("N");
+                    submit_result.setReason("H-not-zero");
                     return;
                 }
                 String upstream_result=null;
                 if (blockhash.toString().compareTo(block_template.getString("target")) < 0)
                 {
-                    submit_result.upstream_result
-                    = buildAndSubmitBlock(params, merkle_root);
-                    submit_result.height = getHeight();
+                    submit_result.setUpstreamResult(buildAndSubmitBlock(params, merkle_root));
+                    submit_result.setHeight(getHeight());
                 }
 
-                
+
 
             }
             catch(java.security.NoSuchAlgorithmException e)
@@ -307,13 +305,13 @@ public class JobInfo
                 throw new RuntimeException(e);
             }
         }
- 
+
 
 
 
         Block block = new Block(
-            network_params, 
-            2, 
+            network_params,
+            2,
             new Sha256Hash(block_template.getString("previousblockhash")),
             new Sha256Hash(HexUtil.swapEndianHexString(merkleRoot.toString())),
             time,
@@ -348,7 +346,7 @@ public class JobInfo
             return "N";
         }
     }
-    
+
     public JSONArray getMerkleRoots()
         throws org.json.JSONException
     {
@@ -363,7 +361,7 @@ public class JobInfo
             Sha256Hash hash = new Sha256Hash(HexUtil.swapEndianHexString(tx.getString("hash")));
             hashes.add(hash);
         }
-        
+
         JSONArray roots = new JSONArray();
 
         while(hashes.size() > 0)
@@ -388,9 +386,9 @@ public class JobInfo
 
         return roots;
 
-    } 
+    }
 
 
 
-    
+
 }

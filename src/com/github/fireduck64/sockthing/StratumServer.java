@@ -19,9 +19,9 @@ import com.github.fireduck64.sockthing.authentication.AddressDifficultyAuthHandl
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
 import com.github.fireduck64.sockthing.output.OutputMonster;
 import com.github.fireduck64.sockthing.output.OutputMonsterShareFees;
-import com.github.fireduck64.sockthing.shares.DBShareSaver;
-import com.github.fireduck64.sockthing.shares.ShareSaver;
-import com.github.fireduck64.sockthing.shares.ShareSaverMessaging;
+import com.github.fireduck64.sockthing.sharesaver.DBShareSaver;
+import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
+import com.github.fireduck64.sockthing.sharesaver.ShareSaverMessaging;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.Block;

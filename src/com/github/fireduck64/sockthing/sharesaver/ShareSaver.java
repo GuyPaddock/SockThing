@@ -1,7 +1,6 @@
-package com.github.fireduck64.sockthing.shares;
+package com.github.fireduck64.sockthing.sharesaver;
 
 import com.github.fireduck64.sockthing.PoolUser;
-import com.github.fireduck64.sockthing.ShareSaveException;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.google.bitcoin.core.Sha256Hash;
 

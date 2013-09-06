@@ -15,6 +15,9 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 
 import org.apache.commons.codec.binary.Hex;
+
+import com.github.fireduck64.sockthing.util.HexUtil;
+
 import java.nio.ByteBuffer;
 
 
@@ -319,13 +322,13 @@ public class StratumConnection
             else
             {
                 SubmitResult res = new SubmitResult();
-                res.client_version = client_version;
+                res.setClientVersion(client_version);
 
                 ji.validateSubmit(params,res);
                 JSONObject reply = new JSONObject();
                 reply.put("id", id);
 
-                if (res.our_result.equals("Y"))
+                if (res.getOurResult().equals("Y"))
                 {
                     reply.put("result", true);
                 }
@@ -334,18 +337,18 @@ public class StratumConnection
                     reply.put("result", false);
                     
                 }
-                if (res.reason==null)
+                if (res.getReason()==null)
                 {
                     reply.put("error", JSONObject.NULL);
                 }
                 else
                 {
-                    reply.put("error", res.reason);
+                    reply.put("error", res.getReason());
                 }
                 sendMessage(reply);
 
                 
-                if ((res !=null) && (res.reason != null) && (res.reason.equals("H-not-zero")))
+                if ((res !=null) && (res.getReason() != null) && (res.getReason().equals("H-not-zero")))
                 {
                     //User is not respecting difficulty, remind them
                     sendDifficulty();
