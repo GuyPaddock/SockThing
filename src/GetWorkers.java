@@ -100,11 +100,12 @@ public class GetWorkers
     WorkShareRequestor  newRequestor = new WorkShareRequestor(drupalSessionManager);
     WorkShare           newShare = new WorkShare();
 
+    newShare.setAuthor(poolManagementUser.asReference());
     newShare.setJobHash("ABC123");
     newShare.setBlock(block.asReference());
     newShare.setRound(round.asReference());
     newShare.setSubmitter(poolManagementUser.asReference());
-    newShare.setDateSubmitted(new Date(2013, 10, 1, 4, 55, 55));
+    newShare.setDateSubmitted(new Date(2013-1900, 10, 1, 4, 55, 55));
     newShare.setClientSoftwareVersion("cgminer 1.0");
     newShare.setPoolHost("sockthing/northeast");
     newShare.setVerifiedByPool(true);
