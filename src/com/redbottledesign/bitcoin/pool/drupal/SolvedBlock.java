@@ -65,6 +65,16 @@ extends Node
     super(CONTENT_TYPE);
   }
 
+  public String getHash()
+  {
+    return this.getTitle();
+  }
+
+  public void setHash(String hash)
+  {
+    this.setTitle(hash);
+  }
+
   public long getHeight()
   {
     return this.height;
@@ -151,7 +161,7 @@ extends Node
     return this.getClass().getSimpleName()          + " [" +
            "id="            + this.getId()          + ", " +
            "url="           + this.getUrl()         + ", " +
-           "hash="          + this.getTitle()       + ", " +
+           "hash="          + this.getHash()        + ", " +
            "height="        + this.height           + ", " +
            "status="        + this.status           + ", " +
            "creationTime="  + this.creationTime     + ", " +

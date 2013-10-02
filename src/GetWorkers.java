@@ -2,11 +2,20 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.ParseException;
+import java.util.Date;
 
+import com.redbottledesign.bitcoin.pool.drupal.Round;
+import com.redbottledesign.bitcoin.pool.drupal.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.WittyRemark;
+import com.redbottledesign.bitcoin.pool.drupal.WorkShare;
+import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
+import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.SolvedBlockRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WittyRemarkRequestor;
+import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WorkShareRequestor;
+import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
+import com.redbottledesign.drupal.gson.requestor.UserRequestor;
 
 public class GetWorkers
 {
@@ -52,8 +61,8 @@ public class GetWorkers
 
 //    WittyRemark remark = new WittyRemark();
 //
-//    UserRequestor userRequestor       = new UserRequestor(drupalSessionManager);
-//    User          poolManagementUser  = userRequestor.requestUserByUid(14);
+    UserRequestor userRequestor       = new UserRequestor(drupalSessionManager);
+    User          poolManagementUser  = userRequestor.requestUserByUid(14);
 //
 //    System.out.println(poolManagementUser);
 //
@@ -65,8 +74,8 @@ public class GetWorkers
 //
 //    System.out.println(remark);
 
-//    RoundRequestor  roundRequestor = new RoundRequestor(drupalSessionManager);
-//    Round           round          = roundRequestor.requestNodeByNid(26);
+    RoundRequestor  roundRequestor = new RoundRequestor(drupalSessionManager);
+    Round           round          = roundRequestor.requestNodeByNid(26);
 //
 //    System.out.println(round);
 //
@@ -75,8 +84,8 @@ public class GetWorkers
 //
 //    roundRequestor.updateNode(round);
 
-//    SolvedBlockRequestor requestor2 = new SolvedBlockRequestor(drupalSessionManager);
-//    SolvedBlock          block      = requestor2.requestNodeByNid(27);
+    SolvedBlockRequestor requestor2 = new SolvedBlockRequestor(drupalSessionManager);
+    SolvedBlock          block      = requestor2.requestNodeByNid(27);
 //
 //    System.out.println(block);
 
@@ -87,5 +96,21 @@ public class GetWorkers
 //    requestor2.updateNode(block);
 //
 //    System.out.println(block);
+
+    WorkShareRequestor  newRequestor = new WorkShareRequestor(drupalSessionManager);
+    WorkShare           newShare = new WorkShare();
+
+    newShare.setJobHash("ABC123");
+    newShare.setBlock(block.asReference());
+    newShare.setRound(round.asReference());
+    newShare.setSubmitter(poolManagementUser.asReference());
+    newShare.setDateSubmitted(new Date(2013, 10, 1, 4, 55, 55));
+    newShare.setClientSoftwareVersion("cgminer 1.0");
+    newShare.setPoolHost("sockthing/northeast");
+    newShare.setVerifiedByPool(true);
+    newShare.setVerifiedByNetwork(false);
+    newShare.setStatus("stale");
+
+    newRequestor.createNode(newShare);
   }
 }
