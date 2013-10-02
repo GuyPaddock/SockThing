@@ -1,13 +1,16 @@
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.Date;
 
+import com.redbottledesign.bitcoin.pool.drupal.Payout;
 import com.redbottledesign.bitcoin.pool.drupal.Round;
 import com.redbottledesign.bitcoin.pool.drupal.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.WittyRemark;
 import com.redbottledesign.bitcoin.pool.drupal.WorkShare;
+import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.PayoutRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.SolvedBlockRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WittyRemarkRequestor;
@@ -84,8 +87,8 @@ public class GetWorkers
 //
 //    roundRequestor.updateNode(round);
 
-    SolvedBlockRequestor requestor2 = new SolvedBlockRequestor(drupalSessionManager);
-    SolvedBlock          block      = requestor2.requestNodeByNid(27);
+    SolvedBlockRequestor blockRequestor = new SolvedBlockRequestor(drupalSessionManager);
+    SolvedBlock          block          = blockRequestor.requestNodeByNid(27);
 //
 //    System.out.println(block);
 
@@ -97,8 +100,8 @@ public class GetWorkers
 //
 //    System.out.println(block);
 
-    WorkShareRequestor  newRequestor = new WorkShareRequestor(drupalSessionManager);
-    WorkShare           newShare = new WorkShare();
+    WorkShareRequestor  shareRequestor  = new WorkShareRequestor(drupalSessionManager);
+    WorkShare           newShare        = new WorkShare();
 
     newShare.setAuthor(poolManagementUser.asReference());
     newShare.setJobHash("ABC123");
@@ -112,6 +115,18 @@ public class GetWorkers
     newShare.setVerifiedByNetwork(false);
     newShare.setStatus("stale");
 
-    newRequestor.createNode(newShare);
+    shareRequestor.createNode(newShare);
+
+    PayoutRequestor payoutRequestor = new PayoutRequestor(drupalSessionManager);
+    Payout          newPayout       = new Payout();
+
+    newPayout.setAuthor(poolManagementUser.asReference());
+
+    newPayout.setPaymentHash("976eabcc103c1369776eee8586f7d4b2fe21b45267c0e623b276b554f6965e56");
+    newPayout.setAmount(new BigDecimal("0.01175958"));
+    newPayout.setBlock(block.asReference());
+    newPayout.setType(Payout.Type.BLOCK_SOLUTION_BONUS);
+
+    payoutRequestor.createNode(newPayout);
   }
 }
