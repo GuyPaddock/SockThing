@@ -5,6 +5,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.PreparedStatement;
 
+import com.github.fireduck64.sockthing.persistence.db.DB;
+
+
 /**
  * Optional database of witty remarks to be injected into Coinbase transactions
  *
