@@ -19,6 +19,16 @@ extends Node
     super(CONTENT_TYPE);
   }
 
+  public String getRemark()
+  {
+    return this.getTitle();
+  }
+
+  public void setRemark(String remark)
+  {
+    this.setTitle(remark);
+  }
+
   public boolean wasUsed()
   {
     return this.wasUsed;
@@ -36,7 +46,7 @@ extends Node
            "id="          + this.getId()          + ", " +
            "url="         + this.getUrl()         + ", " +
            "revisionId="  + this.getRevisionId()  + ", " +
-           "title="       + this.getTitle()       + ", " +
+           "remark="      + this.getRemark()      + ", " +
            "wasUsed="     + this.wasUsed          + ", " +
            "published="   + this.isPublished()    + ", " +
            "dateCreated=" + this.getDateCreated() + ", " +

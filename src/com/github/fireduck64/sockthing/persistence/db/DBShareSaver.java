@@ -1,13 +1,12 @@
-package com.github.fireduck64.sockthing.sharesaver;
-import com.github.fireduck64.sockthing.Config;
-import com.github.fireduck64.sockthing.DB;
-import com.github.fireduck64.sockthing.PoolUser;
-import com.github.fireduck64.sockthing.SubmitResult;
-import com.google.bitcoin.core.Sha256Hash;
-
+package com.github.fireduck64.sockthing.persistence.db;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+
+import com.github.fireduck64.sockthing.Config;
+import com.github.fireduck64.sockthing.PoolUser;
+import com.github.fireduck64.sockthing.SubmitResult;
+import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
+import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 
 // import org.json.JSONObject;
 
@@ -32,14 +31,26 @@ public class DBShareSaver implements ShareSaver
 
     }
 
+    @Override
     public void saveShare(PoolUser pu, SubmitResult submit_result, String source, String unique_job_string, Double block_difficulty, Long block_reward) throws ShareSaveException
     {
-        
+
         Connection conn = null;
 
         try
         {
             conn = DB.openConnection("share_db");
+
+/**
+ *  rem_host varchar(128),        Pool host
+    client varchar(128),          Client software
+    username varchar(128),        Submitter
+    our_result varchar(16),       Verified by pool
+    upstream_result varchar(16),  Verified by network
+    reason varchar(64),           Reason
+    time timestamp default now(), Time submitted
+    unique_id varchar(64),        Job hash
+ */
 
             PreparedStatement ps = conn.prepareStatement("insert into shares (rem_host, username, our_result, upstream_result, reason, difficulty, hash, client, unique_id, block_difficulty, block_reward) values (?,?,?,?,?,?,?,?,?,?,?)");
 
@@ -76,7 +87,7 @@ public class DBShareSaver implements ShareSaver
 
             ps.execute();
             ps.close();
-           
+
             if (submit_result.getUpstreamResult() != null
                 && submit_result.getUpstreamResult().equals("Y")
                 && submit_result.getHash() != null)
