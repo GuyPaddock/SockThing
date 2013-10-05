@@ -46,7 +46,7 @@ extends Node
   private Date creationTime;
 
   @SerializedName(DRUPAL_FIELD_DIFFICULTY)
-  private long difficulty;
+  private double difficulty;
 
   @SerializedName(DRUPAL_FIELD_REWARD)
   private BigDecimal reward;
@@ -105,12 +105,12 @@ extends Node
     this.creationTime = creationTime;
   }
 
-  public long getDifficulty()
+  public double getDifficulty()
   {
     return this.difficulty;
   }
 
-  public void setDifficulty(long difficulty)
+  public void setDifficulty(double difficulty)
   {
     this.difficulty = difficulty;
   }
