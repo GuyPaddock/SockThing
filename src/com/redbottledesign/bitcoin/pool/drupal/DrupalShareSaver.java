@@ -8,36 +8,37 @@ import java.util.Date;
 
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
+import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
-import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.SolvedBlockRequestor;
-import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WorkShareRequestor;
+import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
+import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
-import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
-import com.redbottledesign.drupal.gson.requestor.UserRequestor;
 
 public class DrupalShareSaver
 implements ShareSaver
 {
+  private static final String CONFIRM_YES = "Y";
+
   private static final User.Reference TEST_USER = new User.Reference(16);
-  private static final Node.Reference TEST_ROUND = new Node.Reference(26);
   private static final Node.Reference TEST_REMARK = new Node.Reference(11);
 
   private static final String CONFIG_VALUE_DRUPAL_SITE_URI = "drupal_site_uri";
   private static final String CONFIG_VALUE_DAEMON_USERNAME = "drupal_site_daemon_username";
   private static final String CONFIG_VALUE_DAEMON_PASSWORD = "drupal_site_daemon_password";
 
-  private UserRequestor userRequestor;
-  private WorkShareRequestor shareRequestor;
-  private SolvedBlockRequestor blockRequestor;
-
+  private final StratumServer server;
+  private final SingletonDrupalSessionFactory sessionFactory;
   private User poolDaemonUser;
 
-  public DrupalShareSaver(Config config)
+  public DrupalShareSaver(Config config, StratumServer server)
   {
+    this.server         = server;
+    this.sessionFactory = SingletonDrupalSessionFactory.getInstance();
+
     this.initialize(config);
   }
 
@@ -46,27 +47,31 @@ implements ShareSaver
                         Double blockDifficulty, Long blockReward)
   throws ShareSaveException
   {
+    RoundAgent      roundAgent            = this.server.getRoundAgent();
+    Node.Reference  currentRoundReference = roundAgent.getCurrentRoundSynchronized().asReference();
     WorkShare       newShare              = new WorkShare();
     String          statusString          = null;
     Node.Reference  solvedBlockReference  = null;
 
-    if ("Y".equals(submitResult.getUpstreamResult()) && (submitResult.getHash() != null))
+    System.out.println(blockDifficulty + " " + blockReward);
+
+    if (CONFIRM_YES.equals(submitResult.getUpstreamResult()) && (submitResult.getHash() != null))
     {
-      SolvedBlock newBlock = new SolvedBlock();
+      SolvedBlock newBlock      = new SolvedBlock();
 
       newBlock.setHash(submitResult.getHash().toString());
       newBlock.setHeight(submitResult.getHeight());
       newBlock.setStatus(SolvedBlock.Status.UNCONFIRMED);
       newBlock.setCreationTime(new Date());
       newBlock.setDifficulty(blockDifficulty);
-      newBlock.setRound(TEST_ROUND);
+      newBlock.setRound(currentRoundReference);
       newBlock.setReward(BigDecimal.valueOf(blockReward));
       newBlock.setSolvingMember(TEST_USER);
       newBlock.setWittyRemark(TEST_REMARK);
 
       try
       {
-        this.blockRequestor.createNode(newBlock);
+        this.sessionFactory.getBlockRequestor().createNode(newBlock);
       }
 
       catch (IOException | DrupalHttpException ex)
@@ -90,18 +95,18 @@ implements ShareSaver
     newShare.setAuthor(this.poolDaemonUser.asReference());
     newShare.setJobHash(uniqueJobString);
     newShare.setBlock(solvedBlockReference);
-    newShare.setRound(TEST_ROUND);
+    newShare.setRound(currentRoundReference);
     newShare.setSubmitter(TEST_USER);
     newShare.setDateSubmitted(new Date());
     newShare.setClientSoftwareVersion(submitResult.getClientVersion());
     newShare.setPoolHost(source);
-    newShare.setVerifiedByPool("Y".equals(submitResult.getOurResult()));
-    newShare.setVerifiedByNetwork("Y".equals(submitResult.getUpstreamResult()));
+    newShare.setVerifiedByPool(CONFIRM_YES.equals(submitResult.getOurResult()));
+    newShare.setVerifiedByNetwork(CONFIRM_YES.equals(submitResult.getUpstreamResult()));
     newShare.setStatus(statusString);
 
     try
     {
-      this.shareRequestor.createNode(newShare);
+      this.sessionFactory.getShareRequestor().createNode(newShare);
     }
 
     catch (IOException | DrupalHttpException ex)
@@ -112,8 +117,6 @@ implements ShareSaver
 
   protected void initialize(Config config)
   {
-    SingletonSessionFactory sessionFactory = SingletonSessionFactory.getInstance();
-    SessionManager          sessionManager;
     String                  drupalSiteUri,
                             daemonUserName,
                             daemonPassword;
@@ -137,22 +140,8 @@ implements ShareSaver
       throw new RuntimeException("Invalid Drupal site URI: " + drupalSiteUri, ex);
     }
 
-    sessionFactory.initializeSession(siteUri, daemonUserName, daemonPassword);
+    this.sessionFactory.initializeSession(siteUri, daemonUserName, daemonPassword);
 
-    sessionManager = sessionFactory.getSessionManager();
-
-    this.userRequestor  = new UserRequestor(sessionManager);
-    this.shareRequestor = new WorkShareRequestor(sessionManager);
-    this.blockRequestor = new SolvedBlockRequestor(sessionManager);
-
-    try
-    {
-      this.poolDaemonUser = userRequestor.requestUserByUsername(daemonUserName);
-    }
-
-    catch (IOException | DrupalHttpException ex)
-    {
-      throw new RuntimeException("Failed to look-up pool daemon user account: " + ex.getMessage(), ex);
-    }
+    this.poolDaemonUser = this.sessionFactory.getPoolDaemonUser();
   }
 }

@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.drupal;
+package com.redbottledesign.bitcoin.pool.drupal.node;
 
 import com.google.gson.annotations.SerializedName;
 import com.redbottledesign.drupal.DateRange;
@@ -7,25 +7,25 @@ import com.redbottledesign.drupal.Node;
 public class Round
 extends Node
 {
-  private static final String CONTENT_TYPE = "round";
+  public static final String CONTENT_TYPE = "round";
 
   public static final String DRUPAL_FIELD_ROUND_STATUS = "field_round_status";
   public static final String JAVA_FIELD_ROUND_STATUS = "roundStatus";
 
-  public static final String DRUPAL_FIELD_ROUND_DURATION = "field_round_start_end";
-  public static final String JAVA_FIELD_ROUND_DURATION = "roundDuration";
+  public static final String DRUPAL_FIELD_ROUND_DATES = "field_round_start_end";
+  public static final String JAVA_FIELD_ROUND_DATES = "roundDates";
 
   @SerializedName(DRUPAL_FIELD_ROUND_STATUS)
   private Round.Status roundStatus;
 
-  @SerializedName(DRUPAL_FIELD_ROUND_DURATION)
-  private DateRange roundDuration;
+  @SerializedName(DRUPAL_FIELD_ROUND_DATES)
+  private DateRange roundDates;
 
   public Round()
   {
     super(CONTENT_TYPE);
 
-    this.setRoundDuration(new DateRange());
+    this.setRoundDates(new DateRange());
   }
 
   public Round.Status getRoundStatus()
@@ -38,14 +38,14 @@ extends Node
     this.roundStatus = roundStatus;
   }
 
-  public DateRange getRoundDuration()
+  public DateRange getRoundDates()
   {
-    return this.roundDuration;
+    return this.roundDates;
   }
 
-  protected void setRoundDuration(DateRange roundDuration)
+  protected void setRoundDates(DateRange roundDates)
   {
-    this.roundDuration = roundDuration;
+    this.roundDates = roundDates;
   }
 
   @Override
@@ -55,7 +55,7 @@ extends Node
            "id="            + this.getId()          + ", " +
            "url="           + this.getUrl()         + ", " +
            "roundStatus="   + this.roundStatus      + ", " +
-           "roundDuration=" + this.roundDuration    + ", " +
+           "roundDates="    + this.roundDates       + ", " +
            "published="     + this.isPublished()    + ", " +
            "dateCreated="   + this.getDateCreated() + ", " +
            "dateChanged="   + this.getDateChanged() +

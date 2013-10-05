@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.drupal;
+package com.redbottledesign.bitcoin.pool.drupal.node;
 
 import java.math.BigDecimal;
 
@@ -9,7 +9,7 @@ import com.redbottledesign.drupal.User;
 public class Payout
 extends Node
 {
-  private static final String CONTENT_TYPE = "payout";
+  public static final String CONTENT_TYPE = "payout";
 
   public static final String DRUPAL_FIELD_RECIPIENT = "field_payout_recipient";
   public static final String JAVA_FIELD_RECIPIENT = "recipient";

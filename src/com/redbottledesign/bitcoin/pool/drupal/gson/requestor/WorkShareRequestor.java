@@ -3,7 +3,7 @@ package com.redbottledesign.bitcoin.pool.drupal.gson.requestor;
 import java.lang.reflect.Type;
 
 import com.google.gson.reflect.TypeToken;
-import com.redbottledesign.bitcoin.pool.drupal.WorkShare;
+import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.gson.JsonEntityResultList;
 import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.requestor.NodeRequestor;

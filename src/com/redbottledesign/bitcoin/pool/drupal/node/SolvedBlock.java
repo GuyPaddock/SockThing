@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.drupal;
+package com.redbottledesign.bitcoin.pool.drupal.node;
 
 import java.math.BigDecimal;
 import java.util.Date;

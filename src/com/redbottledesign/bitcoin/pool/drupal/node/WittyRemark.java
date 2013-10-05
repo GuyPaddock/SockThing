@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.drupal;
+package com.redbottledesign.bitcoin.pool.drupal.node;
 
 import com.google.gson.annotations.SerializedName;
 import com.redbottledesign.drupal.Node;
@@ -6,7 +6,7 @@ import com.redbottledesign.drupal.Node;
 public class WittyRemark
 extends Node
 {
-  private static final String CONTENT_TYPE = "witty_remark";
+  public static final String CONTENT_TYPE = "witty_remark";
 
   public static final String DRUPAL_FIELD_WAS_REMARK_USED = "field_witty_remark_used";
   public static final String JAVA_FIELD_WAS_REMARK_USED = "wasUsed";

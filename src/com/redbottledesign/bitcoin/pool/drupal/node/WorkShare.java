@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.drupal;
+package com.redbottledesign.bitcoin.pool.drupal.node;
 
 import java.util.Date;
 
@@ -9,7 +9,7 @@ import com.redbottledesign.drupal.User;
 public class WorkShare
 extends Node
 {
-  private static final String CONTENT_TYPE = "share";
+  public static final String CONTENT_TYPE = "share";
 
   public static final String DRUPAL_FIELD_BLOCK = "field_share_block";
   public static final String JAVA_FIELD_BLOCK = "block";
