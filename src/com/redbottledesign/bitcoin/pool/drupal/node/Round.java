@@ -1,5 +1,8 @@
 package com.redbottledesign.bitcoin.pool.drupal.node;
 
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+
 import com.google.gson.annotations.SerializedName;
 import com.redbottledesign.drupal.DateRange;
 import com.redbottledesign.drupal.Node;
@@ -14,6 +17,10 @@ extends Node
 
   public static final String DRUPAL_FIELD_ROUND_DATES = "field_round_start_end";
   public static final String JAVA_FIELD_ROUND_DATES = "roundDates";
+
+  // FIXME: Move these to config
+  public static final int MAX_OPEN_ROUNDS = 12;
+  private static final long MAX_ROUND_LENGTH_MS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
 
   @SerializedName(DRUPAL_FIELD_ROUND_STATUS)
   private Round.Status roundStatus;
@@ -41,6 +48,13 @@ extends Node
   public DateRange getRoundDates()
   {
     return this.roundDates;
+  }
+
+  public boolean hasExpired()
+  {
+    Date latestExpiredStartTime = new Date(new Date().getTime() - MAX_ROUND_LENGTH_MS);
+
+    return (this.getRoundDates().getStartDate().compareTo(latestExpiredStartTime) <= 0);
   }
 
   protected void setRoundDates(DateRange roundDates)

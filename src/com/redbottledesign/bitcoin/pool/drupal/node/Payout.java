@@ -11,6 +11,9 @@ extends Node
 {
   public static final String CONTENT_TYPE = "payout";
 
+  public static final String DRUPAL_FIELD_PAYMENT_HASH = "field_payout_payment_hash";
+  public static final String JAVA_FIELD_PAYMENT_HASH = "paymentHash";
+
   public static final String DRUPAL_FIELD_RECIPIENT = "field_payout_recipient";
   public static final String JAVA_FIELD_RECIPIENT = "recipient";
 
@@ -22,6 +25,9 @@ extends Node
 
   public static final String DRUPAL_FIELD_TYPE = "field_payout_type";
   public static final String JAVA_FIELD_TYPE = "type";
+
+  @SerializedName(DRUPAL_FIELD_PAYMENT_HASH)
+  private String paymentHash;
 
   @SerializedName(DRUPAL_FIELD_RECIPIENT)
   private User.Reference recipient;
@@ -42,12 +48,12 @@ extends Node
 
   public String getPaymentHash()
   {
-    return this.getTitle();
+    return this.paymentHash;
   }
 
   public void setPaymentHash(String paymentHash)
   {
-    this.setTitle(paymentHash);
+    this.paymentHash = paymentHash;
   }
 
   public User.Reference getRecipient()
@@ -97,6 +103,7 @@ extends Node
            "id="            + this.getId()          + ", " +
            "url="           + this.getUrl()         + ", " +
            "revisionId="    + this.getRevisionId()  + ", " +
+           "paymentHash="   + this.paymentHash      + ", " +
            "recipient="     + this.recipient        + ", " +
            "amount="        + this.amount           + ", " +
            "block="         + this.block            + ", " +

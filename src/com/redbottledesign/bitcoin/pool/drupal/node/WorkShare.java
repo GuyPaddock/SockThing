@@ -11,6 +11,9 @@ extends Node
 {
   public static final String CONTENT_TYPE = "share";
 
+  public static final String DRUPAL_FIELD_JOB_HASH = "field_job_hash";
+  public static final String JAVA_FIELD_JOB_HASH = "jobHash";
+
   public static final String DRUPAL_FIELD_BLOCK = "field_share_block";
   public static final String JAVA_FIELD_BLOCK = "block";
 
@@ -37,6 +40,9 @@ extends Node
 
   public static final String DRUPAL_FIELD_STATUS = "field_share_status";
   public static final String JAVA_FIELD_STATUS = "status";
+
+  @SerializedName(DRUPAL_FIELD_JOB_HASH)
+  private String jobHash;
 
   @SerializedName(DRUPAL_FIELD_BLOCK)
   private Node.Reference block;
@@ -72,12 +78,12 @@ extends Node
 
   public String getJobHash()
   {
-    return this.getTitle();
+    return this.jobHash;
   }
 
   public void setJobHash(String jobHash)
   {
-    this.setTitle(jobHash);
+    this.jobHash = jobHash;
   }
 
   public Node.Reference getBlock()
@@ -177,7 +183,7 @@ extends Node
            "id="                    + this.getId()                + ", " +
            "url="                   + this.getUrl()               + ", " +
            "revisionId="            + this.getRevisionId()        + ", " +
-           "jobHash="               + this.getJobHash()           + ", " +
+           "jobHash="               + this.jobHash                + ", " +
            "block="                 + this.block                  + ", " +
            "round="                 + this.round                  + ", " +
            "submitter="             + this.submitter              + ", " +

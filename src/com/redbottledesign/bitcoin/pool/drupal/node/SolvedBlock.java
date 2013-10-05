@@ -12,6 +12,9 @@ extends Node
 {
   public static final String CONTENT_TYPE = "block";
 
+  public static final String DRUPAL_FIELD_HASH = "field_block_hash";
+  public static final String JAVA_FIELD_HASH = "hash";
+
   public static final String DRUPAL_FIELD_HEIGHT = "field_block_height";
   public static final String JAVA_FIELD_HEIGHT = "height";
 
@@ -35,6 +38,9 @@ extends Node
 
   public static final String DRUPAL_FIELD_WITTY_REMARK = "field_block_remark";
   public static final String JAVA_FIELD_WITTY_REMARK = "wittyRemark";
+
+  @SerializedName(DRUPAL_FIELD_HASH)
+  private String hash;
 
   @SerializedName(DRUPAL_FIELD_HEIGHT)
   private long height;
@@ -67,12 +73,12 @@ extends Node
 
   public String getHash()
   {
-    return this.getTitle();
+    return this.hash;
   }
 
   public void setHash(String hash)
   {
-    this.setTitle(hash);
+    this.hash = hash;
   }
 
   public long getHeight()
@@ -161,7 +167,7 @@ extends Node
     return this.getClass().getSimpleName()          + " [" +
            "id="            + this.getId()          + ", " +
            "url="           + this.getUrl()         + ", " +
-           "hash="          + this.getHash()        + ", " +
+           "hash="          + this.hash             + ", " +
            "height="        + this.height           + ", " +
            "status="        + this.status           + ", " +
            "creationTime="  + this.creationTime     + ", " +

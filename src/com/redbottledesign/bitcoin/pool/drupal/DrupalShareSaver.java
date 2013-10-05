@@ -52,6 +52,7 @@ implements ShareSaver
     WorkShare       newShare              = new WorkShare();
     String          statusString          = null;
     Node.Reference  solvedBlockReference  = null;
+    User.Reference  daemonUserReference   = this.poolDaemonUser.asReference();
 
     System.out.println(blockDifficulty + " " + blockReward);
 
@@ -59,6 +60,7 @@ implements ShareSaver
     {
       SolvedBlock newBlock      = new SolvedBlock();
 
+      newBlock.setAuthor(daemonUserReference);
       newBlock.setHash(submitResult.getHash().toString());
       newBlock.setHeight(submitResult.getHeight());
       newBlock.setStatus(SolvedBlock.Status.UNCONFIRMED);
@@ -92,7 +94,7 @@ implements ShareSaver
       System.out.println("Reason: " + statusString);
     }
 
-    newShare.setAuthor(this.poolDaemonUser.asReference());
+    newShare.setAuthor(daemonUserReference);
     newShare.setJobHash(uniqueJobString);
     newShare.setBlock(solvedBlockReference);
     newShare.setRound(currentRoundReference);

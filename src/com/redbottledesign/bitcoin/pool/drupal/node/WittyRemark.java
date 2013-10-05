@@ -8,8 +8,14 @@ extends Node
 {
   public static final String CONTENT_TYPE = "witty_remark";
 
+  public static final String DRUPAL_FIELD_REMARK = "field_witty_remark_text";
+  public static final String JAVA_FIELD_REMARK = "remark";
+
   public static final String DRUPAL_FIELD_WAS_REMARK_USED = "field_witty_remark_used";
   public static final String JAVA_FIELD_WAS_REMARK_USED = "wasUsed";
+
+  @SerializedName(DRUPAL_FIELD_REMARK)
+  private String remark;
 
   @SerializedName(DRUPAL_FIELD_WAS_REMARK_USED)
   private Boolean wasUsed;
@@ -21,12 +27,12 @@ extends Node
 
   public String getRemark()
   {
-    return this.getTitle();
+    return this.remark;
   }
 
   public void setRemark(String remark)
   {
-    this.setTitle(remark);
+    this.remark = remark;
   }
 
   public boolean wasUsed()
@@ -46,7 +52,7 @@ extends Node
            "id="          + this.getId()          + ", " +
            "url="         + this.getUrl()         + ", " +
            "revisionId="  + this.getRevisionId()  + ", " +
-           "remark="      + this.getRemark()      + ", " +
+           "remark="      + this.remark           + ", " +
            "wasUsed="     + this.wasUsed          + ", " +
            "published="   + this.isPublished()    + ", " +
            "dateCreated=" + this.getDateCreated() + ", " +

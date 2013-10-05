@@ -3,6 +3,8 @@ package com.redbottledesign.bitcoin.pool.drupal;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
@@ -12,11 +14,8 @@ import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 public class RoundAgent extends Thread
 {
-    public static final long DB_CHECK_MS = 2L * 60L * 1000L;            // 2 minutes
-    private static final long MAX_ROUND_LENGTH_MS = 60L * 60L * 1000L;  // 1 hour
-
-//    public static final long DB_CHECK_MS = 10L * 1000L;           // 10 seconds
-//    private static final long MAX_ROUND_LENGTH_MS = 15L * 1000L;  // 15 seconds
+    private static final long ROUND_POLL_ACQUIRE_MS = 500;
+    private static final long DB_CHECK_MS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
 
     private final RoundRequestor roundRequestor;
     private long lastCheck;
@@ -48,7 +47,7 @@ public class RoundAgent extends Thread
 
         try
         {
-          Thread.sleep(500);
+          Thread.sleep(ROUND_POLL_ACQUIRE_MS);
         }
 
         catch (InterruptedException e)
@@ -73,6 +72,7 @@ public class RoundAgent extends Thread
         {
           this.updateRounds();
 
+          // FIXME: Switch to scheduled threads.
           synchronized (this)
           {
             this.wait(DB_CHECK_MS / 4);
@@ -95,21 +95,26 @@ public class RoundAgent extends Thread
         {
           try
           {
-            Date latestExpiredStartTime = new Date(new Date().getTime() - MAX_ROUND_LENGTH_MS);
+            this.currentRound = this.roundRequestor.requestCurrentRound();
 
-            this.currentRound = this.roundRequestor.getCurrentRound();
-
-            if ((this.currentRound == null) ||
-                (this.currentRound.getRoundDates().getStartDate().compareTo(latestExpiredStartTime) <= 0))
-            {
+            if ((this.currentRound == null) || (this.currentRound.hasExpired()))
               this.startNewRound();
-            }
           }
 
           catch (IOException | DrupalHttpException e)
           {
             e.printStackTrace();
           }
+        }
+
+        try
+        {
+          this.updateStatusOfPastRounds();
+        }
+
+        catch (IOException | DrupalHttpException e)
+        {
+          e.printStackTrace();
         }
 
         this.lastCheck = System.currentTimeMillis();
@@ -126,11 +131,9 @@ public class RoundAgent extends Thread
       {
         DateRange roundDates = this.currentRound.getRoundDates();
 
-        System.out.println("Closing round started at " + roundDates.getStartDate());
+        System.out.println("Ending round started at " + roundDates.getStartDate());
 
         roundDates.setEndDate(now);
-
-        this.currentRound.setRoundStatus(Round.Status.CLOSED);
 
         this.roundRequestor.updateNode(this.currentRound);
       }
@@ -140,11 +143,35 @@ public class RoundAgent extends Thread
       newRound = new Round();
 
       newRound.setAuthor(this.poolDaemonUser);
-      newRound.setRoundStatus(Round.Status.OPEN);
       newRound.getRoundDates().setStartDate(now);
 
       this.roundRequestor.createNode(newRound);
 
       this.currentRound = newRound;
+    }
+
+    protected void updateStatusOfPastRounds()
+    throws IOException, DrupalHttpException
+    {
+      List<Round> openRounds      = this.roundRequestor.requestAllOpenRounds();
+      int         openRoundCount  = openRounds.size();
+
+      System.out.println(openRounds);
+      System.out.printf("There are %d open rounds.\n", openRoundCount);
+
+      if (openRoundCount > Round.MAX_OPEN_ROUNDS)
+      {
+        // Close everything over the round cap.
+        List<Round> roundsToClose = openRounds.subList(Round.MAX_OPEN_ROUNDS, openRoundCount);
+
+        for (Round roundToClose : roundsToClose)
+        {
+          System.out.println("Closing round started at " + roundToClose.getRoundDates().getStartDate());
+
+          roundToClose.setRoundStatus(Round.Status.CLOSED);
+
+          this.roundRequestor.updateNode(roundToClose);
+        }
+      }
     }
 }
