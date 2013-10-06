@@ -4,16 +4,18 @@ import com.google.bitcoin.core.Sha256Hash;
 
 public class SubmitResult
 {
-    protected Sha256Hash hash;
-    protected String ourResult="N";
-    protected String upstreamResult;
-    protected String reason;
-    protected String clientVersion;
-    protected int height;
+    private Sha256Hash hash;
+    private String ourResult;
+    private String upstreamResult;
+    private String reason;
+    private String clientVersion;
+    private int height;
+    private double ourDifficulty;
+    private double networkDifficulty;
 
     public SubmitResult()
     {
-      ourResult = "N";
+      this.ourResult = "Y";
     }
 
     public Sha256Hash getHash()
@@ -74,5 +76,25 @@ public class SubmitResult
     public void setHeight(int height)
     {
       this.height = height;
+    }
+
+    public double getOurDifficulty()
+    {
+      return this.ourDifficulty;
+    }
+
+    public void setOurDifficulty(double ourDifficulty)
+    {
+      this.ourDifficulty = ourDifficulty;
+    }
+
+    public double getNetworkDifficulty()
+    {
+      return this.networkDifficulty;
+    }
+
+    public void setNetworkDiffiult(double networkDifficulty)
+    {
+      this.networkDifficulty = networkDifficulty;
     }
 }

@@ -30,6 +30,8 @@ implements ShareSaver
   private static final String CONFIG_VALUE_DAEMON_USERNAME = "drupal_site_daemon_username";
   private static final String CONFIG_VALUE_DAEMON_PASSWORD = "drupal_site_daemon_password";
 
+  private static final int SATOSHIS_PER_BITCOIN = 100000000;
+
   private final StratumServer server;
   private final SingletonDrupalSessionFactory sessionFactory;
   private User poolDaemonUser;
@@ -43,8 +45,7 @@ implements ShareSaver
   }
 
   @Override
-  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString,
-                        Double blockDifficulty, Long blockReward)
+  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString, Long blockReward)
   throws ShareSaveException
   {
     RoundAgent      roundAgent            = this.server.getRoundAgent();
@@ -53,12 +54,14 @@ implements ShareSaver
     String          statusString          = null;
     Node.Reference  solvedBlockReference  = null;
     User.Reference  daemonUserReference   = this.poolDaemonUser.asReference();
+    double          blockDifficulty       = submitResult.getNetworkDifficulty(),
+                    workDifficulty        = submitResult.getOurDifficulty();
 
     System.out.println(blockDifficulty + " " + blockReward);
 
     if (CONFIRM_YES.equals(submitResult.getUpstreamResult()) && (submitResult.getHash() != null))
     {
-      SolvedBlock newBlock      = new SolvedBlock();
+      SolvedBlock newBlock = new SolvedBlock();
 
       newBlock.setAuthor(daemonUserReference);
       newBlock.setHash(submitResult.getHash().toString());
@@ -67,7 +70,7 @@ implements ShareSaver
       newBlock.setCreationTime(new Date());
       newBlock.setDifficulty(blockDifficulty);
       newBlock.setRound(currentRoundReference);
-      newBlock.setReward(BigDecimal.valueOf(blockReward));
+      newBlock.setReward(BigDecimal.valueOf(blockReward).divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN)));
       newBlock.setSolvingMember(TEST_USER);
       newBlock.setWittyRemark(TEST_REMARK);
 
@@ -96,8 +99,8 @@ implements ShareSaver
 
     newShare.setAuthor(daemonUserReference);
     newShare.setJobHash(uniqueJobString);
-    newShare.setBlock(solvedBlockReference);
     newShare.setRound(currentRoundReference);
+    newShare.setShareDifficulty(workDifficulty);
     newShare.setSubmitter(TEST_USER);
     newShare.setDateSubmitted(new Date());
     newShare.setClientSoftwareVersion(submitResult.getClientVersion());
@@ -105,6 +108,7 @@ implements ShareSaver
     newShare.setVerifiedByPool(CONFIRM_YES.equals(submitResult.getOurResult()));
     newShare.setVerifiedByNetwork(CONFIRM_YES.equals(submitResult.getUpstreamResult()));
     newShare.setStatus(statusString);
+    newShare.setBlock(solvedBlockReference);
 
     try
     {

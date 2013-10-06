@@ -10,7 +10,7 @@ import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 
 // import org.json.JSONObject;
 
-public class DBShareSaver implements ShareSaver
+class DBShareSaver implements ShareSaver
 {
     public DBShareSaver(Config config)
         throws java.sql.SQLException
@@ -32,7 +32,7 @@ public class DBShareSaver implements ShareSaver
     }
 
     @Override
-    public void saveShare(PoolUser pu, SubmitResult submit_result, String source, String unique_job_string, Double block_difficulty, Long block_reward) throws ShareSaveException
+    public void saveShare(PoolUser pu, SubmitResult submit_result, String source, String unique_job_string, Long block_reward) throws ShareSaveException
     {
 
         Connection conn = null;
@@ -53,8 +53,9 @@ public class DBShareSaver implements ShareSaver
  */
 
             PreparedStatement ps = conn.prepareStatement("insert into shares (rem_host, username, our_result, upstream_result, reason, difficulty, hash, client, unique_id, block_difficulty, block_reward) values (?,?,?,?,?,?,?,?,?,?,?)");
-
+            double block_difficulty = submit_result.getNetworkDifficulty();
             String reason_str = null;
+
             if (submit_result.getReason() != null)
             {
                 reason_str = submit_result.getReason();

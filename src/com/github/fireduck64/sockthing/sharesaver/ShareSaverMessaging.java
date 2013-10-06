@@ -1,19 +1,19 @@
 package com.github.fireduck64.sockthing.sharesaver;
 
+import org.json.JSONObject;
+
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.sns.AmazonSNSClient;
+import com.amazonaws.services.sns.model.PublishRequest;
+import com.amazonaws.services.sqs.AmazonSQSClient;
+import com.amazonaws.services.sqs.model.DeleteMessageRequest;
+import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.google.bitcoin.core.Sha256Hash;
-
-import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.*;
-
-import com.amazonaws.services.sns.AmazonSNSClient;
-import com.amazonaws.services.sns.model.PublishRequest;
-import com.amazonaws.auth.BasicAWSCredentials;
-
-import org.json.JSONObject;
 
 /**
  * This saver saves shares to SQS and then reads them from SQS to process into
@@ -49,16 +49,16 @@ public class ShareSaverMessaging implements ShareSaver
         config.require("saver_messaging_read_threads");
 
         BasicAWSCredentials creds = new BasicAWSCredentials(
-            config.get("saver_messaging_aws_key"), 
+            config.get("saver_messaging_aws_key"),
             config.get("saver_messaging_aws_secret")
         );
 
         sns = new AmazonSNSClient(creds);
-        
+
         topic_arn = config.get("saver_messaging_topic_arn");
         String region = topic_arn.split(":")[3];
         sns.setEndpoint("sns." + region + ".amazonaws.com");
-        
+
         sqs = new AmazonSQSClient(creds);
         sqs.setEndpoint("sqs." + config.get("saver_messaging_sqs_region") + ".amazonaws.com");
         queue_url = config.get("saver_messaging_sqs_queue_url");
@@ -74,7 +74,9 @@ public class ShareSaverMessaging implements ShareSaver
     }
 
 
-    public void saveShare(PoolUser pu, SubmitResult submit_result, String source, String unique_id, Double block_difficulty, Long block_reward) throws ShareSaveException
+    @Override
+    public void saveShare(PoolUser pu, SubmitResult submit_result, String source, String unique_id, Long block_reward)
+    throws ShareSaveException
     {
         try
         {
@@ -88,7 +90,7 @@ public class ShareSaverMessaging implements ShareSaver
             msg.put("upstream_result", submit_result.getUpstreamResult());
             msg.put("reason", submit_result.getReason());
             msg.put("unique_id", unique_id);
-            msg.put("block_difficulty", block_difficulty);
+            msg.put("block_difficulty", submit_result.getNetworkDifficulty());
             msg.put("block_reward", block_reward);
             msg.put("height", submit_result.getHeight());
 
@@ -117,6 +119,7 @@ public class ShareSaverMessaging implements ShareSaver
             setDaemon(true);
         }
 
+        @Override
         public void run()
         {
             while(true)
@@ -144,7 +147,7 @@ public class ShareSaverMessaging implements ShareSaver
             for(Message msg : sqs.receiveMessage(recv_req).getMessages())
             {
                 int recv_count = Integer.parseInt(msg.getAttributes().get("ApproximateReceiveCount"));
-                
+
                 JSONObject sns_msg = new JSONObject(msg.getBody());
 
                 JSONObject save_msg = new JSONObject(sns_msg.getString("Message"));
@@ -161,12 +164,12 @@ public class ShareSaverMessaging implements ShareSaver
                 {
                     block_difficulty = save_msg.getDouble("block_difficulty");
                 }
-                
+
                 if (save_msg.has("block_reward"))
                 {
                     block_reward = save_msg.getLong("block_reward");
                 }
-                
+
                 PoolUser pu = new PoolUser(worker);
                 pu.setName(user);
                 pu.setDifficulty(difficulty);
@@ -196,12 +199,14 @@ public class ShareSaverMessaging implements ShareSaver
                 if (save_msg.has("height"))
                 {
                     res.setHeight(save_msg.getInt("height"));
-                } else { 
+                } else {
                     res.setHeight(-1); // Meaning unknown
                 }
 
-                inner_saver.saveShare(pu, res, source, unique_id, block_difficulty, block_reward);
-                
+                res.setNetworkDiffiult(block_difficulty);
+
+                inner_saver.saveShare(pu, res, source, unique_id, block_reward);
+
                 sqs.deleteMessage(new DeleteMessageRequest(queue_url, msg.getReceiptHandle()));
 
 

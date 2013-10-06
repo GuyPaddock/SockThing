@@ -14,8 +14,8 @@ extends Node
   public static final String DRUPAL_FIELD_JOB_HASH = "field_job_hash";
   public static final String JAVA_FIELD_JOB_HASH = "jobHash";
 
-  public static final String DRUPAL_FIELD_BLOCK = "field_share_block";
-  public static final String JAVA_FIELD_BLOCK = "block";
+  public static final String DRUPAL_FIELD_SHARE_DIFFICULTY = "field_share_difficulty";
+  public static final String JAVA_FIELD_SHARE_DIFFICULTY = "shareDifficulty";
 
   public static final String DRUPAL_FIELD_ROUND = "field_share_round";
   public static final String JAVA_FIELD_ROUND = "round";
@@ -41,11 +41,14 @@ extends Node
   public static final String DRUPAL_FIELD_STATUS = "field_share_status";
   public static final String JAVA_FIELD_STATUS = "status";
 
+  public static final String DRUPAL_FIELD_BLOCK = "field_share_block";
+  public static final String JAVA_FIELD_BLOCK = "block";
+
   @SerializedName(DRUPAL_FIELD_JOB_HASH)
   private String jobHash;
 
-  @SerializedName(DRUPAL_FIELD_BLOCK)
-  private Node.Reference block;
+  @SerializedName(DRUPAL_FIELD_SHARE_DIFFICULTY)
+  private double shareDifficulty;
 
   @SerializedName(DRUPAL_FIELD_ROUND)
   private Node.Reference round;
@@ -71,6 +74,9 @@ extends Node
   @SerializedName(DRUPAL_FIELD_STATUS)
   private String status;
 
+  @SerializedName(DRUPAL_FIELD_BLOCK)
+  private Node.Reference block;
+
   public WorkShare()
   {
     super(CONTENT_TYPE);
@@ -86,14 +92,14 @@ extends Node
     this.jobHash = jobHash;
   }
 
-  public Node.Reference getBlock()
+  public double getShareDifficulty()
   {
-    return this.block;
+    return this.shareDifficulty;
   }
 
-  public void setBlock(Node.Reference block)
+  public void setShareDifficulty(double shareDifficulty)
   {
-    this.block = block;
+    this.shareDifficulty = shareDifficulty;
   }
 
   public Node.Reference getRound()
@@ -174,6 +180,16 @@ extends Node
   public void setStatus(String status)
   {
     this.status = status;
+  }
+
+  public Node.Reference getBlock()
+  {
+    return this.block;
+  }
+
+  public void setBlock(Node.Reference block)
+  {
+    this.block = block;
   }
 
   @Override

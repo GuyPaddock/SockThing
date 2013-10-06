@@ -2,6 +2,7 @@ package com.github.fireduck64.sockthing;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -11,7 +12,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
-import com.github.fireduck64.sockthing.tools.DiffMath;
+import com.github.fireduck64.sockthing.util.DiffMath;
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.Coinbase;
@@ -23,58 +24,57 @@ public class JobInfo
 {
     private NetworkParameters network_params;
     private final StratumServer server;
-    private final String job_id;
-    private final JSONObject block_template;
+    private final String jobId;
+    private final JSONObject blockTemplate;
     private final byte[] extranonce1;
     private final PoolUser pool_user;
     private final HashSet<String> submits;
-    private final Sha256Hash share_target;
+    private final Sha256Hash shareTarget;
     private final double difficulty;
     private final long value;
 
     private final Coinbase coinbase;
 
-    public JobInfo(StratumServer server, PoolUser pool_user, String job_id, JSONObject block_template, byte[] extranonce1)
-        throws org.json.JSONException
+    public JobInfo(StratumServer server, PoolUser poolUser, String jobId, JSONObject blockTemplate,
+                   byte[] extranonce1)
+    throws org.json.JSONException
     {
-        this.pool_user = pool_user;
+        this.pool_user = poolUser;
         this.server = server;
-        this.job_id = job_id;
-        this.block_template = block_template;
+        this.jobId = jobId;
+        this.blockTemplate = blockTemplate;
         this.extranonce1 = extranonce1;
 
-
-        this.value = block_template.getLong("coinbasevalue");
+        this.value = blockTemplate.getLong("coinbasevalue");
         this.difficulty = server.getBlockDifficulty();
 
-        int height = block_template.getInt("height");
+        int height = blockTemplate.getInt("height");
 
-        submits = new HashSet<String>();
+        this.submits = new HashSet<String>();
+        this.coinbase =
+          new Coinbase(server, poolUser, height, BigInteger.valueOf(this.value), this.getFeeTotal(), extranonce1);
 
-
-        coinbase = new Coinbase(server, pool_user, height, BigInteger.valueOf(value), getFeeTotal(), extranonce1);
-
-        share_target = DiffMath.getTargetForDifficulty(pool_user.getDifficulty());
+        this.shareTarget = DiffMath.getTargetForDifficulty(poolUser.getDifficulty());
 
     }
 
     public int getHeight()
         throws org.json.JSONException
     {
-        return block_template.getInt("height");
+        return this.blockTemplate.getInt("height");
     }
 
     private BigInteger getFeeTotal()
         throws org.json.JSONException
     {
         long fee_total = 0;
-        JSONArray transactions = block_template.getJSONArray("transactions");
+        JSONArray transactions = this.blockTemplate.getJSONArray("transactions");
 
-        for(int i=0; i<transactions.length(); i++)
+        for (int i = 0; i < transactions.length(); i++)
         {
-            JSONObject tx = transactions.getJSONObject(i);
+            JSONObject  tx  = transactions.getJSONObject(i);
+            long        fee = tx.getLong("fee");
 
-            long fee = tx.getLong("fee");
             fee_total += fee;
         }
 
@@ -82,13 +82,14 @@ public class JobInfo
     }
 
     public JSONObject getMiningNotifyMessage(boolean clean)
-        throws org.json.JSONException
+    throws org.json.JSONException
     {
         JSONObject msg = new JSONObject();
+
         msg.put("id", JSONObject.NULL);
         msg.put("method", "mining.notify");
 
-        JSONArray roots= new JSONArray();
+        JSONArray roots = new JSONArray();
         /*for(int i=0; i<5; i++)
         {
             byte[] root = new byte[32];
@@ -97,90 +98,99 @@ public class JobInfo
         }*/
 
 
-        String protocol="00000002";
-        String diffbits=block_template.getString("bits");
-        int ntime = (int)System.currentTimeMillis()/1000;
-        String ntime_str= HexUtil.getIntAsHex(ntime);
+        String  protocol  = "00000002";
+        String  diffBits  = this.blockTemplate.getString("bits");
+        int     ntime     = (int)System.currentTimeMillis()/1000;
+        String  ntimeStr  = HexUtil.getIntAsHex(ntime);
 
         JSONArray params = new JSONArray();
 
-        params.put(job_id);
-        params.put(HexUtil.swapBytesInsideWord(HexUtil.swapEndianHexString(block_template.getString("previousblockhash")))); //correct
-        params.put(Hex.encodeHexString(coinbase.getCoinbase1()));
-        params.put(Hex.encodeHexString(coinbase.getCoinbase2()));
+        params.put(this.jobId);
+        params.put(HexUtil.swapBytesInsideWord(HexUtil.swapEndianHexString(
+          this.blockTemplate.getString("previousblockhash")))); //correct
+
+        params.put(Hex.encodeHexString(this.coinbase.getCoinbase1()));
+        params.put(Hex.encodeHexString(this.coinbase.getCoinbase2()));
         params.put(getMerkleRoots());
         params.put(protocol); //correct
-        params.put(block_template.getString("bits")); //correct
-        params.put(HexUtil.getIntAsHex(block_template.getInt("curtime"))); //correct
+        params.put(this.blockTemplate.getString("bits")); //correct
+        params.put(HexUtil.getIntAsHex(this.blockTemplate.getInt("curtime"))); //correct
         params.put(clean);
+
         msg.put("params", params);
 
         return msg;
     }
 
-    public void validateSubmit(JSONArray params, SubmitResult submit_result)
+    public void validateSubmit(JSONArray params, SubmitResult submitResult)
     {
-        String unique_id = HexUtil.sha256(params.toString());
+        String uniqueId = HexUtil.sha256(params.toString());
 
         try
         {
-            validateSubmitInternal(params, submit_result);
-
-
+            this.validateSubmitInternal(params, submitResult);
         }
-        catch(Throwable t)
+
+        catch (Throwable t)
         {
-            submit_result.setOurResult("N");
-            submit_result.setReason("Exception: " + t);
+            submitResult.setOurResult("N");
+            submitResult.setReason("Exception: " + t);
         }
+
         finally
         {
             try
             {
-                server.getShareSaver().saveShare(pool_user,submit_result, "sockthing/" + server.getInstanceId(), unique_id, difficulty, value);
+              this.server.getShareSaver().saveShare(
+                this.pool_user,
+                submitResult,
+                "sockthing/" + this.server.getInstanceId(),
+                uniqueId,
+                this.value);
             }
-            catch(ShareSaveException e)
+
+            catch (ShareSaveException e)
             {
-
-                submit_result.setOurResult("N");
-                submit_result.setReason("Exception: " + e);
+                submitResult.setOurResult("N");
+                submitResult.setReason("Exception: " + e);
             }
-
         }
-
     }
 
-    public void validateSubmitInternal(JSONArray params, SubmitResult submit_result)
-        throws org.json.JSONException, org.apache.commons.codec.DecoderException, ShareSaveException
+    protected void validateSubmitInternal(JSONArray params, SubmitResult submitResult)
+    throws org.json.JSONException, org.apache.commons.codec.DecoderException, ShareSaveException
     {
         String user = params.getString(0);
-        String job_id = params.getString(1);
-        byte[] extranonce2 = Hex.decodeHex(params.getString(2).toCharArray());
+        String jobId = params.getString(1);
+        byte[] extraNonce2 = Hex.decodeHex(params.getString(2).toCharArray());
         String ntime = params.getString(3);
         String nonce = params.getString(4);
+        String submitCannonicalString = params.getString(2) + params.getString(3) + params.getString(4);
 
-        String submit_cannonical_string = params.getString(2) + params.getString(3) + params.getString(4);
-        synchronized(submits)
+        synchronized (this.submits)
         {
-            if (submits.contains(submit_cannonical_string))
+            if (this.submits.contains(submitCannonicalString))
             {
-                submit_result.setOurResult("N");
-                submit_result.setReason("duplicate");
+                submitResult.setOurResult("N");
+                submitResult.setReason("duplicate");
                 return;
             }
-            submits.add(submit_cannonical_string);
+
+            this.submits.add(submitCannonicalString);
         }
 
-        int stale = server.checkStale(getHeight());
+        int stale = this.server.checkStale(getHeight());
+
         if (stale >= 2)
         {
-            submit_result.setOurResult("N");
-            submit_result.setReason("quite stale");
+            submitResult.setOurResult("N");
+            submitResult.setReason("quite stale");
             return;
         }
-        if (stale==1)
+
+        if (stale == 1)
         {
-            submit_result.setReason("slightly stale");
+            submitResult.setReason("slightly stale");
         }
 
 
@@ -196,19 +206,22 @@ public class JobInfo
         extranonce2[3]=0;
         nonce="00000000";*/
 
-        Sha256Hash coinbase_hash;
-        synchronized(coinbase)
+        Sha256Hash coinbaseHash;
+
+        synchronized (this.coinbase)
         {
-            coinbase.setExtranonce2(extranonce2);
-            coinbase_hash = coinbase.genTx().getHash();
+            this.coinbase.setExtranonce2(extraNonce2);
 
+            coinbaseHash = this.coinbase.genTx().getHash();
 
-            Sha256Hash merkle_root = new Sha256Hash(HexUtil.swapEndianHexString(coinbase_hash.toString()));
+            Sha256Hash merkle_root = new Sha256Hash(HexUtil.swapEndianHexString(coinbaseHash.toString()));
 
             JSONArray branches = getMerkleRoots();
-            for(int i=0; i<branches.length(); i++)
+
+            for (int i=0; i<branches.length(); i++)
             {
-                Sha256Hash br= new Sha256Hash(branches.getString(i));
+                Sha256Hash br = new Sha256Hash(branches.getString(i));
+
                 //System.out.println("Merkle " + merkle_root + " " + br);
                 merkle_root = HexUtil.treeHash(merkle_root, br);
             }
@@ -216,60 +229,71 @@ public class JobInfo
             try
             {
                 StringBuilder header = new StringBuilder();
+
                 header.append("00000002");
-                header.append(HexUtil.swapBytesInsideWord(HexUtil.swapEndianHexString(block_template.getString("previousblockhash"))));
+
+                header.append(HexUtil.swapBytesInsideWord(
+                  HexUtil.swapEndianHexString(this.blockTemplate.getString("previousblockhash"))));
+
                 header.append(HexUtil.swapBytesInsideWord(merkle_root.toString()));
                 header.append(ntime);
-                header.append(block_template.getString("bits"));
+                header.append(this.blockTemplate.getString("bits"));
                 header.append(nonce);
                 //header.append("000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000");
 
                 String header_str = header.toString();
 
                 header_str = HexUtil.swapBytesInsideWord(header_str);
+
                 System.out.println("Header: " + header_str);
                 System.out.println("Header bytes: " + header_str.length());
 
                 //header_str = HexUtil.swapWordHexString(header_str);
 
                 MessageDigest md = MessageDigest.getInstance("SHA-256");
+
                 md.update(Hex.decodeHex(header_str.toCharArray()));
 
                 byte[] pass = md.digest();
+
                 md.reset();
                 md.update(pass);
 
-                Sha256Hash blockhash = new Sha256Hash(HexUtil.swapEndianHexString(new Sha256Hash(md.digest()).toString()));
-                System.out.println("Found block hash: " + blockhash);
-                submit_result.setHash(blockhash);
+                Sha256Hash blockhash = new Sha256Hash(
+                  HexUtil.swapEndianHexString(
+                    new Sha256Hash(md.digest()).toString()));
 
-                if (blockhash.toString().compareTo(share_target.toString()) < 0)
+                System.out.println("Found block hash: " + blockhash);
+
+                submitResult.setHash(blockhash);
+                submitResult.setNetworkDiffiult(this.difficulty);
+                submitResult.setOurDifficulty(DiffMath.getDifficultyForTarget(blockhash));
+
+                if (blockhash.toString().compareTo(this.shareTarget.toString()) < 0)
                 {
-                    submit_result.setOurResult("Y");
+                    submitResult.setOurResult("Y");
                 }
                 else
                 {
-                    submit_result.setOurResult("N");
-                    submit_result.setReason("H-not-zero");
+                    submitResult.setOurResult("N");
+                    submitResult.setReason("H-not-zero");
                     return;
                 }
-                String upstream_result=null;
-                if (blockhash.toString().compareTo(block_template.getString("target")) < 0)
+
+                String upstreamResult = null;
+
+                if (blockhash.toString().compareTo(this.blockTemplate.getString("target")) < 0)
                 {
-                    submit_result.setUpstreamResult(buildAndSubmitBlock(params, merkle_root));
-                    submit_result.setHeight(getHeight());
+                    submitResult.setUpstreamResult(this.buildAndSubmitBlock(params, merkle_root));
+                    submitResult.setHeight(getHeight());
                 }
-
-
-
             }
-            catch(java.security.NoSuchAlgorithmException e)
+
+            catch (NoSuchAlgorithmException e)
             {
                 throw new RuntimeException(e);
             }
-
         }
-
     }
 
     public String buildAndSubmitBlock(JSONArray params, Sha256Hash merkleRoot)
@@ -284,13 +308,13 @@ public class JobInfo
         String nonce = params.getString(4);
 
         long time = Long.parseLong(ntime,16);
-        long target = Long.parseLong(block_template.getString("bits"),16);
+        long target = Long.parseLong(blockTemplate.getString("bits"),16);
         long nonce_l = Long.parseLong(nonce,16);
 
         LinkedList<Transaction> lst = new LinkedList<Transaction>();
 
         lst.add(coinbase.genTx());
-        JSONArray transactions = block_template.getJSONArray("transactions");
+        JSONArray transactions = blockTemplate.getJSONArray("transactions");
 
         for(int i=0; i<transactions.length(); i++)
         {
@@ -306,13 +330,10 @@ public class JobInfo
             }
         }
 
-
-
-
         Block block = new Block(
             network_params,
             2,
-            new Sha256Hash(block_template.getString("previousblockhash")),
+            new Sha256Hash(blockTemplate.getString("previousblockhash")),
             new Sha256Hash(HexUtil.swapEndianHexString(merkleRoot.toString())),
             time,
             target,
@@ -335,12 +356,9 @@ public class JobInfo
                 coinbase.markRemark();
             }
 
-
             return ret;
-
-
         }
-        catch(com.google.bitcoin.core.VerificationException e)
+        catch (com.google.bitcoin.core.VerificationException e)
         {
             e.printStackTrace();
             return "N";
@@ -352,13 +370,13 @@ public class JobInfo
     {
         ArrayList<Sha256Hash> hashes = new ArrayList<Sha256Hash>();
 
-        JSONArray transactions = block_template.getJSONArray("transactions");
+        JSONArray transactions = blockTemplate.getJSONArray("transactions");
 
-
-        for(int i=0; i<transactions.length(); i++)
+        for (int i = 0; i < transactions.length(); i++)
         {
-            JSONObject tx = transactions.getJSONObject(i);
+            JSONObject tx   = transactions.getJSONObject(i);
             Sha256Hash hash = new Sha256Hash(HexUtil.swapEndianHexString(tx.getString("hash")));
+
             hashes.add(hash);
         }
 
@@ -367,28 +385,21 @@ public class JobInfo
         while(hashes.size() > 0)
         {
             ArrayList<Sha256Hash> next_lst = new ArrayList<Sha256Hash>();
+
             roots.put(hashes.get(0).toString());
 
-            for(int i=1; i<hashes.size(); i+=2)
+            for (int i = 1; i < hashes.size(); i += 2)
             {
-                if (i+1==hashes.size())
-                {
-                    next_lst.add(HexUtil.treeHash(hashes.get(i), hashes.get(i)));
-                }
-                else
-                {
-                    next_lst.add(HexUtil.treeHash(hashes.get(i), hashes.get(i+1)));
-                }
-            }
-            hashes=next_lst;
+                if ((i + 1) == hashes.size())
+                  next_lst.add(HexUtil.treeHash(hashes.get(i), hashes.get(i)));
 
+                else
+                  next_lst.add(HexUtil.treeHash(hashes.get(i), hashes.get(i+1)));
+            }
+
+            hashes=next_lst;
         }
 
         return roots;
-
     }
-
-
-
-
 }
