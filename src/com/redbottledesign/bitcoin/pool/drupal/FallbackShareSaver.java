@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Date;
 
 import au.com.bytecode.opencsv.CSVWriter;
@@ -120,74 +121,96 @@ implements ShareSaver
 
     if (isFileNew)
     {
-      this.csvWriter.writeNext(
+      String[] shareHeaders =
         new String[]
         {
-         "Job hash",
-         "Round node ID",
-         "Share difficulty",
-         "Network difficulty",
-         "Share submitter",
-         "Submission time",
-         "Client software",
-         "Pool host",
-         "Verified by pool",
-         "Verified by network",
-         "Status",
-         "Hash",
-         "Block",
-         "Block reward (satoshis)",
-         "Was saved successfully to primary database",
-         "Last exception",
-        });
+          "Job hash",
+          "Round node ID",
+          "Share difficulty",
+          "Network difficulty",
+          "Share submitter",
+          "Submission time",
+          "Client software",
+          "Pool host",
+          "Verified by pool",
+          "Verified by network",
+          "Status",
+          "Hash",
+          "Block",
+          "Block reward (satoshis)",
+          "Was saved successfully to primary database",
+          "Last exception",
+        };
 
-      this.csvWriter.flush();
+      synchronized (this.csvWriter)
+      {
+        this.csvWriter.writeNext(shareHeaders);
+        this.csvWriter.flush();
+      }
     }
   }
 
-  protected synchronized void writeFallbackShare(PoolUser pu, SubmitResult submitResult, String source,
-                                                 String uniqueJobString, Long blockReward, boolean wasSaved,
-                                                 Throwable pendingException)
+  protected void writeFallbackShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString,
+                                    Long blockReward, boolean wasSaved, Throwable pendingException)
   throws IOException
   {
-    RoundAgent  roundAgent      = this.server.getRoundAgent();
-    Round       currentRound    = roundAgent.getCurrentRoundSynchronized();
-    double      blockDifficulty = submitResult.getNetworkDifficulty(),
-                workDifficulty  = submitResult.getOurDifficulty();
-    String      statusString    = "accepted";
+    String[] shareInfo = null;
 
-    if (submitResult.getReason() != null)
+    try
     {
-      statusString = submitResult.getReason();
+      RoundAgent  roundAgent      = this.server.getRoundAgent();
+      Round       currentRound    = roundAgent.getCurrentRoundSynchronized();
+      double      blockDifficulty = submitResult.getNetworkDifficulty(),
+                  workDifficulty  = submitResult.getOurDifficulty();
+      String      statusString    = "accepted";
 
-      if (statusString.length() > 50)
-        statusString = statusString.substring(0, 50);
+      if (submitResult.getReason() != null)
+      {
+        statusString = submitResult.getReason();
+
+        if (statusString.length() > 50)
+          statusString = statusString.substring(0, 50);
+      }
+
+      shareInfo =
+        new String[]
+        {
+          uniqueJobString,
+          currentRound.getId().toString(),
+          Double.toString(workDifficulty),
+          Double.toString(blockDifficulty),
+          pu.getName(),
+          new Date().toString(),
+          submitResult.getClientVersion(),
+          source,
+          Boolean.toString(CONFIRM_YES.equals(submitResult.getOurResult())),
+          Boolean.toString(CONFIRM_YES.equals(submitResult.getUpstreamResult())),
+          statusString,
+          submitResult.getHash().toString(),
+          Integer.toString(submitResult.getHeight()),
+          BigDecimal.valueOf(blockReward).toString(),
+          Boolean.toString(wasSaved),
+          ((pendingException == null) ?
+           "" :
+           (pendingException.getClass().getName() + ": " + pendingException.getMessage())),
+        };
+
+      synchronized (this.csvWriter)
+      {
+        this.csvWriter.writeNext(shareInfo);
+        this.csvWriter.flush();
+      }
     }
 
-    this.csvWriter.writeNext(
-      new String[]
-      {
-        uniqueJobString,
-        currentRound.getId().toString(),
-        Double.toString(workDifficulty),
-        Double.toString(blockDifficulty),
-        pu.getName(),
-        new Date().toString(),
-        submitResult.getClientVersion(),
-        source,
-        Boolean.toString(CONFIRM_YES.equals(submitResult.getOurResult())),
-        Boolean.toString(CONFIRM_YES.equals(submitResult.getUpstreamResult())),
-        statusString,
-        submitResult.getHash().toString(),
-        Integer.toString(submitResult.getHeight()),
-        BigDecimal.valueOf(blockReward).toString(),
-        Boolean.toString(wasSaved),
-        ((pendingException == null) ?
-          "" :
-          (pendingException.getClass().getName() + ": " + pendingException.getMessage())),
-      });
+    catch (Throwable ex)
+    {
+      ex.printStackTrace();
 
-    this.csvWriter.flush();
+      // It's pretty serious if we can't write to the audit log.
+      System.err.println("Exiting with fatal status; shares could not be captured in fall-back audit log.");
+      System.err.println("Share being written was: " + Arrays.toString(shareInfo));
+      System.exit(-1);
+    }
   }
 
   protected static String getConfiguredOutput(Config config)
