@@ -51,7 +51,7 @@ implements ShareSaver
     RoundAgent      roundAgent            = this.server.getRoundAgent();
     Node.Reference  currentRoundReference = roundAgent.getCurrentRoundSynchronized().asReference();
     WorkShare       newShare              = new WorkShare();
-    String          statusString          = null;
+    String          statusString          = "accepted";
     Node.Reference  solvedBlockReference  = null;
     User.Reference  daemonUserReference   = this.poolDaemonUser.asReference();
     double          blockDifficulty       = submitResult.getNetworkDifficulty(),
