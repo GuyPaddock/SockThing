@@ -21,6 +21,7 @@ import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
+import com.redbottledesign.bitcoin.pool.drupal.DrupalPplnsAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
 import com.redbottledesign.bitcoin.pool.drupal.FallbackShareSaver;
 import com.redbottledesign.bitcoin.pool.drupal.RoundAgent;
@@ -39,8 +40,8 @@ public class StratumServer
     private ShareSaver shareSaver;
     private OutputMonster outputMonster;
     private MetricsReporter metricsReporter;
-    private WittyRemarks wittyRemarks;
-    private DrupalPplnsAgent pplnsAgent;
+    private WittyRemarksAgent wittyRemarksAgent;
+    private PplnsAgent pplnsAgent;
     private RoundAgent roundAgent;
     private EventLog eventLog;
 
@@ -93,8 +94,8 @@ public class StratumServer
             new ListenThread(port).start();
         }
 
-        if (this.wittyRemarks != null)
-          this.wittyRemarks.start();
+        if (this.wittyRemarksAgent != null)
+          this.wittyRemarksAgent.start();
 
         if (pplnsAgent != null)
           this.pplnsAgent.start();
@@ -167,24 +168,24 @@ public class StratumServer
         return this.outputMonster;
     }
 
-    public void setWittyRemarks(WittyRemarks remarks)
+    public void setWittyRemarksAgent(WittyRemarksAgent remarks)
     {
-        this.wittyRemarks = remarks;
+        this.wittyRemarksAgent = remarks;
     }
 
-    public WittyRemarks getWittyRemarks()
+    public WittyRemarksAgent getWittyRemarksAgent()
     {
-        return this.wittyRemarks;
+        return this.wittyRemarksAgent;
     }
 
-    public void setPPLNSAgent(DrupalPplnsAgent pplnsAgent)
+    public void setPPLNSAgent(PplnsAgent pplnsAgent)
     {
         this.pplnsAgent = pplnsAgent;
     }
 
-    public DrupalPplnsAgent getPPLNSAgent()
+    public PplnsAgent getPPLNSAgent()
     {
-        return pplnsAgent;
+        return this.pplnsAgent;
     }
 
     public void setEventLog(EventLog eventLog)
@@ -270,7 +271,7 @@ public class StratumServer
 
         if (conf.getBoolean("witty_remarks_enabled"))
         {
-            server.setWittyRemarks(new WittyRemarks());
+            server.setWittyRemarksAgent(new WittyRemarksAgent());
         }
 
         server.setPPLNSAgent(new DrupalPplnsAgent(server));

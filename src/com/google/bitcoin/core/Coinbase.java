@@ -71,9 +71,9 @@ public class Coinbase
         //        can't submit duplicates to other jobs if the EXT1 is always the same
         String script = "BLKH" + "EXT1" + "EXT2" + "RNDN" + "/SockThing/" + server.getConfig().get("coinbase_text");
 
-        if (server.getWittyRemarks()!=null)
+        if (server.getWittyRemarksAgent()!=null)
         {
-            String remark = server.getWittyRemarks().getNextRemark();
+            String remark = server.getWittyRemarksAgent().getNextRemark();
             if (remark != null)
             {
                 witty_remark_used = remark;
@@ -197,7 +197,7 @@ public class Coinbase
     {
         if (witty_remark_used!=null)
         {
-            server.getWittyRemarks().markUsed(witty_remark_used);
+            server.getWittyRemarksAgent().markUsed(witty_remark_used);
         }
     }
 

@@ -1,10 +1,13 @@
 
-package com.github.fireduck64.sockthing;
+package com.redbottledesign.bitcoin.pool.drupal;
 
 import java.util.Collection;
 import java.util.HashMap;
 
-public class DrupalPplnsAgent extends Thread
+import com.github.fireduck64.sockthing.PplnsAgent;
+import com.github.fireduck64.sockthing.StratumServer;
+
+public class DrupalPplnsAgent extends Thread implements PplnsAgent
 {
     public static final long DB_CHECK_MS = 120000L;
 
@@ -20,6 +23,7 @@ public class DrupalPplnsAgent extends Thread
         this.server = server;
     }
 
+    @Override
     public synchronized HashMap<String, Double> getUserMap()
     {
         this.notifyAll();
@@ -27,9 +31,6 @@ public class DrupalPplnsAgent extends Thread
         return this.lastMap;
     }
 
-    /**
-     * Do the actual update in this thread to avoid ever blocking work generation
-     */
     @Override
     public void run()
     {
@@ -125,13 +126,13 @@ public class DrupalPplnsAgent extends Thread
 
     public double sum(Collection<Double> vals)
     {
-        double x = 0.0;
+      double x = 0.0;
 
-        for (Double d : vals)
-        {
-            x += d;
-        }
+      for (Double d : vals)
+      {
+          x += d;
+      }
 
-        return x;
+      return x;
     }
 }
