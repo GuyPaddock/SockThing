@@ -1,24 +1,19 @@
 package com.github.fireduck64.sockthing;
-import java.net.Socket;
-import java.io.InputStream;
-import java.io.OutputStream;
-
 import java.io.PrintStream;
-
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.Scanner;
+import java.net.Socket;
+import java.util.NoSuchElementException;
 import java.util.Random;
-
-import org.json.JSONObject;
-import org.json.JSONArray;
+import java.util.Scanner;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.codec.binary.Hex;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.github.fireduck64.sockthing.util.HexUtil;
-
-import java.nio.ByteBuffer;
 
 
 public class StratumConnection
@@ -31,24 +26,24 @@ public class StratumConnection
      */
     public static final String RUNTIME_SESSION=HexUtil.sha256("" + new Random().nextLong());
 
-    private StratumServer server;
-    private Socket sock;
-    private String connection_id;
-    private AtomicLong last_network_action;
+    private final StratumServer server;
+    private final Socket sock;
+    private final String connection_id;
+    private final AtomicLong last_network_action;
     private volatile boolean open;
     private volatile boolean mining_subscribe=false;
     private PoolUser user;
-    private Config config;
-   
-    private byte[] extranonce1;
+    private final Config config;
+
+    private final byte[] extranonce1;
 
     private UserSessionData user_session_data;
-    
-    private AtomicLong next_request_id=new AtomicLong(10000);
 
-    private LinkedBlockingQueue<JSONObject> out_queue = new LinkedBlockingQueue<JSONObject>();
+    private final AtomicLong next_request_id=new AtomicLong(10000);
+
+    private final LinkedBlockingQueue<JSONObject> out_queue = new LinkedBlockingQueue<JSONObject>();
     private Random rnd;
-    
+
     private long get_client_id=-1;
     private String client_version;
 
@@ -62,7 +57,7 @@ public class StratumConnection
         open=true;
 
         last_network_action=new AtomicLong(System.nanoTime());
-    
+
         //Get from user session for now.  Might do something fancy with resume later.
         extranonce1=UserSessionData.getExtranonce1();
 
@@ -88,7 +83,7 @@ public class StratumConnection
 
     public long getNextRequestId()
     {
-        return next_request_id.getAndIncrement();        
+        return next_request_id.getAndIncrement();
     }
 
     protected void updateLastNetworkAction()
@@ -100,7 +95,7 @@ public class StratumConnection
     {
         try
         {
-            out_queue.put(msg); 
+            out_queue.put(msg);
         }
         catch(java.lang.InterruptedException e)
         {
@@ -139,6 +134,7 @@ public class StratumConnection
             setDaemon(true);
         }
 
+        @Override
         public void run()
         {
             try
@@ -184,6 +180,7 @@ public class StratumConnection
             setDaemon(true);
         }
 
+        @Override
         public void run()
         {
             try
@@ -205,6 +202,12 @@ public class StratumConnection
                 }
 
             }
+
+            catch(JSONException | NoSuchElementException ex)
+            {
+              // Suppress syntax errors from connecting clients
+            }
+
             catch(Exception e)
             {
                 System.out.println("" + connection_id + ": " + e);
@@ -281,7 +284,7 @@ public class StratumConnection
                 user_session_data = server.getUserSessionData(pu);
                 sendRealJob(server.getCurrentBlockTemplate(),false);
             }
-            
+
         }
         else if (method.equals("mining.resume"))
         {
@@ -311,6 +314,7 @@ public class StratumConnection
 
             String job_id = params.getString(1);
             JobInfo ji = user_session_data.getJobInfo(job_id);
+
             if (ji == null)
             {
                 JSONObject reply = new JSONObject();
@@ -332,11 +336,12 @@ public class StratumConnection
                 {
                     reply.put("result", true);
                 }
+
                 else
                 {
                     reply.put("result", false);
-                    
                 }
+
                 if (res.getReason()==null)
                 {
                     reply.put("error", JSONObject.NULL);
@@ -345,17 +350,15 @@ public class StratumConnection
                 {
                     reply.put("error", res.getReason());
                 }
+
                 sendMessage(reply);
 
-                
                 if ((res !=null) && (res.getReason() != null) && (res.getReason().equals("H-not-zero")))
                 {
                     //User is not respecting difficulty, remind them
                     sendDifficulty();
-
                 }
             }
-
         }
     }
 
@@ -385,7 +388,7 @@ public class StratumConnection
         msg.put("method","client.get_version");
 
         sendMessage(msg);
-        
+
     }
 
 
