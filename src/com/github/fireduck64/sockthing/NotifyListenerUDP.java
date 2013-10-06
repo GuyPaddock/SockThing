@@ -1,9 +1,8 @@
 
 package com.github.fireduck64.sockthing;
 
-import java.net.DatagramSocket;
-
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 
 /**
  * Listens on a UDP port for a packet which indicates there is a new block
@@ -11,8 +10,8 @@ import java.net.DatagramPacket;
  */
 public class NotifyListenerUDP extends Thread
 {
-    private StratumServer server;
-    private int port;
+    private final StratumServer server;
+    private final int port;
 
     public NotifyListenerUDP(StratumServer server)
     {
@@ -26,6 +25,7 @@ public class NotifyListenerUDP extends Thread
 
 
     }
+    @Override
     public void run()
     {
         try
@@ -37,6 +37,7 @@ public class NotifyListenerUDP extends Thread
                 DatagramPacket dp = new DatagramPacket(new byte[1024], 1024);
 
                 ds.receive(dp);
+                server.getEventLog().log("UDP Block notify received");
                 server.notifyNewBlock();
             }
         }

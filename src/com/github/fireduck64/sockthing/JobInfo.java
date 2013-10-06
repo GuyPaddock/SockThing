@@ -27,7 +27,7 @@ public class JobInfo
     private final String jobId;
     private final JSONObject blockTemplate;
     private final byte[] extranonce1;
-    private final PoolUser pool_user;
+    private final PoolUser poolUser;
     private final HashSet<String> submits;
     private final Sha256Hash shareTarget;
     private final double difficulty;
@@ -39,7 +39,7 @@ public class JobInfo
                    byte[] extranonce1)
     throws org.json.JSONException
     {
-        this.pool_user = poolUser;
+        this.poolUser = poolUser;
         this.server = server;
         this.jobId = jobId;
         this.blockTemplate = blockTemplate;
@@ -142,7 +142,7 @@ public class JobInfo
             try
             {
               this.server.getShareSaver().saveShare(
-                this.pool_user,
+                this.poolUser,
                 submitResult,
                 "sockthing/" + this.server.getInstanceId(),
                 uniqueId,
@@ -272,6 +272,8 @@ public class JobInfo
                 if (blockhash.toString().compareTo(this.shareTarget.toString()) < 0)
                 {
                     submitResult.setOurResult("Y");
+
+                    server.getEventLog().log("Share " + poolUser.getName() + " " + getHeight() + " " + blockhash);
                 }
                 else
                 {
@@ -355,6 +357,8 @@ public class JobInfo
             {
                 coinbase.markRemark();
             }
+
+            server.getEventLog().log("Block submitted: "+ getHeight() + " " + block.getHash());
 
             return ret;
         }

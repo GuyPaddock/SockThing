@@ -22,6 +22,7 @@ import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
+import com.redbottledesign.bitcoin.pool.drupal.FallbackShareSaver;
 import com.redbottledesign.bitcoin.pool.drupal.RoundAgent;
 
 public class StratumServer
@@ -39,8 +40,9 @@ public class StratumServer
     private OutputMonster outputMonster;
     private MetricsReporter metricsReporter;
     private WittyRemarks wittyRemarks;
-    private PPLNSAgent pplnsAgent;
+    private DrupalPplnsAgent pplnsAgent;
     private RoundAgent roundAgent;
+    private EventLog eventLog;
 
     private String instanceId;
 
@@ -60,10 +62,12 @@ public class StratumServer
 
     private volatile long blockReward;
     private final StratumServer server;
+    private final Object blockTemplateLock;
 
     public StratumServer(Config config)
     {
         this.newBlockNotifyObject = new Semaphore(0);
+        this.blockTemplateLock = new Object();
         this.config = config;
 
         config.require("port");
@@ -74,6 +78,8 @@ public class StratumServer
 
     public void start()
     {
+        this.getEventLog().log("SERVER START");
+
         new NotifyListenerUDP(this).start();
         new TimeoutThread().start();
         new NewBlockThread().start();
@@ -171,14 +177,24 @@ public class StratumServer
         return this.wittyRemarks;
     }
 
-    public void setPPLNSAgent(PPLNSAgent pplnsAgent)
+    public void setPPLNSAgent(DrupalPplnsAgent pplnsAgent)
     {
         this.pplnsAgent = pplnsAgent;
     }
 
-    public PPLNSAgent getPPLNSAgent()
+    public DrupalPplnsAgent getPPLNSAgent()
     {
         return pplnsAgent;
+    }
+
+    public void setEventLog(EventLog eventLog)
+    {
+      this.eventLog = eventLog;
+    }
+
+    public EventLog getEventLog()
+    {
+      return eventLog;
     }
 
     public void setRoundAgent(RoundAgent roundAgent)
@@ -222,6 +238,7 @@ public class StratumServer
 
         StratumServer server = new StratumServer(conf);
 
+        server.setEventLog(new EventLog(conf));
         server.setInstanceId(conf.get("instance_id"));
         server.setMetricsReporter(new MetricsReporter(server));
 
@@ -236,7 +253,8 @@ public class StratumServer
 //            server.setShareSaver(new DBShareSaver(conf));
 //        }
 
-        server.setShareSaver(new DrupalShareSaver(conf, server));
+        server.setShareSaver(
+          new FallbackShareSaver(conf, server, new DrupalShareSaver(conf, server)));
 
         String network = conf.get("network");
         if (network.equals("prodnet"))
@@ -255,7 +273,7 @@ public class StratumServer
             server.setWittyRemarks(new WittyRemarks());
         }
 
-        server.setPPLNSAgent(new PPLNSAgent(server));
+        server.setPPLNSAgent(new DrupalPplnsAgent(server));
         server.setRoundAgent(new RoundAgent());
 
         server.start();
@@ -294,17 +312,27 @@ public class StratumServer
         if (c != null)
           return c;
 
-        JSONObject post = new JSONObject(bitcoinRpc.getSimplePostRequest("getblocktemplate"));
+        synchronized(this.blockTemplateLock)
+        {
+          JSONObject post;
 
-        c = this.bitcoinRpc.sendPost(post).getJSONObject("result");
+          c = this.cachedBlockTemplate;
 
-        this.cachedBlockTemplate = c;
+          if (c != null)
+            return c;
 
-        getMetricsReporter().metricCount("getblocktemplate", 1.0);
+          post  = new JSONObject(this.bitcoinRpc.getSimplePostRequest("getblocktemplate"));
+          c     = this.bitcoinRpc.sendPost(post).getJSONObject("result");
 
-        return c;
+          this.cachedBlockTemplate = c;
 
+          getEventLog().log("new block template: " + c.getLong("height"));
+          getMetricsReporter().metricCount("getblocktemplate", 1.0);
+
+          return c;
+        }
     }
+
     public double getDifficulty()
         throws java.io.IOException, org.json.JSONException
     {
@@ -361,6 +389,7 @@ public class StratumServer
     private void triggerUpdate(boolean clean)
         throws Exception
     {
+        getEventLog().log("Update triggered. Clean: " + clean);
         System.out.println("Update triggered. Clean: " + clean);
 
         this.cachedBlockTemplate = null;
@@ -393,6 +422,7 @@ public class StratumServer
         }
 
         long t2_update_connection = System.currentTimeMillis();
+        getEventLog().log("Update Complete");
 
         getMetricsReporter().metricTime("UpdateConnectionsTime", t2_update_connection - t1_update_connection);
     }
@@ -495,9 +525,10 @@ public class StratumServer
                 {
                     lst.addAll(conn_map.entrySet());
                 }
+
                 getMetricsReporter().metricCount("connections", lst.size());
 
-                for(Map.Entry<String, StratumConnection> me : lst)
+                for (Map.Entry<String, StratumConnection> me : lst)
                 {
                     if (me.getValue().getLastNetworkAction() + MAX_IDLE_TIME < System.nanoTime())
                     {
@@ -510,10 +541,15 @@ public class StratumServer
                     }
                 }
 
-                try{Thread.sleep(30000);}catch(Throwable t){}
+                try
+                {
+                  Thread.sleep(30000);
+                }
 
-
-
+                catch (InterruptedException ex)
+                {
+                  // Expected
+                }
             }
 
         }
@@ -628,18 +664,26 @@ public class StratumServer
             }
 
         }
-        private void doRun()throws Exception
+
+        private void doRun()
+        throws Exception
         {
-
-
             JSONObject reply = bitcoinRpc.doSimplePostRequest("getblockcount");
 
             int block_height = reply.getInt("result");
 
             if (block_height != last_block)
             {
+                /* Using target high (next block height)
+                 * for logging because that is what the block template,
+                 * submitted shares and next found blocks all use.
+                 */
+                int target_height = block_height+1;
+                getEventLog().log("New target height: " + target_height);
+
                 System.out.println(reply);
                 triggerUpdate(true);
+
                 last_block = block_height;
                 last_update_time = System.currentTimeMillis();
                 last_success_time = System.currentTimeMillis();
