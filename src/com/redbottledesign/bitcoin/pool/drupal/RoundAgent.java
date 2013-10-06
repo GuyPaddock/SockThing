@@ -124,8 +124,9 @@ public class RoundAgent extends Thread
     protected void startNewRound()
     throws IOException, DrupalHttpException
     {
-      Date  now       = new Date();
-      Round newRound;
+      Date      now           = new Date();
+      Round     newRound;
+      DateRange newRoundDates;
 
       if (this.currentRound != null)
       {
@@ -140,10 +141,12 @@ public class RoundAgent extends Thread
 
       System.out.println("Starting new round at " + now);
 
-      newRound = new Round();
+      newRound      = new Round();
+      newRoundDates = newRound.getRoundDates();
 
       newRound.setAuthor(this.poolDaemonUser);
-      newRound.getRoundDates().setStartDate(now);
+      newRoundDates.setStartDate(now);
+      newRoundDates.setEndDate(now);
 
       this.roundRequestor.createNode(newRound);
 
