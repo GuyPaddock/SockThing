@@ -200,13 +200,14 @@ extends Node
            "url="                   + this.getUrl()               + ", " +
            "revisionId="            + this.getRevisionId()        + ", " +
            "jobHash="               + this.jobHash                + ", " +
-           "block="                 + this.block                  + ", " +
+           "shareDifficulty="       + this.shareDifficulty        + ", " +
            "round="                 + this.round                  + ", " +
            "submitter="             + this.submitter              + ", " +
            "clientSoftwareVersion=" + this.clientSoftwareVersion  + ", " +
            "poolHost="              + this.poolHost               + ", " +
            "verifiedByPool="        + this.verifiedByPool         + ", " +
            "verifiedByNetwork="     + this.verifiedByNetwork      + ", " +
+           "block="                 + this.block                  + ", " +
            "status="                + this.status                 + ", " +
            "published="             + this.isPublished()          + ", " +
            "dateSubmitted="         + this.dateSubmitted          + ", " +

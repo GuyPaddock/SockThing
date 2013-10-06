@@ -23,9 +23,6 @@ extends Node
   public static final String DRUPAL_FIELD_PAYMENT_HASH = "field_payout_payment_hash";
   public static final String JAVA_FIELD_PAYMENT_HASH = "paymentHash";
 
-  @SerializedName(DRUPAL_FIELD_PAYMENT_HASH)
-  private String paymentHash;
-
   @SerializedName(DRUPAL_FIELD_RECIPIENT)
   private User.Reference recipient;
 
@@ -34,6 +31,9 @@ extends Node
 
   @SerializedName(DRUPAL_FIELD_PAYMENT_ADDRESS)
   private String paymentAddress;
+
+  @SerializedName(DRUPAL_FIELD_PAYMENT_HASH)
+  private String paymentHash;
 
   public Payout()
   {

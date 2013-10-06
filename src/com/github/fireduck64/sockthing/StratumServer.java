@@ -178,12 +178,12 @@ public class StratumServer
         return this.wittyRemarksAgent;
     }
 
-    public void setPPLNSAgent(PplnsAgent pplnsAgent)
+    public void setPplnsAgent(PplnsAgent pplnsAgent)
     {
         this.pplnsAgent = pplnsAgent;
     }
 
-    public PplnsAgent getPPLNSAgent()
+    public PplnsAgent getPplnsAgent()
     {
         return this.pplnsAgent;
     }
@@ -274,7 +274,7 @@ public class StratumServer
             server.setWittyRemarksAgent(new WittyRemarksAgent());
         }
 
-        server.setPPLNSAgent(new DrupalPplnsAgent(server));
+        server.setPplnsAgent(new DrupalPplnsAgent(server));
         server.setRoundAgent(new RoundAgent());
 
         server.start();

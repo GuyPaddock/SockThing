@@ -3,6 +3,8 @@ package com.redbottledesign.bitcoin.pool.drupal;
 import java.io.IOException;
 import java.net.URI;
 
+import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BlockCreditRequestor;
+import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.PayoutsSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.SolvedBlockRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WorkShareRequestor;
@@ -21,12 +23,21 @@ public class SingletonDrupalSessionFactory
   private WorkShareRequestor shareRequestor;
   private SolvedBlockRequestor blockRequestor;
   private RoundRequestor roundRequestor;
+  private PayoutsSummaryRequestor payoutsRequestor;
+  private BlockCreditRequestor creditRequestor;
 
   private User poolDaemonUser;
 
   public static SingletonDrupalSessionFactory getInstance()
   {
     return INSTANCE;
+  }
+
+  public SessionManager getSessionManager()
+  {
+    this.assertInitialized();
+
+    return this.sessionManager;
   }
 
   public UserRequestor getUserRequestor()
@@ -57,11 +68,14 @@ public class SingletonDrupalSessionFactory
     return this.roundRequestor;
   }
 
-  public SessionManager getSessionManager()
+  public PayoutsSummaryRequestor getPayoutsRequestor()
   {
-    this.assertInitialized();
+    return this.payoutsRequestor;
+  }
 
-    return this.sessionManager;
+  public BlockCreditRequestor getCreditRequestor()
+  {
+    return this.creditRequestor;
   }
 
   public User getPoolDaemonUser()
@@ -83,10 +97,12 @@ public class SingletonDrupalSessionFactory
 
     this.sessionManager = new SessionManager(drupalSiteUri, userName, password);
 
-    this.userRequestor  = new UserRequestor(this.sessionManager);
-    this.shareRequestor = new WorkShareRequestor(this.sessionManager);
-    this.blockRequestor = new SolvedBlockRequestor(this.sessionManager);
-    this.roundRequestor = new RoundRequestor(this.sessionManager);
+    this.userRequestor    = new UserRequestor(this.sessionManager);
+    this.shareRequestor   = new WorkShareRequestor(this.sessionManager);
+    this.blockRequestor   = new SolvedBlockRequestor(this.sessionManager);
+    this.roundRequestor   = new RoundRequestor(this.sessionManager);
+    this.payoutsRequestor = new PayoutsSummaryRequestor(this.sessionManager);
+    this.creditRequestor  = new BlockCreditRequestor(this.sessionManager);
 
     try
     {
