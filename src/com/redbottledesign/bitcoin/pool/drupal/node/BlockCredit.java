@@ -6,36 +6,36 @@ import com.google.gson.annotations.SerializedName;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
 
-public class Payout
+public class BlockCredit
 extends Node
 {
-  public static final String CONTENT_TYPE = "payout";
+  public static final String CONTENT_TYPE = "credit";
 
-  public static final String DRUPAL_FIELD_RECIPIENT = "field_payout_recipient";
+  public static final String DRUPAL_FIELD_RECIPIENT = "field_credit_recipient";
   public static final String JAVA_FIELD_RECIPIENT = "recipient";
 
-  public static final String DRUPAL_FIELD_AMOUNT = "field_payout_amount";
+  public static final String DRUPAL_FIELD_BLOCK = "field_credit_block";
+  public static final String JAVA_FIELD_BLOCK = "block";
+
+  public static final String DRUPAL_FIELD_AMOUNT = "field_credit_amount";
   public static final String JAVA_FIELD_AMOUNT = "amount";
 
-  public static final String DRUPAL_FIELD_PAYMENT_ADDRESS = "field_payout_payment_address";
-  public static final String JAVA_FIELD_PAYMENT_ADDRESS = "paymentAddress";
-
-  public static final String DRUPAL_FIELD_PAYMENT_HASH = "field_payout_payment_hash";
-  public static final String JAVA_FIELD_PAYMENT_HASH = "paymentHash";
-
-  @SerializedName(DRUPAL_FIELD_PAYMENT_HASH)
-  private String paymentHash;
+  public static final String DRUPAL_FIELD_TYPE = "field_credit_type";
+  public static final String JAVA_FIELD_TYPE = "creditType";
 
   @SerializedName(DRUPAL_FIELD_RECIPIENT)
   private User.Reference recipient;
 
+  @SerializedName(DRUPAL_FIELD_BLOCK)
+  private Node.Reference block;
+
   @SerializedName(DRUPAL_FIELD_AMOUNT)
   private BigDecimal amount;
 
-  @SerializedName(DRUPAL_FIELD_PAYMENT_ADDRESS)
-  private String paymentAddress;
+  @SerializedName(DRUPAL_FIELD_TYPE)
+  private BlockCredit.Type creditType;
 
-  public Payout()
+  public BlockCredit()
   {
     super(CONTENT_TYPE);
   }
@@ -50,6 +50,16 @@ extends Node
     this.recipient = recipient;
   }
 
+  public Node.Reference getBlock()
+  {
+    return this.block;
+  }
+
+  public void setBlock(Node.Reference block)
+  {
+    this.block = block;
+  }
+
   public BigDecimal getAmount()
   {
     return this.amount;
@@ -60,24 +70,14 @@ extends Node
     this.amount = amount;
   }
 
-  public String getPaymentAddress()
+  public BlockCredit.Type getCreditType()
   {
-    return this.paymentAddress;
+    return this.creditType;
   }
 
-  public void setPaymentAddress(String paymentAddress)
+  public void setCreditType(BlockCredit.Type creditType)
   {
-    this.paymentAddress = paymentAddress;
-  }
-
-  public String getPaymentHash()
-  {
-    return this.paymentHash;
-  }
-
-  public void setPaymentHash(String paymentHash)
-  {
-    this.paymentHash = paymentHash;
+    this.creditType = creditType;
   }
 
   @Override
@@ -89,12 +89,21 @@ extends Node
            "revisionId="    + this.getRevisionId()  + ", " +
            "title="         + this.getTitle()       + ", " +
            "recipient="     + this.recipient        + ", " +
+           "block="         + this.block            + ", " +
            "amount="        + this.amount           + ", " +
-           "paymentAddress="+ this.paymentAddress   + ", " +
-           "paymentHash="   + this.paymentHash      + ", " +
+           "creditType="    + this.creditType       + ", " +
            "published="     + this.isPublished()    + ", " +
            "dateCreated="   + this.getDateCreated() + ", " +
            "dateChanged="   + this.getDateChanged() + ", " +
            "]";
+  }
+
+  public static enum Type
+  {
+    @SerializedName("regular")
+    REGULAR_SHARE,
+
+    @SerializedName("bonus")
+    BLOCK_SOLUTION_BONUS
   }
 }
