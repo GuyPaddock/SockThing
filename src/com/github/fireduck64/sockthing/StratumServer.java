@@ -16,7 +16,7 @@ import org.json.JSONObject;
 import com.github.fireduck64.sockthing.authentication.AddressDifficultyAuthHandler;
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
 import com.github.fireduck64.sockthing.output.OutputMonster;
-import com.github.fireduck64.sockthing.output.OutputMonsterShareFees;
+import com.github.fireduck64.sockthing.output.OutputMonsterSimple;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Block;
@@ -267,7 +267,10 @@ public class StratumServer
             server.setNetworkParameters(NetworkParameters.testNet3());
         }
 
-        server.setOutputMonster(new OutputMonsterShareFees(conf, server.getNetworkParameters()));
+//        server.setOutputMonster(new OutputMonsterShareFees(conf, server.getNetworkParameters()));
+
+        // Fee sharing is done elsewhere.
+        server.setOutputMonster(new OutputMonsterSimple(conf, server.getNetworkParameters()));
 
         if (conf.getBoolean("witty_remarks_enabled"))
         {

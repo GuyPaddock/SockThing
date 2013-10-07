@@ -3,7 +3,6 @@ package com.redbottledesign.bitcoin.pool.drupal;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Date;
 
@@ -77,7 +76,8 @@ implements ShareSaver
   }
 
   @Override
-  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString, Long blockReward)
+  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString, long blockReward,
+                        long feeTotal)
   throws ShareSaveException
   {
     boolean   wasSaved          = false;
@@ -87,7 +87,7 @@ implements ShareSaver
     {
       try
       {
-        this.innerSaver.saveShare(pu, submitResult, source, uniqueJobString, blockReward);
+        this.innerSaver.saveShare(pu, submitResult, source, uniqueJobString, blockReward, feeTotal);
 
         wasSaved = true;
       }
@@ -100,7 +100,8 @@ implements ShareSaver
 
     try
     {
-      this.writeFallbackShare(pu, submitResult, source, uniqueJobString, blockReward, wasSaved, pendingException);
+      this.writeFallbackShare(pu, submitResult, source, uniqueJobString, blockReward, feeTotal, wasSaved,
+                              pendingException);
     }
 
     catch (IOException ex)
@@ -138,6 +139,7 @@ implements ShareSaver
           "Hash",
           "Block",
           "Block reward (satoshis)",
+          "Fee reward (satoshis)",
           "Was saved successfully to primary database",
           "Last exception",
         };
@@ -151,7 +153,7 @@ implements ShareSaver
   }
 
   protected void writeFallbackShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString,
-                                    Long blockReward, boolean wasSaved, Throwable pendingException)
+                                    long blockReward, long feeTotal, boolean wasSaved, Throwable pendingException)
   throws IOException
   {
     String[] shareInfo = null;
@@ -188,7 +190,8 @@ implements ShareSaver
           statusString,
           submitResult.getHash().toString(),
           Integer.toString(submitResult.getHeight()),
-          BigDecimal.valueOf(blockReward).toString(),
+          Long.valueOf(blockReward).toString(),
+          Long.valueOf(feeTotal).toString(),
           Boolean.toString(wasSaved),
           ((pendingException == null) ?
            "" :

@@ -1,24 +1,27 @@
 package com.github.fireduck64.sockthing;
 
-import java.net.URL;
-import java.util.Scanner;
-import java.net.HttpURLConnection;
+import java.io.IOException;
 import java.io.OutputStream;
-import org.apache.commons.codec.binary.Base64;
-
-import org.json.JSONObject;
-import org.json.JSONArray;
-import org.apache.commons.codec.binary.Hex;
-import com.google.bitcoin.core.Block;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Random;
+import java.util.Scanner;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.google.bitcoin.core.Address;
+import com.google.bitcoin.core.Block;
 
 public class BitcoinRPC
 {
-  
-    private String username;
-    private String password;
-    private String host;
-    private int port;
+    private final String username;
+    private final String password;
+    private final String host;
+    private final int port;
 
     public BitcoinRPC(Config config)
     {
@@ -45,7 +48,7 @@ public class BitcoinRPC
     }
 
     public JSONObject sendPost(JSONObject post)
-        throws java.io.IOException, org.json.JSONException
+    throws IOException, JSONException
     {
         //System.out.println(post.toString(2));
         String str = sendPost(getUrl(), post.toString());
@@ -53,19 +56,19 @@ public class BitcoinRPC
     }
 
     protected String sendPost(String url, String postdata)
-        throws java.io.IOException
+    throws IOException
     {
         URL u = new URL(url);
 
-        HttpURLConnection connection = (HttpURLConnection) u.openConnection(); 
+        HttpURLConnection connection = (HttpURLConnection) u.openConnection();
 
         String basic = username+":"+password;
-        String encoded = Base64.encodeBase64String(basic.getBytes()); 
+        String encoded = Base64.encodeBase64String(basic.getBytes());
         connection.setRequestProperty("Authorization", "Basic "+encoded);
         connection.setDoOutput(true);
         connection.setDoInput(true);
-        connection.setInstanceFollowRedirects(false); 
-        connection.setRequestMethod("POST"); 
+        connection.setInstanceFollowRedirects(false);
+        connection.setRequestMethod("POST");
         connection.setRequestProperty("charset", "utf-8");
         connection.setRequestProperty("Content-Length", "" + Integer.toString(postdata.getBytes().length));
         connection.setUseCaches (false);
@@ -105,20 +108,20 @@ public class BitcoinRPC
     }
 
     public JSONObject doSimplePostRequest(String cmd)
-        throws java.io.IOException, org.json.JSONException
+    throws IOException, JSONException
     {
         return sendPost(new JSONObject(getSimplePostRequest(cmd)));
     }
 
     public JSONObject submitBlock(Block blk)
-        throws java.io.IOException, org.json.JSONException
+    throws IOException, JSONException
     {
         Random rnd = new Random();
 
         JSONObject msg = new JSONObject();
         msg.put("method", "submitblock");
         msg.put("id", "" + rnd.nextInt());
-        
+
         JSONArray params = new JSONArray();
         params.put(Hex.encodeHexString(blk.bitcoinSerialize()));
         msg.put("params", params);
@@ -126,6 +129,22 @@ public class BitcoinRPC
         return sendPost(msg);
     }
 
+    public JSONObject sendPayment(float amount, Address payFromAddress, Address payToAddress)
+    throws IOException, JSONException
+    {
+      Random      rnd     = new Random();
+      JSONObject  msg     = new JSONObject();
+      JSONArray   params  = new JSONArray();
 
+      msg.put("method", "submitblock");
+      msg.put("id", "" + rnd.nextInt());
 
+      params.put(payFromAddress.toString());  // <fromaccount>
+      params.put(payToAddress.toString());    // <tobitcoinaddress>
+      params.put(amount);                     // <amount>
+
+      msg.put("params", params);
+
+      return sendPost(msg);
+    }
 }

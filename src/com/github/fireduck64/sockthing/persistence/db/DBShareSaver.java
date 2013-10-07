@@ -13,7 +13,7 @@ import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 class DBShareSaver implements ShareSaver
 {
     public DBShareSaver(Config config)
-        throws java.sql.SQLException
+    throws java.sql.SQLException
     {
         config.require("share_db_driver");
         config.require("share_db_uri");
@@ -32,7 +32,9 @@ class DBShareSaver implements ShareSaver
     }
 
     @Override
-    public void saveShare(PoolUser pu, SubmitResult submit_result, String source, String unique_job_string, Long block_reward) throws ShareSaveException
+    public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString,
+                          long blockReward, long feeTotal)
+    throws ShareSaveException
     {
 
         Connection conn = null;
@@ -53,12 +55,12 @@ class DBShareSaver implements ShareSaver
  */
 
             PreparedStatement ps = conn.prepareStatement("insert into shares (rem_host, username, our_result, upstream_result, reason, difficulty, hash, client, unique_id, block_difficulty, block_reward) values (?,?,?,?,?,?,?,?,?,?,?)");
-            double block_difficulty = submit_result.getNetworkDifficulty();
+            double block_difficulty = submitResult.getNetworkDifficulty();
             String reason_str = null;
 
-            if (submit_result.getReason() != null)
+            if (submitResult.getReason() != null)
             {
-                reason_str = submit_result.getReason();
+                reason_str = submitResult.getReason();
                 if (reason_str.length() > 50)
                 {
                     reason_str = reason_str.substring(0, 50);
@@ -67,37 +69,37 @@ class DBShareSaver implements ShareSaver
             }
             ps.setString(1, source);
             ps.setString(2, pu.getName());
-            ps.setString(3, submit_result.getOurResult());
-            ps.setString(4, submit_result.getUpstreamResult());
+            ps.setString(3, submitResult.getOurResult());
+            ps.setString(4, submitResult.getUpstreamResult());
             ps.setString(5, reason_str);
             ps.setDouble(6, pu.getDifficulty());
 
-            if (submit_result.getHash() != null)
+            if (submitResult.getHash() != null)
             {
-                ps.setString(7, submit_result.getHash().toString());
+                ps.setString(7, submitResult.getHash().toString());
             }
             else
             {
                 ps.setString(7, null);
             }
-            ps.setString(8, submit_result.getClientVersion());
+            ps.setString(8, submitResult.getClientVersion());
 
-            ps.setString(9, unique_job_string);
+            ps.setString(9, uniqueJobString);
             ps.setDouble(10, block_difficulty);
-            ps.setLong(11, block_reward);
+            ps.setLong(11, blockReward);
 
             ps.execute();
             ps.close();
 
-            if (submit_result.getUpstreamResult() != null
-                && submit_result.getUpstreamResult().equals("Y")
-                && submit_result.getHash() != null)
+            if (submitResult.getUpstreamResult() != null
+                && submitResult.getUpstreamResult().equals("Y")
+                && submitResult.getHash() != null)
             {
                 PreparedStatement blockps = conn.prepareStatement("insert into blocks (hash, difficulty, reward, height) values (?,?,?,?)");
-                blockps.setString(1, submit_result.getHash().toString());
+                blockps.setString(1, submitResult.getHash().toString());
                 blockps.setDouble(2, block_difficulty);
-                blockps.setLong(3, block_reward);
-                blockps.setInt(4, submit_result.getHeight());
+                blockps.setLong(3, blockReward);
+                blockps.setInt(4, submitResult.getHeight());
 
                 blockps.execute();
                 blockps.close();

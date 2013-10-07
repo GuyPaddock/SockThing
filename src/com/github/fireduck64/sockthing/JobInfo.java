@@ -32,6 +32,7 @@ public class JobInfo
     private final Sha256Hash shareTarget;
     private final double difficulty;
     private final long value;
+    private final BigInteger feeTotal;
 
     private final Coinbase coinbase;
 
@@ -46,13 +47,14 @@ public class JobInfo
         this.extranonce1 = extranonce1;
 
         this.value = blockTemplate.getLong("coinbasevalue");
+        this.feeTotal = this.calculateFeeTotal();
         this.difficulty = server.getBlockDifficulty();
 
         int height = blockTemplate.getInt("height");
 
         this.submits = new HashSet<String>();
         this.coinbase =
-          new Coinbase(server, poolUser, height, BigInteger.valueOf(this.value), this.getFeeTotal(), extranonce1);
+          new Coinbase(server, poolUser, height, BigInteger.valueOf(this.value), this.feeTotal, extranonce1);
 
         this.shareTarget = DiffMath.getTargetForDifficulty(poolUser.getDifficulty());
 
@@ -64,7 +66,7 @@ public class JobInfo
         return this.blockTemplate.getInt("height");
     }
 
-    private BigInteger getFeeTotal()
+    private BigInteger calculateFeeTotal()
         throws org.json.JSONException
     {
         long fee_total = 0;
@@ -146,7 +148,8 @@ public class JobInfo
                 submitResult,
                 "sockthing/" + this.server.getInstanceId(),
                 uniqueId,
-                this.value);
+                this.value,
+                this.feeTotal.longValue());
             }
 
             catch (ShareSaveException e)

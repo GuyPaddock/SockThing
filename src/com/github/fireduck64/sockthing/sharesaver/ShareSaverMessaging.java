@@ -27,17 +27,14 @@ public class ShareSaverMessaging implements ShareSaver
     protected String topic_arn;
 
     protected AmazonSQSClient sqs;
-    protected String queue_url;
+    protected String queueUrl;
 
     protected ShareSaver inner_saver;
-
-
 
     public ShareSaverMessaging(StratumServer server, ShareSaver inner_saver)
     {
         this.server = server;
         this.inner_saver = inner_saver;
-
 
         Config config = server.getConfig();
 
@@ -61,7 +58,7 @@ public class ShareSaverMessaging implements ShareSaver
 
         sqs = new AmazonSQSClient(creds);
         sqs.setEndpoint("sqs." + config.get("saver_messaging_sqs_region") + ".amazonaws.com");
-        queue_url = config.get("saver_messaging_sqs_queue_url");
+        queueUrl = config.get("saver_messaging_sqs_queue_url");
 
         int read_threads = Integer.parseInt(config.get("saver_messaging_read_threads"));
 
@@ -75,7 +72,8 @@ public class ShareSaverMessaging implements ShareSaver
 
 
     @Override
-    public void saveShare(PoolUser pu, SubmitResult submit_result, String source, String unique_id, Long block_reward)
+    public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueId, long blockReward,
+                          long feeTotal)
     throws ShareSaveException
     {
         try
@@ -86,19 +84,19 @@ public class ShareSaverMessaging implements ShareSaver
             msg.put("worker", pu.getWorkerName());
             msg.put("difficulty", pu.getDifficulty());
             msg.put("source", source);
-            msg.put("our_result", submit_result.getOurResult());
-            msg.put("upstream_result", submit_result.getUpstreamResult());
-            msg.put("reason", submit_result.getReason());
-            msg.put("unique_id", unique_id);
-            msg.put("block_difficulty", submit_result.getNetworkDifficulty());
-            msg.put("block_reward", block_reward);
-            msg.put("height", submit_result.getHeight());
+            msg.put("our_result", submitResult.getOurResult());
+            msg.put("upstream_result", submitResult.getUpstreamResult());
+            msg.put("reason", submitResult.getReason());
+            msg.put("unique_id", uniqueId);
+            msg.put("block_difficulty", submitResult.getNetworkDifficulty());
+            msg.put("block_reward", blockReward);
+            msg.put("height", submitResult.getHeight());
 
             String hash_str = null;
-            if (submit_result.getHash() != null) hash_str = submit_result.getHash().toString();
+            if (submitResult.getHash() != null) hash_str = submitResult.getHash().toString();
             msg.put("hash", hash_str);
 
-            msg.put("client", submit_result.getClientVersion());
+            msg.put("client", submitResult.getClientVersion());
 
             sns.publish(new PublishRequest(topic_arn, msg.toString(2), "share - " + pu.getName()));
         }
@@ -137,9 +135,9 @@ public class ShareSaverMessaging implements ShareSaver
         }
 
         public void doRun()
-            throws com.github.fireduck64.sockthing.sharesaver.ShareSaveException, org.json.JSONException
+        throws com.github.fireduck64.sockthing.sharesaver.ShareSaveException, org.json.JSONException
         {
-            ReceiveMessageRequest recv_req = new ReceiveMessageRequest(queue_url);
+            ReceiveMessageRequest recv_req = new ReceiveMessageRequest(queueUrl);
             recv_req.setWaitTimeSeconds(20);
             recv_req = recv_req.withAttributeNames("All");
             recv_req.setMaxNumberOfMessages(10);
@@ -150,24 +148,31 @@ public class ShareSaverMessaging implements ShareSaver
 
                 JSONObject sns_msg = new JSONObject(msg.getBody());
 
-                JSONObject save_msg = new JSONObject(sns_msg.getString("Message"));
+                JSONObject saveMsg = new JSONObject(sns_msg.getString("Message"));
 
-                String worker = save_msg.getString("worker");
-                String user = save_msg.getString("user");
-                int difficulty = save_msg.getInt("difficulty");
-                String source = save_msg.getString("source");
-                String unique_id = save_msg.getString("unique_id");
+                String worker = saveMsg.getString("worker");
+                String user = saveMsg.getString("user");
+                int difficulty = saveMsg.getInt("difficulty");
+                String source = saveMsg.getString("source");
+                String uniqueId = saveMsg.getString("unique_id");
 
                 double block_difficulty = -1.0; //Meaning unknown
-                long block_reward = -1; //Meaning unknown
-                if (save_msg.has("block_difficulty"))
+                long blockReward = -1; //Meaning unknown
+                long feeTotal = -1; //Meaning unknown
+
+                if (saveMsg.has("block_difficulty"))
                 {
-                    block_difficulty = save_msg.getDouble("block_difficulty");
+                    block_difficulty = saveMsg.getDouble("block_difficulty");
                 }
 
-                if (save_msg.has("block_reward"))
+                if (saveMsg.has("block_reward"))
                 {
-                    block_reward = save_msg.getLong("block_reward");
+                    blockReward = saveMsg.getLong("block_reward");
+                }
+
+                if (saveMsg.has("fee_total"))
+                {
+                    feeTotal = saveMsg.getLong("fee_total");
                 }
 
                 PoolUser pu = new PoolUser(worker);
@@ -175,45 +180,41 @@ public class ShareSaverMessaging implements ShareSaver
                 pu.setDifficulty(difficulty);
 
                 SubmitResult res = new SubmitResult();
-                if (save_msg.has("hash"))
+
+                if (saveMsg.has("hash"))
                 {
-                    String hash_str = save_msg.getString("hash");
+                    String hash_str = saveMsg.getString("hash");
                     res.setHash(new Sha256Hash(hash_str));
                 }
-                if (save_msg.has("our_result"))
+                if (saveMsg.has("our_result"))
                 {
-                    res.setOurResult(save_msg.getString("our_result"));
+                    res.setOurResult(saveMsg.getString("our_result"));
                 }
-                if (save_msg.has("upstream_result"))
+                if (saveMsg.has("upstream_result"))
                 {
-                    res.setUpstreamResult(save_msg.getString("upstream_result"));
+                    res.setUpstreamResult(saveMsg.getString("upstream_result"));
                 }
-                if (save_msg.has("reason"))
+                if (saveMsg.has("reason"))
                 {
-                    res.setReason(save_msg.getString("reason"));
+                    res.setReason(saveMsg.getString("reason"));
                 }
-                if (save_msg.has("client"))
+                if (saveMsg.has("client"))
                 {
-                    res.setClientVersion(save_msg.getString("client"));
+                    res.setClientVersion(saveMsg.getString("client"));
                 }
-                if (save_msg.has("height"))
+                if (saveMsg.has("height"))
                 {
-                    res.setHeight(save_msg.getInt("height"));
+                    res.setHeight(saveMsg.getInt("height"));
                 } else {
                     res.setHeight(-1); // Meaning unknown
                 }
 
                 res.setNetworkDiffiult(block_difficulty);
 
-                inner_saver.saveShare(pu, res, source, unique_id, block_reward);
+                inner_saver.saveShare(pu, res, source, uniqueId, blockReward, feeTotal);
 
-                sqs.deleteMessage(new DeleteMessageRequest(queue_url, msg.getReceiptHandle()));
-
-
+                sqs.deleteMessage(new DeleteMessageRequest(queueUrl, msg.getReceiptHandle()));
             }
-
         }
     }
-
 }
-

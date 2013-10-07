@@ -23,6 +23,8 @@ import com.redbottledesign.util.QueueUtils;
 public class DrupalShareSaver
 implements ShareSaver
 {
+  private static final String SHARE_STATUS_ACCEPTED = "accepted";
+
   private static final String CONFIRM_YES = "Y";
 
   private static final User.Reference TEST_USER = new User.Reference(16);
@@ -47,20 +49,20 @@ implements ShareSaver
   }
 
   @Override
-  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString, Long blockReward)
+  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString, long blockReward,
+                        long feeTotal)
   throws ShareSaveException
   {
     RoundAgent      roundAgent            = this.server.getRoundAgent();
     PplnsAgent      pplnsAgent            = this.server.getPplnsAgent();
     Node.Reference  currentRoundReference = roundAgent.getCurrentRoundSynchronized().asReference();
     WorkShare       newShare              = new WorkShare();
-    String          statusString          = "accepted";
+    String          statusString          = SHARE_STATUS_ACCEPTED;
     Node.Reference  solvedBlockReference  = null;
     User.Reference  daemonUserReference   = this.poolDaemonUser.asReference();
     double          blockDifficulty       = submitResult.getNetworkDifficulty(),
                     workDifficulty        = submitResult.getOurDifficulty();
-
-    System.out.println(blockDifficulty + " " + blockReward);
+    BigDecimal      totalReward           = BigDecimal.valueOf(blockReward).add(BigDecimal.valueOf(feeTotal));
 
 //    if (CONFIRM_YES.equals(submitResult.getUpstreamResult()) && (submitResult.getHash() != null))
 //    {
@@ -73,7 +75,7 @@ implements ShareSaver
       newBlock.setCreationTime(new Date());
       newBlock.setDifficulty(blockDifficulty);
       newBlock.setRound(currentRoundReference);
-      newBlock.setReward(BigDecimal.valueOf(blockReward).divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN)));
+      newBlock.setReward(totalReward.divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN))); // TODO: Separate out fees later?
       newBlock.setSolvingMember(TEST_USER);
       newBlock.setWittyRemark(TEST_REMARK);
 
@@ -131,10 +133,10 @@ implements ShareSaver
 
   protected void initialize(Config config)
   {
-    String                  drupalSiteUri,
-                            daemonUserName,
-                            daemonPassword;
-    URI                     siteUri;
+    String  drupalSiteUri,
+            daemonUserName,
+            daemonPassword;
+    URI     siteUri;
 
     config.require(CONFIG_VALUE_DRUPAL_SITE_URI);
     config.require(CONFIG_VALUE_DAEMON_USERNAME);
