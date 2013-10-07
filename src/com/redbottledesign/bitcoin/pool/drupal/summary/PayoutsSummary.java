@@ -1,21 +1,24 @@
 package com.redbottledesign.bitcoin.pool.drupal.summary;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import com.google.gson.annotations.SerializedName;
 import com.redbottledesign.drupal.User;
 
 public class PayoutsSummary
 {
-  private List<UserPayoutSummary> payouts;
+  public static final String DRUPAL_FIELD_PAYOUTS = "payouts";
+  public static final String JAVA_FIELD_PAYOUTS = "payouts";
 
-  public List<UserPayoutSummary> getPayouts()
+  @SerializedName(DRUPAL_FIELD_PAYOUTS)
+  private UserPayoutSummary[] payouts;
+
+  public UserPayoutSummary[] getPayouts()
   {
     return this.payouts;
   }
 
-  public void setPayouts(List<UserPayoutSummary> payouts)
+  protected void setPayouts(UserPayoutSummary[] payouts)
   {
     this.payouts = payouts;
   }

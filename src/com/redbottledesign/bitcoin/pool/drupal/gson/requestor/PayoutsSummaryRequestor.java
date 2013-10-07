@@ -18,7 +18,7 @@ import com.redbottledesign.drupal.gson.requestor.SessionBasedHttpRequestor;
 public class PayoutsSummaryRequestor
 extends SessionBasedHttpRequestor
 {
-  protected static final String PAYOUTS_ENDPOINT = "payout_summary.json";
+  protected static final String PAYOUTS_ENDPOINT = "/payout_summary.json";
 
   public PayoutsSummaryRequestor(SessionManager sessionManager)
   {

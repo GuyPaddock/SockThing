@@ -14,6 +14,7 @@ import com.redbottledesign.bitcoin.pool.drupal.node.BlockCredit;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.summary.PayoutsSummary;
 import com.redbottledesign.drupal.User;
+import com.redbottledesign.util.QueueUtils;
 
 public class DrupalPplnsAgent
 extends Thread
@@ -22,12 +23,13 @@ implements PplnsAgent
   private static final long RETRY_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
 
   // TODO: Move to config.
-  private static final BigDecimal PAYOUT_BLOCK_PERCENTAGE_SOLVER  = BigDecimal.valueOf(0.2d);
-  private static final BigDecimal PAYOUT_BLOCK_PERCENTAGE_NORMAL  = BigDecimal.ONE.subtract(PAYOUT_BLOCK_PERCENTAGE_SOLVER);
+  private static final float PAYOUT_BLOCK_PERCENTAGE_SOLVER = 0.2f;
+  private static final float PAYOUT_BLOCK_PERCENTAGE_NORMAL = 1.0f - PAYOUT_BLOCK_PERCENTAGE_SOLVER;
+  private static final float POOL_FEE = 0.015f;
 
   private final StratumServer server;
-  private final BlockingQueue<SolvedBlock> pendingBlocks;
-  private final BlockingQueue<BlockCredit> pendingBlockCredits;
+  private final BlockingQueue<SolvedBlock> pendingBlockQueue;
+  private final BlockingQueue<BlockCredit> pendingBlockCreditQueue;
   private final Thread creditsThread;
 
   public DrupalPplnsAgent(StratumServer server)
@@ -37,9 +39,15 @@ implements PplnsAgent
 
     this.server = server;
 
-    this.pendingBlocks        = new LinkedBlockingQueue<>();
-    this.pendingBlockCredits  = new LinkedBlockingQueue<>();
-    this.creditsThread        = new PayoutsRunner(this.pendingBlockCredits);
+    this.pendingBlockQueue        = new LinkedBlockingQueue<>();
+    this.pendingBlockCreditQueue  = new LinkedBlockingQueue<>();
+    this.creditsThread            = new PayoutsRunner(this.pendingBlockCreditQueue);
+  }
+
+  @Override
+  public BlockingQueue<SolvedBlock> getPendingBlockQueue()
+  {
+    return this.pendingBlockQueue;
   }
 
   @Override
@@ -87,7 +95,7 @@ implements PplnsAgent
        *
        * We still call this method in a loop in case we get interrupted.
        */
-      while ((currentBlock = this.pendingBlocks.take()) != null)
+      while ((currentBlock = this.pendingBlockQueue.take()) != null)
       {
         PayoutsSummary payoutsSummary;
 
@@ -99,7 +107,7 @@ implements PplnsAgent
         catch (Throwable ex)
         {
           // Re-queue block.
-          this.pendingBlocks.put(currentBlock);
+          this.pendingBlockQueue.put(currentBlock);
 
           throw new RuntimeException(
             String.format(
@@ -121,7 +129,7 @@ implements PplnsAgent
           regularCredit.setCreditType(BlockCredit.Type.REGULAR_SHARE);
 
           // Save this in another thread for both performance and reliability
-          DrupalPplnsAgent.ensureQueued(this.pendingBlockCredits, regularCredit);
+          QueueUtils.ensureQueued(this.pendingBlockCreditQueue, regularCredit);
 
           if (currentBlock.getSolvingMember().equals(recipient))
           {
@@ -134,7 +142,7 @@ implements PplnsAgent
             bonusCredit.setCreditType(BlockCredit.Type.BLOCK_SOLUTION_BONUS);
 
             // Save this in another thread for both performance and reliability
-            DrupalPplnsAgent.ensureQueued(this.pendingBlockCredits, bonusCredit);
+            QueueUtils.ensureQueued(this.pendingBlockCreditQueue, bonusCredit);
           }
         }
       }
@@ -148,43 +156,20 @@ implements PplnsAgent
 
   protected BigDecimal calculateBlockCredit(SolvedBlock currentBlock, PayoutsSummary.UserPayoutSummary userPayout)
   {
-    // reward = blockReward * (difficultyUser / difficultyTotal) * (1.0 - PAYOUT_NORMAL)
-    BigDecimal result =
-      currentBlock.getReward()
-        .multiply(
-          BigDecimal.valueOf(userPayout.getOpenDifficultyUser()))
-        .divide(
-          BigDecimal.valueOf(userPayout.getOpenDifficultyTotal()))
-        .multiply(
-          PAYOUT_BLOCK_PERCENTAGE_NORMAL);
+    float blockReward     = currentBlock.getReward().floatValue(),
+          difficultyUser  = userPayout.getOpenDifficultyUser(),
+          difficultyTotal = userPayout.getOpenDifficultyTotal(),
+          credit          = blockReward * (difficultyUser / difficultyTotal) * (PAYOUT_BLOCK_PERCENTAGE_NORMAL - POOL_FEE);
 
-    return result;
+    return BigDecimal.valueOf(credit);
   }
 
   protected BigDecimal calculateBlockBonus(SolvedBlock currentBlock, PayoutsSummary.UserPayoutSummary userPayout)
   {
-    return currentBlock.getReward().multiply(PAYOUT_BLOCK_PERCENTAGE_SOLVER);
-  }
+    float blockReward     = currentBlock.getReward().floatValue(),
+          credit          = blockReward * (PAYOUT_BLOCK_PERCENTAGE_SOLVER - POOL_FEE);
 
-  protected static <T> void ensureQueued(BlockingQueue<T> queue, T object)
-  {
-    boolean saved = false;
-
-    do
-    {
-      try
-      {
-        queue.put(object);
-
-        saved = true;
-      }
-
-      catch (InterruptedException innerEx)
-      {
-        // Suppressed; expected
-      }
-    }
-    while (!saved);
+    return BigDecimal.valueOf(credit);
   }
 
   protected static class PayoutsRunner
@@ -242,7 +227,7 @@ implements PplnsAgent
         try
         {
           System.out.printf(
-            "Saving %0.2d %s credit for user ID %s on block ID %s.\n",
+            "Saving %.2f %s credit for user ID %s on block ID %s.\n",
             currentCredit.getAmount().doubleValue(),
             currentCredit.getCreditType(),
             currentCredit.getRecipient().getId(),
@@ -254,7 +239,7 @@ implements PplnsAgent
         catch (Throwable ex)
         {
           // Re-queue credit.
-          DrupalPplnsAgent.ensureQueued(this.pendingBlockCredits, currentCredit);
+          QueueUtils.ensureQueued(this.pendingBlockCredits, currentCredit);
 
           throw new RuntimeException(
             String.format(

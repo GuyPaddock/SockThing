@@ -8,6 +8,7 @@ import java.util.Date;
 
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
+import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
@@ -17,6 +18,7 @@ import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
+import com.redbottledesign.util.QueueUtils;
 
 public class DrupalShareSaver
 implements ShareSaver
@@ -49,6 +51,7 @@ implements ShareSaver
   throws ShareSaveException
   {
     RoundAgent      roundAgent            = this.server.getRoundAgent();
+    PplnsAgent      pplnsAgent            = this.server.getPplnsAgent();
     Node.Reference  currentRoundReference = roundAgent.getCurrentRoundSynchronized().asReference();
     WorkShare       newShare              = new WorkShare();
     String          statusString          = "accepted";
@@ -59,8 +62,8 @@ implements ShareSaver
 
     System.out.println(blockDifficulty + " " + blockReward);
 
-    if (CONFIRM_YES.equals(submitResult.getUpstreamResult()) && (submitResult.getHash() != null))
-    {
+//    if (CONFIRM_YES.equals(submitResult.getUpstreamResult()) && (submitResult.getHash() != null))
+//    {
       SolvedBlock newBlock = new SolvedBlock();
 
       newBlock.setAuthor(daemonUserReference);
@@ -84,8 +87,13 @@ implements ShareSaver
         throw new ShareSaveException(ex);
       }
 
+      if (pplnsAgent != null)
+      {
+        QueueUtils.ensureQueued(pplnsAgent.getPendingBlockQueue(), newBlock);
+      }
+
       solvedBlockReference = newBlock.asReference();
-    }
+//    }
 
     if (submitResult.getReason() != null)
     {
