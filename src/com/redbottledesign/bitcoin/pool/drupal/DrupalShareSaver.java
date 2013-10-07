@@ -18,7 +18,6 @@ import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
-import com.redbottledesign.util.QueueUtils;
 
 public class DrupalShareSaver
 implements ShareSaver
@@ -90,9 +89,7 @@ implements ShareSaver
       }
 
       if (pplnsAgent != null)
-      {
-        QueueUtils.ensureQueued(pplnsAgent.getPendingBlockQueue(), newBlock);
-      }
+        pplnsAgent.payoutBlock(newBlock);
 
       solvedBlockReference = newBlock.asReference();
 //    }

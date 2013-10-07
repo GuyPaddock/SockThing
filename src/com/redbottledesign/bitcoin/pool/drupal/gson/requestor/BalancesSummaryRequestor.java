@@ -9,26 +9,26 @@ import java.net.URI;
 import org.apache.http.client.methods.HttpGet;
 
 import com.google.gson.Gson;
-import com.redbottledesign.bitcoin.pool.drupal.summary.PayoutsSummary;
+import com.redbottledesign.bitcoin.pool.drupal.summary.BalancesSummary;
 import com.redbottledesign.drupal.gson.DrupalGsonFactory;
 import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.SessionBasedHttpRequestor;
 
-public class PayoutsSummaryRequestor
+public class BalancesSummaryRequestor
 extends SessionBasedHttpRequestor
 {
-  protected static final String ENDPOINT = "/payout_summary.json";
+  protected static final String ENDPOINT = "/balance_summary.json";
 
-  public PayoutsSummaryRequestor(SessionManager sessionManager)
+  public BalancesSummaryRequestor(SessionManager sessionManager)
   {
     super(sessionManager);
   }
 
-  public PayoutsSummary requestPayoutsSummary()
+  public BalancesSummary requestBalancesSummary()
   throws IOException, DrupalHttpException
   {
-    PayoutsSummary  result      = null;
+    BalancesSummary result      = null;
     URI             requestUri  = this.createEndpointUri(ENDPOINT);
 
     try (InputStream  responseStream = this.executeRequest(new HttpGet(requestUri));
@@ -36,7 +36,7 @@ extends SessionBasedHttpRequestor
     {
       Gson drupalGson = DrupalGsonFactory.getInstance().createGson();
 
-      result = drupalGson.fromJson(responseReader, PayoutsSummary.class);
+      result = drupalGson.fromJson(responseReader, BalancesSummary.class);
     }
 
     return result;

@@ -37,22 +37,26 @@ public class RoundAgent extends Thread
     {
       Round currentRound = null;
 
-      // Wait for the round to be initialized if it hasn't been yet.
       do
       {
+        // Block in case we're changing between rounds...
         synchronized (this)
         {
           currentRound = this.currentRound;
         }
 
-        try
+        // Wait for the round to be initialized if it hasn't been yet.
+        if (currentRound == null)
         {
-          Thread.sleep(ROUND_POLL_ACQUIRE_MS);
-        }
+          try
+          {
+            Thread.sleep(ROUND_POLL_ACQUIRE_MS);
+          }
 
-        catch (InterruptedException e)
-        {
-          // Expected
+          catch (InterruptedException e)
+          {
+            // Expected
+          }
         }
       }
       while (currentRound == null);
@@ -70,12 +74,11 @@ public class RoundAgent extends Thread
       {
         try
         {
-          this.updateRounds();
-
-          // FIXME: Switch to scheduled threads.
-          synchronized (this)
+          if (System.currentTimeMillis() > (lastCheck + DB_CHECK_MS))
           {
-            this.wait(DB_CHECK_MS / 4);
+            this.updateRounds();
+
+            this.lastCheck = System.currentTimeMillis();
           }
         }
 
@@ -84,40 +87,41 @@ public class RoundAgent extends Thread
           // Top-level handler
           t.printStackTrace();
         }
-      }
-    }
 
-    private void updateRounds()
-    {
-      if (System.currentTimeMillis() > (lastCheck + DB_CHECK_MS))
-      {
-        synchronized (this)
+        synchronized(this)
         {
           try
           {
-            this.currentRound = this.roundRequestor.requestCurrentRound();
-
-            if ((this.currentRound == null) || (this.currentRound.hasExpired()))
-              this.startNewRound();
+            // FIXME: Switch to scheduled threads.
+            this.wait(DB_CHECK_MS / 4);
           }
 
-          catch (IOException | DrupalHttpException e)
+          catch (InterruptedException e)
           {
-            e.printStackTrace();
+            // Suppressed; expected
           }
         }
+      }
+    }
 
-        try
+    protected void updateRounds()
+    {
+      try
+      {
+        synchronized (this)
         {
-          this.updateStatusOfPastRounds();
+          this.currentRound = this.roundRequestor.requestCurrentRound();
+
+          if ((this.currentRound == null) || (this.currentRound.hasExpired()))
+            this.startNewRound();
         }
 
-        catch (IOException | DrupalHttpException e)
-        {
-          e.printStackTrace();
-        }
+        this.updateStatusOfPastRounds();
+      }
 
-        this.lastCheck = System.currentTimeMillis();
+      catch (IOException | DrupalHttpException e)
+      {
+        e.printStackTrace();
       }
     }
 

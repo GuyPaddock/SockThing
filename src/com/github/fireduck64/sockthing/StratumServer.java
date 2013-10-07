@@ -1,5 +1,6 @@
 package com.github.fireduck64.sockthing;
 
+import java.math.BigDecimal;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
@@ -19,17 +20,22 @@ import com.github.fireduck64.sockthing.output.OutputMonster;
 import com.github.fireduck64.sockthing.output.OutputMonsterSimple;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.github.fireduck64.sockthing.util.HexUtil;
+import com.google.bitcoin.core.Address;
+import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalPplnsAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
 import com.redbottledesign.bitcoin.pool.drupal.FallbackShareSaver;
+import com.redbottledesign.bitcoin.pool.drupal.PayoutAgent;
 import com.redbottledesign.bitcoin.pool.drupal.RoundAgent;
 
 public class StratumServer
 {
+    private static final String CONFIG_VALUE_POOL_PAYMENT_ADDRESS = "pay_to_address";
+    private static final long MAX_IDLE_TIME = 300L * 1000L * 1000L * 1000L;//5 minutes in nanos
+
     private final BitcoinRPC bitcoinRpc;
-    private final static long MAX_IDLE_TIME = 300L * 1000L * 1000L * 1000L;//5 minutes in nanos
     //private long max_idle_time = 3L * 1000L * 1000L * 1000L;//3 seconds
 
     private final Map<String, StratumConnection> conn_map=new HashMap<String, StratumConnection>(1024, 0.5f);
@@ -37,12 +43,14 @@ public class StratumServer
     private final Config config;
     private AuthHandler authHandler;
     private NetworkParameters networkParams;
+    private Address poolAddress;
     private ShareSaver shareSaver;
     private OutputMonster outputMonster;
     private MetricsReporter metricsReporter;
     private WittyRemarksAgent wittyRemarksAgent;
     private PplnsAgent pplnsAgent;
     private RoundAgent roundAgent;
+    private PayoutAgent payoutAgent;
     private EventLog eventLog;
 
     private String instanceId;
@@ -79,7 +87,23 @@ public class StratumServer
 
     public void start()
     {
+        String poolAddressString;
+
         this.getEventLog().log("SERVER START");
+
+        poolAddressString = this.config.get(CONFIG_VALUE_POOL_PAYMENT_ADDRESS);
+
+        try
+        {
+          this.poolAddress = new Address(this.networkParams, poolAddressString);
+        }
+
+        catch (AddressFormatException ex)
+        {
+          throw new RuntimeException(
+            String.format("Bad pool 'pay to' address '%s': %s", poolAddressString, ex.getMessage()),
+            ex);
+        }
 
         new NotifyListenerUDP(this).start();
         new TimeoutThread().start();
@@ -97,11 +121,14 @@ public class StratumServer
         if (this.wittyRemarksAgent != null)
           this.wittyRemarksAgent.start();
 
-        if (pplnsAgent != null)
+        if (this.pplnsAgent != null)
           this.pplnsAgent.start();
 
         if (this.roundAgent != null)
           this.roundAgent.start();
+
+        if (this.payoutAgent != null)
+          this.payoutAgent.start();
     }
 
     public void setAuthHandler(AuthHandler authHandler)
@@ -188,6 +215,16 @@ public class StratumServer
         return this.pplnsAgent;
     }
 
+    public PayoutAgent getPayoutAgent()
+    {
+      return this.payoutAgent;
+    }
+
+    public void setPayoutAgent(PayoutAgent payoutAgent)
+    {
+      this.payoutAgent = payoutAgent;
+    }
+
     public void setEventLog(EventLog eventLog)
     {
       this.eventLog = eventLog;
@@ -271,6 +308,7 @@ public class StratumServer
 
         // Fee sharing is done elsewhere.
         server.setOutputMonster(new OutputMonsterSimple(conf, server.getNetworkParameters()));
+        server.setPayoutAgent(new PayoutAgent(server));
 
         if (conf.getBoolean("witty_remarks_enabled"))
         {
@@ -344,6 +382,7 @@ public class StratumServer
 
         return this.bitcoinRpc.sendPost(post).getDouble("result");
     }
+
     public String submitBlock(Block blk)
     {
         String result="N";
@@ -358,6 +397,13 @@ public class StratumServer
         }
 
         return result;
+    }
+
+    public String sendPayment(BigDecimal amount, Address payee)
+    {
+      String paymentHash = null;
+
+      return paymentHash;
     }
 
     public UserSessionData getUserSessionData(PoolUser pu)

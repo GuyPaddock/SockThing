@@ -1,7 +1,5 @@
 package com.redbottledesign.bitcoin.pool.drupal.summary;
 
-import java.math.BigDecimal;
-
 import com.google.gson.annotations.SerializedName;
 import com.redbottledesign.drupal.User;
 
@@ -28,15 +26,6 @@ public class PayoutsSummary
     public static final String DRUPAL_FIELD_USER_ID = "uid";
     public static final String JAVA_FIELD_USER_ID = "userId";
 
-    public static final String DRUPAL_FIELD_USER_BALANCE_CURRENT = "user_balance_current";
-    public static final String JAVA_FIELD_USER_BALANCE_CURRENT = "userBalanceCurrent";
-
-    public static final String DRUPAL_FIELD_USER_PAYOUT_MINIMUM = "user_payout_minimum_amount";
-    public static final String JAVA_FIELD_USER_PAYOUT_MINIMUM = "userPayoutMinimum";
-
-    public static final String DRUPAL_FIELD_USER_PAYOUT_ADDRESS = "user_payout_address";
-    public static final String JAVA_FIELD_USER_PAYOUT_ADDRESS = "userPayoutAddress";
-
     public static final String DRUPAL_FIELD_OPEN_SHARES_TOTAL = "open_shares_total";
     public static final String JAVA_FIELD_OPEN_SHARES_TOTAL = "openSharesTotal";
 
@@ -57,15 +46,6 @@ public class PayoutsSummary
 
     @SerializedName(DRUPAL_FIELD_USER_ID)
     private int userId;
-
-    @SerializedName(DRUPAL_FIELD_USER_BALANCE_CURRENT)
-    private BigDecimal userBalanceCurrent;
-
-    @SerializedName(DRUPAL_FIELD_USER_PAYOUT_MINIMUM)
-    private BigDecimal userPayoutMinimum;
-
-    @SerializedName(DRUPAL_FIELD_USER_PAYOUT_ADDRESS)
-    private String userPayoutAddress;
 
     @SerializedName(DRUPAL_FIELD_OPEN_SHARES_TOTAL)
     private long openSharesTotal;
@@ -88,21 +68,6 @@ public class PayoutsSummary
     public int getUserId()
     {
       return this.userId;
-    }
-
-    public BigDecimal getUserBalanceCurrent()
-    {
-      return this.userBalanceCurrent;
-    }
-
-    public BigDecimal getUserPayoutMinimum()
-    {
-      return this.userPayoutMinimum;
-    }
-
-    public String getUserPayoutAddress()
-    {
-      return this.userPayoutAddress;
     }
 
     public long getOpenSharesTotal()
@@ -145,21 +110,6 @@ public class PayoutsSummary
       this.userId = userId;
     }
 
-    protected void setUserBalanceCurrent(BigDecimal userBalanceCurrent)
-    {
-      this.userBalanceCurrent = userBalanceCurrent;
-    }
-
-    protected void setUserPayoutMinimum(BigDecimal userPayoutMinimum)
-    {
-      this.userPayoutMinimum = userPayoutMinimum;
-    }
-
-    protected void setUserPayoutAddress(String userPayoutAddress)
-    {
-      this.userPayoutAddress = userPayoutAddress;
-    }
-
     protected void setOpenSharesTotal(long openSharesTotal)
     {
       this.openSharesTotal = openSharesTotal;
@@ -195,9 +145,6 @@ public class PayoutsSummary
     {
       return this.getClass().getSimpleName()                    + " [" +
       		   "userId="              + this.userId               + ", " +
-    		   	 "userBalanceCurrent="  + this.userBalanceCurrent   + ", " +
-  		   	 	 "userPayoutMinimum="   + this.userPayoutMinimum    + ", " +
-  		   	 	 "userPayoutAddress="   + this.userPayoutAddress    + ", " +
   		   	 	 "openSharesTotal="     + this.openSharesTotal      + ", " +
   		   	 	 "openSharesUser="      + this.openSharesUser       + ", " +
   		   	 	 "openBlocksTotal="     + this.openBlocksTotal      + ", " +
@@ -210,7 +157,7 @@ public class PayoutsSummary
   @Override
   public String toString()
   {
-    return this.getClass().getSimpleName() + " [" +
-    		   "payouts=" + payouts            + "]";
+    return this.getClass().getSimpleName()  + " [" +
+    		   "payouts=" + this.payouts        + "]";
   }
 }

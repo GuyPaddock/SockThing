@@ -41,13 +41,13 @@ implements PplnsAgent
 
     this.pendingBlockQueue        = new LinkedBlockingQueue<>();
     this.pendingBlockCreditQueue  = new LinkedBlockingQueue<>();
-    this.creditsThread            = new PayoutsRunner(this.pendingBlockCreditQueue);
+    this.creditsThread            = new CreditPersistenceRunner(this.pendingBlockCreditQueue);
   }
 
   @Override
-  public BlockingQueue<SolvedBlock> getPendingBlockQueue()
+  public void payoutBlock(SolvedBlock block)
   {
-    return this.pendingBlockQueue;
+    QueueUtils.ensureQueued(this.pendingBlockQueue, block);
   }
 
   @Override
@@ -59,7 +59,16 @@ implements PplnsAgent
     {
       try
       {
-        this.runPplnsCredits();
+        /* NOTE: This will block indefinitely for items.
+        *
+        * We still call this method in a loop in case we get interrupted.
+        */
+       this.runPplnsCredits();
+      }
+
+      catch (InterruptedException e)
+      {
+        // Suppressed; expected
       }
 
       catch (Throwable ex)
@@ -83,74 +92,63 @@ implements PplnsAgent
   }
 
   protected void runPplnsCredits()
+  throws InterruptedException
   {
     SolvedBlock                   currentBlock;
-    SingletonDrupalSessionFactory sessionFactory      = SingletonDrupalSessionFactory.getInstance();
-    PayoutsSummaryRequestor       payoutsRequestor    = sessionFactory.getPayoutsRequestor();
-    User.Reference                poolDaemonReference = sessionFactory.getPoolDaemonUser().asReference();
+    SingletonDrupalSessionFactory sessionFactory    = SingletonDrupalSessionFactory.getInstance();
+    PayoutsSummaryRequestor       payoutsRequestor  = sessionFactory.getPayoutsSummaryRequestor();
+    User.Reference                poolDaemonUser    = sessionFactory.getPoolDaemonUser().asReference();
 
-    try
+    while ((currentBlock = this.pendingBlockQueue.take()) != null)
     {
-      /* NOTE: This will block indefinitely for items.
-       *
-       * We still call this method in a loop in case we get interrupted.
-       */
-      while ((currentBlock = this.pendingBlockQueue.take()) != null)
+      PayoutsSummary payoutsSummary;
+
+      try
       {
-        PayoutsSummary payoutsSummary;
+        payoutsSummary = payoutsRequestor.requestPayoutsSummary();
+      }
 
-        try
+      catch (Throwable ex)
+      {
+        // Re-queue block.
+        QueueUtils.ensureQueued(this.pendingBlockQueue, currentBlock);
+
+        throw new RuntimeException(
+          String.format(
+            "Failed to request payouts summary while handling block '%s' (queued to retry): %s",
+             currentBlock,
+             ex.getMessage()),
+          ex);
+      }
+
+      for (PayoutsSummary.UserPayoutSummary userPayout : payoutsSummary.getPayouts())
+      {
+        BlockCredit     regularCredit  = new BlockCredit();
+        User.Reference  recipient   = userPayout.getUserReference();
+
+        regularCredit.setAuthor(poolDaemonUser);
+        regularCredit.setRecipient(recipient);
+        regularCredit.setBlock(currentBlock.asReference());
+        regularCredit.setAmount(this.calculateBlockCredit(currentBlock, userPayout));
+        regularCredit.setCreditType(BlockCredit.Type.REGULAR_SHARE);
+
+        // Save this in another thread for both performance and reliability
+        QueueUtils.ensureQueued(this.pendingBlockCreditQueue, regularCredit);
+
+        if (currentBlock.getSolvingMember().equals(recipient))
         {
-          payoutsSummary = payoutsRequestor.requestPayoutsSummary();
-        }
+          BlockCredit bonusCredit  = new BlockCredit();
 
-        catch (Throwable ex)
-        {
-          // Re-queue block.
-          this.pendingBlockQueue.put(currentBlock);
-
-          throw new RuntimeException(
-            String.format(
-              "Failed to request payouts summary while handling block '%s' (queued to retry): %s",
-               currentBlock,
-               ex.getMessage()),
-            ex);
-        }
-
-        for (PayoutsSummary.UserPayoutSummary userPayout : payoutsSummary.getPayouts())
-        {
-          BlockCredit     regularCredit  = new BlockCredit();
-          User.Reference  recipient   = userPayout.getUserReference();
-
-          regularCredit.setAuthor(poolDaemonReference);
-          regularCredit.setRecipient(recipient);
-          regularCredit.setBlock(currentBlock.asReference());
-          regularCredit.setAmount(this.calculateBlockCredit(currentBlock, userPayout));
-          regularCredit.setCreditType(BlockCredit.Type.REGULAR_SHARE);
+          bonusCredit.setAuthor(poolDaemonUser);
+          bonusCredit.setRecipient(recipient);
+          bonusCredit.setBlock(currentBlock.asReference());
+          bonusCredit.setAmount(this.calculateBlockBonus(currentBlock, userPayout));
+          bonusCredit.setCreditType(BlockCredit.Type.BLOCK_SOLUTION_BONUS);
 
           // Save this in another thread for both performance and reliability
-          QueueUtils.ensureQueued(this.pendingBlockCreditQueue, regularCredit);
-
-          if (currentBlock.getSolvingMember().equals(recipient))
-          {
-            BlockCredit bonusCredit  = new BlockCredit();
-
-            bonusCredit.setAuthor(poolDaemonReference);
-            bonusCredit.setRecipient(recipient);
-            bonusCredit.setBlock(currentBlock.asReference());
-            bonusCredit.setAmount(this.calculateBlockBonus(currentBlock, userPayout));
-            bonusCredit.setCreditType(BlockCredit.Type.BLOCK_SOLUTION_BONUS);
-
-            // Save this in another thread for both performance and reliability
-            QueueUtils.ensureQueued(this.pendingBlockCreditQueue, bonusCredit);
-          }
+          QueueUtils.ensureQueued(this.pendingBlockCreditQueue, bonusCredit);
         }
       }
-    }
-
-    catch (InterruptedException e)
-    {
-      // Suppress -- expected.
     }
   }
 
@@ -172,12 +170,12 @@ implements PplnsAgent
     return BigDecimal.valueOf(credit);
   }
 
-  protected static class PayoutsRunner
+  protected static class CreditPersistenceRunner
   extends Thread
   {
     private final BlockingQueue<BlockCredit> pendingBlockCredits;
 
-    public PayoutsRunner(BlockingQueue<BlockCredit> pendingBlockCredits)
+    public CreditPersistenceRunner(BlockingQueue<BlockCredit> pendingBlockCredits)
     {
       this.setDaemon(true);
       this.setName(this.getClass().getSimpleName());
@@ -192,7 +190,16 @@ implements PplnsAgent
       {
         try
         {
-          this.runPayouts();
+          /* NOTE: This will block indefinitely for items.
+           *
+           * We still call this method in a loop in case we get interrupted.
+           */
+          this.persistCredits();
+        }
+
+        catch (InterruptedException e)
+        {
+          // Suppressed; expected
         }
 
         catch (Throwable ex)
@@ -215,7 +222,7 @@ implements PplnsAgent
       }
     }
 
-    protected void runPayouts()
+    protected void persistCredits()
     throws InterruptedException
     {
       SingletonDrupalSessionFactory sessionFactory  = SingletonDrupalSessionFactory.getInstance();
