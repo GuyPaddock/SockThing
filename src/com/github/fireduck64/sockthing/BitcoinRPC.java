@@ -129,18 +129,17 @@ public class BitcoinRPC
         return sendPost(msg);
     }
 
-    public JSONObject sendPayment(float amount, Address payFromAddress, Address payToAddress)
+    public JSONObject sendPayment(double amount, Address payFromAddress, Address payToAddress)
     throws IOException, JSONException
     {
-      Random      rnd     = new Random();
-      JSONObject  msg     = new JSONObject();
-      JSONArray   params  = new JSONArray();
+      Random      rnd           = new Random();
+      JSONObject  msg           = new JSONObject();
+      JSONArray   params        = new JSONArray();
 
-      msg.put("method", "submitblock");
+      msg.put("method", "sendtoaddress");
       msg.put("id", "" + rnd.nextInt());
 
-      params.put(payFromAddress.toString());  // <fromaccount>
-      params.put(payToAddress.toString());    // <tobitcoinaddress>
+      params.put(payToAddress.toString());    // <bitcoinaddress>
       params.put(amount);                     // <amount>
 
       msg.put("params", params);

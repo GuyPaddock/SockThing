@@ -6,6 +6,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONException;
+
 import com.github.fireduck64.sockthing.EventLog;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Address;
@@ -53,28 +55,31 @@ extends Thread
       {
         if (System.currentTimeMillis() > (lastCheck + DB_CHECK_MS))
         {
-          int outstandingPayoutCount = this.payoutPersistenceQueue.size();
-
-          /* Don't run pay-outs until all previous pay-outs have been persisted.
-           * Otherwise, we might pay users twice.
-           */
-          if (outstandingPayoutCount != 0)
+          synchronized (this.payoutPersistenceQueue)
           {
-            String message =
-              String.format(
-                "Not running pay-outs because %d payment records are still waiting to be written to the database.",
-                outstandingPayoutCount);
+            int outstandingPayoutCount = this.payoutPersistenceQueue.size();
 
-            System.err.println(message);
-            this.server.getEventLog().log(message);
+            /* Don't run pay-outs until all previous pay-outs have been persisted.
+             * Otherwise, we might pay users twice.
+             */
+            if (this.payoutPersistenceQueue.size() != 0)
+            {
+              String message =
+                String.format(
+                  "Not running pay-outs because %d payment records are still waiting to be written to the database.",
+                  outstandingPayoutCount);
+
+              System.err.println(message);
+              this.server.getEventLog().log(message);
+            }
+
+            else
+            {
+              this.runPayouts();
+            }
+
+            this.lastCheck = System.currentTimeMillis();
           }
-
-          else
-          {
-            this.runPayouts();
-          }
-
-          this.lastCheck = System.currentTimeMillis();
         }
       }
 
@@ -128,6 +133,7 @@ extends Thread
             userId,
             userPayoutAddress);
 
+        System.out.println(message);
         eventLog.log(message);
 
         try
@@ -135,18 +141,18 @@ extends Thread
           this.sendPayout(currentUserBalance, userId, userPayoutAddress, poolDaemonUser);
         }
 
-        catch (AddressFormatException e)
+        catch (Throwable ex)
         {
           String error = String.format(
             "Failed to send %.2f BTC payout to user #%d at address '%s' (user skipped): %s",
             currentUserBalance.doubleValue(),
             userId,
             userPayoutAddress,
-            e.getMessage());
+            ex.getMessage());
 
           eventLog.log(error);
           System.err.println(error);
-          e.printStackTrace();
+          ex.printStackTrace();
         }
       }
     }
@@ -154,7 +160,7 @@ extends Thread
 
   protected void sendPayout(BigDecimal currentUserBalance, int userId, String payoutAddress,
                             User.Reference poolDaemonUser)
-  throws AddressFormatException
+  throws AddressFormatException, IOException, JSONException
   {
     Payout  payoutRecord  = new Payout();
     String  paymentHash   = this.server.sendPayment(currentUserBalance, new Address(null, payoutAddress));
@@ -229,42 +235,46 @@ extends Thread
 
       while ((payoutRecord = this.payoutPersistenceQueue.take()) != null)
       {
-        double  paymentAmount   = payoutRecord.getAmount().doubleValue();
-        Integer recipientId     = payoutRecord.getRecipient().getId();
-        String  paymentAddress  = payoutRecord.getPaymentAddress(),
-                message;
-
-        message =
-          String.format("Saving record of a %.2f BTC payout to user #%d at address '%s'.",
-            paymentAmount,
-            recipientId,
-            paymentAddress);
-
-        System.out.println(message);
-        eventLog.log(message);
-
-        try
+        // Ensure we don't try to issue more payouts when this is running...
+        synchronized (this.payoutPersistenceQueue)
         {
-          payoutRequestor.createNode(payoutRecord);
-        }
+          double  paymentAmount   = payoutRecord.getAmount().doubleValue();
+          Integer recipientId     = payoutRecord.getRecipient().getId();
+          String  paymentAddress  = payoutRecord.getPaymentAddress(),
+                  message;
 
-        catch (Throwable ex)
-        {
-          String error;
+          message =
+            String.format("Saving record of a %.2f BTC payout to user #%d at address '%s'.",
+              paymentAmount,
+              recipientId,
+              paymentAddress);
 
-          // Re-queue payout record.
-          QueueUtils.ensureQueued(this.payoutPersistenceQueue, payoutRecord);
+          System.out.println(message);
+          eventLog.log(message);
 
-          error = String.format(
-            "A %.2f BTC payout to user #%d succeeded but failed to be written: %s",
-            paymentAmount,
-            recipientId,
-            paymentAddress,
-            ex.getMessage());
+          try
+          {
+            payoutRequestor.createNode(payoutRecord);
+          }
 
-          eventLog.log(error);
+          catch (Throwable ex)
+          {
+            String error;
 
-          throw new RuntimeException(error, ex);
+            // Re-queue payout record.
+            QueueUtils.ensureQueued(this.payoutPersistenceQueue, payoutRecord);
+
+            error = String.format(
+              "A %.2f BTC payout to user #%d succeeded but failed to be written: %s",
+              paymentAmount,
+              recipientId,
+              paymentAddress,
+              ex.getMessage());
+
+            eventLog.log(error);
+
+            throw new RuntimeException(error, ex);
+          }
         }
       }
     }

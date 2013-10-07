@@ -1,5 +1,6 @@
 package com.github.fireduck64.sockthing;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -12,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.github.fireduck64.sockthing.authentication.AddressDifficultyAuthHandler;
@@ -400,8 +402,15 @@ public class StratumServer
     }
 
     public String sendPayment(BigDecimal amount, Address payee)
+    throws IOException, JSONException
     {
-      String paymentHash = null;
+      JSONObject  resultObject = this.bitcoinRpc.sendPayment(amount.doubleValue(), this.poolAddress, payee);
+      String      paymentHash;
+
+      if (!resultObject.isNull("error"))
+        throw new RuntimeException("Payment failed: " + resultObject.get("error"));
+
+      paymentHash = resultObject.getString("result");
 
       return paymentHash;
     }
