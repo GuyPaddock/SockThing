@@ -21,7 +21,7 @@ import com.redbottledesign.util.QueueUtils;
 public class PayoutAgent
 extends Thread
 {
-  private static final long DB_CHECK_MS = TimeUnit.MILLISECONDS.convert(15, TimeUnit.MINUTES);
+  private static final long DB_CHECK_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
   private static final long RETRY_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
 
   private long lastCheck;
@@ -53,7 +53,26 @@ extends Thread
       {
         if (System.currentTimeMillis() > (lastCheck + DB_CHECK_MS))
         {
-          this.runPayouts();
+          int outstandingPayoutCount = this.payoutPersistenceQueue.size();
+
+          /* Don't run pay-outs until all previous pay-outs have been persisted.
+           * Otherwise, we might pay users twice.
+           */
+          if (outstandingPayoutCount != 0)
+          {
+            String message =
+              String.format(
+                "Not running pay-outs because %d payment records are still waiting to be written to the database.",
+                outstandingPayoutCount);
+
+            System.err.println(message);
+            this.server.getEventLog().log(message);
+          }
+
+          else
+          {
+            this.runPayouts();
+          }
 
           this.lastCheck = System.currentTimeMillis();
         }
@@ -221,6 +240,7 @@ extends Thread
             recipientId,
             paymentAddress);
 
+        System.out.println(message);
         eventLog.log(message);
 
         try
@@ -230,10 +250,12 @@ extends Thread
 
         catch (Throwable ex)
         {
+          String error;
+
           // Re-queue payout record.
           QueueUtils.ensureQueued(this.payoutPersistenceQueue, payoutRecord);
 
-          String error = String.format(
+          error = String.format(
             "A %.2f BTC payout to user #%d succeeded but failed to be written: %s",
             paymentAmount,
             recipientId,
@@ -241,8 +263,8 @@ extends Thread
             ex.getMessage());
 
           eventLog.log(error);
-          System.err.println(error);
-          ex.printStackTrace();
+
+          throw new RuntimeException(error, ex);
         }
       }
     }

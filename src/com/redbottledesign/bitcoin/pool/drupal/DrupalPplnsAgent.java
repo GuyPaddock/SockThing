@@ -6,6 +6,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.github.fireduck64.sockthing.EventLog;
 import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BlockCreditRequestor;
@@ -41,7 +42,7 @@ implements PplnsAgent
 
     this.pendingBlockQueue        = new LinkedBlockingQueue<>();
     this.pendingBlockCreditQueue  = new LinkedBlockingQueue<>();
-    this.creditsThread            = new CreditPersistenceRunner(this.pendingBlockCreditQueue);
+    this.creditsThread            = new CreditPersistenceRunner(server, this.pendingBlockCreditQueue);
   }
 
   @Override
@@ -94,6 +95,7 @@ implements PplnsAgent
   protected void runPplnsCredits()
   throws InterruptedException
   {
+    EventLog                      eventLog          = this.server.getEventLog();
     SolvedBlock                   currentBlock;
     SingletonDrupalSessionFactory sessionFactory    = SingletonDrupalSessionFactory.getInstance();
     PayoutsSummaryRequestor       payoutsRequestor  = sessionFactory.getPayoutsSummaryRequestor();
@@ -110,15 +112,20 @@ implements PplnsAgent
 
       catch (Throwable ex)
       {
+        String error;
+
         // Re-queue block.
         QueueUtils.ensureQueued(this.pendingBlockQueue, currentBlock);
 
-        throw new RuntimeException(
+        error =
           String.format(
             "Failed to request payouts summary while handling block '%s' (queued to retry): %s",
-             currentBlock,
-             ex.getMessage()),
-          ex);
+            currentBlock,
+            ex.getMessage());
+
+        eventLog.log(error);
+
+        throw new RuntimeException(error, ex);
       }
 
       for (PayoutsSummary.UserPayoutSummary userPayout : payoutsSummary.getPayouts())
@@ -173,14 +180,16 @@ implements PplnsAgent
   protected static class CreditPersistenceRunner
   extends Thread
   {
+    private final StratumServer server;
     private final BlockingQueue<BlockCredit> pendingBlockCredits;
 
-    public CreditPersistenceRunner(BlockingQueue<BlockCredit> pendingBlockCredits)
+    public CreditPersistenceRunner(StratumServer server, BlockingQueue<BlockCredit> pendingBlockCredits)
     {
       this.setDaemon(true);
       this.setName(this.getClass().getSimpleName());
 
-      this.pendingBlockCredits = pendingBlockCredits;
+      this.server               = server;
+      this.pendingBlockCredits  = pendingBlockCredits;
     }
 
     @Override
@@ -225,35 +234,39 @@ implements PplnsAgent
     protected void persistCredits()
     throws InterruptedException
     {
+      EventLog                      eventLog        = this.server.getEventLog();
       SingletonDrupalSessionFactory sessionFactory  = SingletonDrupalSessionFactory.getInstance();
       BlockCreditRequestor          creditRequestor = sessionFactory.getCreditRequestor();
       BlockCredit currentCredit;
 
       while ((currentCredit = pendingBlockCredits.take()) != null)
       {
-        try
-        {
-          System.out.printf(
-            "Saving %.2f %s credit for user ID %s on block ID %s.\n",
+        String message =
+          String.format(
+            "Saving %.2f %s credit for user ID %s on block ID %s.",
             currentCredit.getAmount().doubleValue(),
             currentCredit.getCreditType(),
             currentCredit.getRecipient().getId(),
             currentCredit.getBlock().getId());
 
+        System.out.println(message);
+        eventLog.log(message);
+
+        try
+        {
           creditRequestor.createNode(currentCredit);
         }
 
         catch (Throwable ex)
         {
+          String error;
+
           // Re-queue credit.
           QueueUtils.ensureQueued(this.pendingBlockCredits, currentCredit);
 
-          throw new RuntimeException(
-            String.format(
-              "Failed to save credit '%s' (queued to retry): %s",
-               currentCredit,
-               ex.getMessage()),
-            ex);
+          error = String.format("Failed to save credit '%s' (queued to retry): %s", currentCredit, ex.getMessage());
+
+          throw new RuntimeException(error, ex);
         }
       }
     }
