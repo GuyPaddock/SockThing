@@ -24,7 +24,6 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
   private final EventLog logger;
   private final RequestorRegistry requestorRegistry;
   private final BlockingQueue<PersistenceQueueItem<? extends Entity<?>>> persistenceQueue;
-  private final Set<Long> vacatedItemIds;
 
   public PersistenceAgent(StratumServer server)
   {
@@ -32,7 +31,6 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     this.logger             = server.getEventLog();
     this.requestorRegistry  = new RequestorRegistry(this.server);
     this.persistenceQueue   = new LinkedBlockingQueue<>();
-    this.vacatedItemIds     = new HashSet<Long>();
   }
 
   public void queueForSave(Entity<?> entity)
@@ -45,14 +43,14 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     QueueUtils.ensureQueued(this.persistenceQueue, new PersistenceQueueItem<T>(entity, callback));
   }
 
-  public synchronized boolean vacateQueueItem(long itemIds)
+  public synchronized boolean evictQueueItem(long itemIds)
   {
-    return this.vacateQueueItems(Collections.singleton(itemIds));
+    return this.evictQueueItems(Collections.singleton(itemIds));
   }
 
-  public synchronized boolean vacateQueueItems(Set<Long> itemIds)
+  public synchronized boolean evictQueueItems(Set<Long> itemIds)
   {
-    boolean                           itemsVacated  = false;
+    boolean                           atLeastOneItemVacated = false;
     Iterator<PersistenceQueueItem<?>> queueIterator;
 
     this.interruptQueueProcessing();
@@ -61,18 +59,28 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
 
     while (queueIterator.hasNext())
     {
-      PersistenceQueueItem<?> queueItem = queueIterator.next();
+      PersistenceQueueItem<?> queueItem   = queueIterator.next();
+      long                    queueItemId = queueItem.getItemId();
 
-      if (itemIds.contains(queueItem.getItemId()))
+      if (itemIds.contains(queueItemId))
       {
+        String logMessage =
+          String.format(
+            "Evicting persistence queue item upon request (queue item ID #: %d): %s",
+            queueItemId,
+            queueItem.getEntity());
+
+        System.out.println(logMessage);
+        this.logger.log(logMessage);
+
         queueIterator.remove();
 
-        itemsVacated = true;
+        atLeastOneItemVacated = true;
         break;
       }
     }
 
-    return itemsVacated;
+    return atLeastOneItemVacated;
   }
 
   @Override
@@ -95,7 +103,7 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
       checkpointItemIds.add(checkpointItem.getItemId());
     }
 
-    this.vacateQueueItems(checkpointItemIds);
+    this.evictQueueItems(checkpointItemIds);
     this.persistenceQueue.addAll(checkpointItems);
   }
 
@@ -115,9 +123,9 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
       {
         String logMessage =
           String.format(
-            "Attempting to persist entity (queue item ID #: %d): %s.",
+            "Attempting to persist entity (queue item ID #: %d): %s",
             queueItemId,
-            queueItemEntity.getClass().getSimpleName());
+            queueItemEntity);
 
         System.out.println(logMessage);
         this.logger.log(logMessage);
@@ -149,51 +157,19 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
   protected <T extends Entity<?>> void attemptToPersistItem(PersistenceQueueItem<T> queueItem)
   throws IOException, DrupalHttpException
   {
-    if (!this.wasItemVacated(queueItem))
-    {
-      T                       queueEntity = queueItem.getEntity();
-      PersistenceCallback<T>  callback    = queueItem.getCallback();
-      EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
+    T                       queueEntity = queueItem.getEntity();
+    PersistenceCallback<T>  callback    = queueItem.getCallback();
+    EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
 
-      if (queueEntity.isNew()) {
-        requestor.saveNew(queueEntity);
-      }
-      else {
-        requestor.update(queueEntity);
-      }
-
-      if (callback != null)
-        callback.onEntitySaved(queueEntity);
+    if (queueEntity.isNew()) {
+      requestor.saveNew(queueEntity);
     }
-  }
-
-  protected boolean wasItemVacated(PersistenceQueueItem<?> queueItem)
-  {
-    return this.wasItemVacated(queueItem, true);
-  }
-
-  protected boolean wasItemVacated(PersistenceQueueItem<?> queueItem, boolean clearStatus)
-  {
-    long    itemId          = queueItem.getItemId();
-    boolean itemWasVacated;
-
-    synchronized (this.vacatedItemIds)
-    {
-      if (this.vacatedItemIds.contains(queueItem.getItemId()))
-      {
-        itemWasVacated = true;
-
-        if (clearStatus)
-          this.vacatedItemIds.remove(itemId);
-      }
-
-      else
-      {
-        itemWasVacated = false;
-      }
+    else {
+      requestor.update(queueEntity);
     }
 
-    return itemWasVacated;
+    if (callback != null)
+      callback.onEntitySaved(queueEntity);
   }
 
   protected static class PersistenceQueueItem<T extends Entity<?>>
