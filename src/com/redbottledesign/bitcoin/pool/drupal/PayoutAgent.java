@@ -2,14 +2,15 @@ package com.redbottledesign.bitcoin.pool.drupal;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Map.Entry;
-import java.util.WeakHashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.github.fireduck64.sockthing.EventLog;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Address;
 import com.redbottledesign.bitcoin.pool.Agent;
+import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BalancesSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
 import com.redbottledesign.bitcoin.pool.drupal.summary.BalancesSummary;
@@ -19,19 +20,19 @@ import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 public class PayoutAgent
 extends Agent
 {
-  private static final long DB_CHECK_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS); // FIXME: Payout every 15 mins!
+  private static final long PAYOUT_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS); // FIXME: Payout every 15 mins!
 
   private final StratumServer server;
-  private final WeakHashMap<Payout, Object> payoutsPendingPersistence;
   private final EventLog eventLog;
+  private final Set<Integer> userIdsAlreadyBeingUpdated;
 
   public PayoutAgent(StratumServer server)
   {
-    super(DB_CHECK_MS);
+    super(PAYOUT_FREQUENCY_MS);
 
-    this.server = server;
-    this.payoutsPendingPersistence = new WeakHashMap<>();
-    this.eventLog = server.getEventLog();
+    this.server                     = server;
+    this.eventLog                   = server.getEventLog();
+    this.userIdsAlreadyBeingUpdated = new HashSet<>();
   }
 
   @Override
@@ -119,22 +120,28 @@ extends Agent
 
   protected void queuePayoutRecordForPersistence(Payout payoutRecord)
   {
-    this.server.getPersistenceAgent().queueForSave(payoutRecord);
-    this.payoutsPendingPersistence.put(payoutRecord, null);
+    // Prevent the user for this payout from getting any other pay-outs until their balance is up-to-date.
+    this.userIdsAlreadyBeingUpdated.add(payoutRecord.getRecipient().getId());
+
+    this.server.getPersistenceAgent().queueForSave(payoutRecord, new PersistenceCallback<Payout>()
+    {
+      @Override
+      public void onEntitySaved(Payout savedEntity)
+      {
+        synchronized (PayoutAgent.this.userIdsAlreadyBeingUpdated)
+        {
+          // Make the user eligible for payouts again.
+          PayoutAgent.this.userIdsAlreadyBeingUpdated.remove(savedEntity.getRecipient().getId());
+        }
+      }
+    });
   }
 
   protected boolean isPayoutPendingForUser(int userId)
   {
-    boolean result = false;
-
-    for (Entry<Payout, Object> pendingPayoutEntry : this.payoutsPendingPersistence.entrySet())
+    synchronized (this.userIdsAlreadyBeingUpdated)
     {
-      Payout pendingPayout = pendingPayoutEntry.getKey();
-
-      if ((pendingPayout != null) && pendingPayout.getRecipient().getId() == userId)
-        result = true;
+      return this.userIdsAlreadyBeingUpdated.contains(userId);
     }
-
-    return result;
   }
 }
