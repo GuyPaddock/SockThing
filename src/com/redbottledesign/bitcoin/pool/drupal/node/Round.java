@@ -20,7 +20,7 @@ extends Node
 
   // FIXME: Move these to config
   public static final int MAX_OPEN_ROUNDS = 12;
-  private static final long MAX_ROUND_LENGTH_MS = TimeUnit.MILLISECONDS.convert(15, TimeUnit.MINUTES);
+  private static final long MAX_ROUND_LENGTH_MS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
 
   @SerializedName(DRUPAL_FIELD_ROUND_STATUS)
   private Round.Status roundStatus;

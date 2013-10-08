@@ -21,7 +21,7 @@ import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 public class PayoutAgent
 extends Agent
 {
-  private static final long PAYOUT_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS); // FIXME: Payout every 15 mins!
+  private static final long PAYOUT_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(15, TimeUnit.MINUTES);
 
   private final StratumServer server;
   private final EventLog eventLog;
