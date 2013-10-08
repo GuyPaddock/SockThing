@@ -11,6 +11,7 @@ import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.redbottledesign.bitcoin.pool.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.RoundAgent;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.Node;

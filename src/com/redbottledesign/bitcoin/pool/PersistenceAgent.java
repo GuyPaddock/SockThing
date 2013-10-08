@@ -199,9 +199,6 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     PersistenceCallback<T>  callback    = queueItem.getCallback();
     EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
 
-    if (queueItem != null)
-      throw new IllegalArgumentException();
-
     if (queueEntity.isNew()) {
       requestor.saveNew(queueEntity);
     }

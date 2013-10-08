@@ -27,12 +27,12 @@ import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
 import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
+import com.redbottledesign.bitcoin.pool.PayoutAgent;
 import com.redbottledesign.bitcoin.pool.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.RoundAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalPplnsAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
-import com.redbottledesign.bitcoin.pool.drupal.PayoutAgent;
-import com.redbottledesign.bitcoin.pool.drupal.RoundAgent;
 
 public class StratumServer
 {
