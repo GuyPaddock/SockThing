@@ -3,6 +3,8 @@ package com.redbottledesign.bitcoin.pool;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -54,14 +56,58 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
   @Override
   public List<PersistenceQueueItem<? extends Entity<?>>> captureCheckpoint()
   {
-    return new ArrayList<>(this.persistenceQueue);
+    synchronized (this)
+    {
+      /* Interrupt to break out of persistenceQueue.take(); the persistence
+       * thread should block in the run() method of Agent since it doesn't hold
+       * the lock on this object.
+       */
+      this.interrupt();
+
+      return new ArrayList<>(this.persistenceQueue);
+    }
   }
 
   @Override
   public void restoreFromCheckpoint(List<PersistenceQueueItem<? extends Entity<?>>> checkpoint)
   {
-    this.persistenceQueue.addAll(checkpoint);
+    synchronized (this)
+    {
+      List<PersistenceQueueItem<?>> itemsToAdd = new LinkedList<>();
+
+      /* Interrupt to break out of persistenceQueue.take(); the persistence
+       * thread should block in the run() method of Agent since it doesn't hold
+       * the lock on this object.
+       */
+      this.interrupt();
+
+      for (PersistenceQueueItem<?> checkpointItem : checkpoint)
+      {
+        Iterator<PersistenceQueueItem<?>> existingQueueIterator = this.persistenceQueue.iterator();
+        boolean                           replacedItem          = false;
+
+        while (existingQueueIterator.hasNext())
+        {
+          PersistenceQueueItem<?> existingItem = existingQueueIterator.next();
+
+          if (existingItem.getItemId() == checkpointItem.getItemId())
+          {
+            replacedItem = true;
+            break;
+          }
+        }
+
+        /* We don't add the item yet to prevent unnecessarily examining new items
+         * in the search for what items to replace.
+         */
+        if (!replacedItem)
+          itemsToAdd.add(checkpointItem);
+      }
+
+      this.persistenceQueue.addAll(itemsToAdd);
+    }
   }
+
 
   @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
