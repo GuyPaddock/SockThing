@@ -2,9 +2,9 @@ package com.redbottledesign.bitcoin.pool;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -45,69 +45,59 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     QueueUtils.ensureQueued(this.persistenceQueue, new PersistenceQueueItem<T>(entity, callback));
   }
 
-  public void vacateItem(long queueItemId)
+  public synchronized boolean vacateQueueItem(long itemIds)
   {
-    synchronized (this.vacatedItemIds)
-    {
-      this.vacatedItemIds.add(queueItemId);
-    }
+    return this.vacateQueueItems(Collections.singleton(itemIds));
   }
 
-  @Override
-  public List<PersistenceQueueItem<? extends Entity<?>>> captureCheckpoint()
+  public synchronized boolean vacateQueueItems(Set<Long> itemIds)
   {
-    synchronized (this)
+    boolean                           itemsVacated  = false;
+    Iterator<PersistenceQueueItem<?>> queueIterator;
+
+    this.interruptQueueProcessing();
+
+    queueIterator = this.persistenceQueue.iterator();
+
+    while (queueIterator.hasNext())
     {
-      /* Interrupt to break out of persistenceQueue.take(); the persistence
-       * thread should block in the run() method of Agent since it doesn't hold
-       * the lock on this object.
-       */
-      this.interrupt();
+      PersistenceQueueItem<?> queueItem = queueIterator.next();
 
-      return new ArrayList<>(this.persistenceQueue);
-    }
-  }
-
-  @Override
-  public void restoreFromCheckpoint(List<PersistenceQueueItem<? extends Entity<?>>> checkpoint)
-  {
-    synchronized (this)
-    {
-      List<PersistenceQueueItem<?>> itemsToAdd = new LinkedList<>();
-
-      /* Interrupt to break out of persistenceQueue.take(); the persistence
-       * thread should block in the run() method of Agent since it doesn't hold
-       * the lock on this object.
-       */
-      this.interrupt();
-
-      for (PersistenceQueueItem<?> checkpointItem : checkpoint)
+      if (itemIds.contains(queueItem.getItemId()))
       {
-        Iterator<PersistenceQueueItem<?>> existingQueueIterator = this.persistenceQueue.iterator();
-        boolean                           replacedItem          = false;
+        queueIterator.remove();
 
-        while (existingQueueIterator.hasNext())
-        {
-          PersistenceQueueItem<?> existingItem = existingQueueIterator.next();
-
-          if (existingItem.getItemId() == checkpointItem.getItemId())
-          {
-            replacedItem = true;
-            break;
-          }
-        }
-
-        /* We don't add the item yet to prevent unnecessarily examining new items
-         * in the search for what items to replace.
-         */
-        if (!replacedItem)
-          itemsToAdd.add(checkpointItem);
+        itemsVacated = true;
+        break;
       }
-
-      this.persistenceQueue.addAll(itemsToAdd);
     }
+
+    return itemsVacated;
   }
 
+  @Override
+  public synchronized List<PersistenceQueueItem<? extends Entity<?>>> captureCheckpoint()
+  {
+    this.interruptQueueProcessing();
+
+    return new ArrayList<>(this.persistenceQueue);
+  }
+
+  @Override
+  public synchronized void restoreFromCheckpoint(List<PersistenceQueueItem<? extends Entity<?>>> checkpointItems)
+  {
+    Set<Long> checkpointItemIds = new HashSet<>();
+
+    this.interruptQueueProcessing();
+
+    for (PersistenceQueueItem<?> checkpointItem : checkpointItems)
+    {
+      checkpointItemIds.add(checkpointItem.getItemId());
+    }
+
+    this.vacateQueueItems(checkpointItemIds);
+    this.persistenceQueue.addAll(checkpointItems);
+  }
 
   @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -240,5 +230,14 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     {
       return this.callback;
     }
+  }
+
+  protected synchronized void interruptQueueProcessing()
+  {
+    /* Interrupt to break out of persistenceQueue.take(); the persistence
+     * thread should block in the run() method of Agent since it doesn't hold
+     * the lock on this object.
+     */
+    this.interrupt();
   }
 }
