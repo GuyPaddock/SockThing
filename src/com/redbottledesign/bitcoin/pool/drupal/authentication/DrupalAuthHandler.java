@@ -40,18 +40,16 @@ implements AuthHandler
 
       if (userNameTokenizer.countTokens() == 2)
       {
-        String            siteUserName      = userNameTokenizer.nextToken().toLowerCase(),
+        String            drupalUserName    = userNameTokenizer.nextToken().toLowerCase(),
                           workerName        = userNameTokenizer.nextToken();
-        UserWorkerSummary drupalWorkerInfo  = this.workerRequestor.getUserWorkerSummary(workerName);
+        UserWorkerSummary drupalWorkerInfo  = this.workerRequestor.getUserWorkerSummary(drupalUserName, workerName);
 
         if (drupalWorkerInfo != null)
         {
-          String  drupalUsername          = drupalWorkerInfo.getUserName().toLowerCase();
           String  drupalWorkerPassword    = drupalWorkerInfo.getWorkerPassword();
           int     drupalWorkerDifficulty  = drupalWorkerInfo.getWorkerMinimumDifficulty();
 
-          if ((siteUserName != null) && siteUserName.equals(drupalUsername) &&
-              (((password == null) && (drupalWorkerPassword == null)) || password.equals(drupalWorkerPassword)))
+          if (((password == null) && (drupalWorkerPassword == null)) || password.equals(drupalWorkerPassword))
           {
             User drupalUser = this.userRequestor.requestUserByUid(drupalWorkerInfo.getUserId());
 

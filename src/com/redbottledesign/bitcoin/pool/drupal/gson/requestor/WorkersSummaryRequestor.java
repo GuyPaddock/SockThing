@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.http.client.methods.HttpGet;
 
@@ -27,12 +29,13 @@ extends SessionBasedHttpRequestor
     super(sessionManager);
   }
 
-  public WorkersSummary.UserWorkerSummary getUserWorkerSummary(String workerName)
+  public WorkersSummary.UserWorkerSummary getUserWorkerSummary(String userName, String workerName)
   throws IOException, DrupalHttpException
   {
     UserWorkerSummary   result;
     WorkersSummary      workersSummary;
     UserWorkerSummary[] workers;
+    Map<String, Object> workerCriteria  = new HashMap<>();
 
     if (workerName == null)
       throw new IllegalArgumentException("workerName cannot be null.");
@@ -40,10 +43,11 @@ extends SessionBasedHttpRequestor
     if (workerName.isEmpty())
       throw new IllegalArgumentException("workerName cannot be empty.");
 
-    workersSummary =
-      this.requestWorkersSummary(this.createUriForCriterion(ENDPOINT, WorkersSummary.DRUPAL_FIELD_WORKERS, workerName));
+    workerCriteria.put(WorkersSummary.UserWorkerSummary.DRUPAL_FIELD_USER_NAME, userName);
+    workerCriteria.put(WorkersSummary.UserWorkerSummary.DRUPAL_FIELD_WORKER_NAME, workerName);
 
-    workers = workersSummary.getWorkers();
+    workersSummary  = this.requestWorkersSummary(this.createUriForCriteria(ENDPOINT, workerCriteria));
+    workers         = workersSummary.getWorkers();
 
     if (workers.length > 1)
     {
