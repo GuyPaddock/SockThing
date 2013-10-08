@@ -28,6 +28,7 @@ extends Agent
   private final User.Reference poolDaemonUser;
 
   private Round currentRound;
+  private Round nextRound;
 
   public RoundAgent(StratumServer server)
   {
@@ -77,19 +78,17 @@ extends Agent
   {
     try
     {
-      PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
-
       synchronized (this)
       {
         this.currentRound = this.roundRequestor.requestCurrentRound();
 
         if ((this.currentRound == null) || (this.currentRound.hasExpired()))
-          this.startNewRound(persistenceAgent);
+          this.startNewRound();
 
         this.notifyAll();
       }
 
-      this.updateStatusOfPastRounds(persistenceAgent);
+      this.updateStatusOfPastRounds();
     }
 
     catch (IOException | DrupalHttpException e)
@@ -98,12 +97,13 @@ extends Agent
     }
   }
 
-  protected synchronized void startNewRound(PersistenceAgent persistenceAgent)
+  protected synchronized void startNewRound()
   throws IOException, DrupalHttpException
   {
-    Date      now           = new Date();
-    Round     newRound;
-    DateRange newRoundDates;
+    PersistenceAgent  persistenceAgent  = this.server.getPersistenceAgent();
+    Date              now               = new Date();
+    Round             newRound;
+    DateRange         newRoundDates;
 
     if (this.currentRound != null)
     {
@@ -125,15 +125,36 @@ extends Agent
     newRoundDates.setStartDate(now);
     newRoundDates.setEndDate(now);
 
+    this.startNewRoundAndWait(newRound);
+  }
+
+  private void startNewRoundAndWait(Round newRound)
+  {
+    PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
+
+    this.nextRound = newRound;
+
     persistenceAgent.queueForSave(newRound, new PersistenceCallback<Round>()
     {
       @Override
       public void onEntitySaved(Round newRound)
       {
-        RoundAgent.this.currentRound = newRound;
-
         synchronized (RoundAgent.this)
         {
+          RoundAgent.this.currentRound = newRound;
+
+          RoundAgent.this.notifyAll();
+        }
+      }
+
+      @Override
+      public void onEntityEvicted(Round evictedEntity)
+      {
+        synchronized (RoundAgent.this)
+        {
+          // FIXME: This seems hackish...
+          RoundAgent.this.nextRound = RoundAgent.this.currentRound;
+
           RoundAgent.this.notifyAll();
         }
       }
@@ -151,15 +172,16 @@ extends Agent
         // Suppressed; expected
       }
     }
-    while (this.currentRound != newRound);
+    while (this.currentRound != this.nextRound);
   }
 
-  protected void updateStatusOfPastRounds(PersistenceAgent persistenceAgent)
+  protected void updateStatusOfPastRounds()
   throws IOException, DrupalHttpException
   {
-    List<Round> openRounds      = this.roundRequestor.requestAllOpenRounds();
-    int         openRoundCount  = openRounds.size();
-    String      message         = String.format("There are %d open rounds.", openRoundCount);
+    PersistenceAgent  persistenceAgent  = this.server.getPersistenceAgent();
+    List<Round>       openRounds        = this.roundRequestor.requestAllOpenRounds();
+    int               openRoundCount    = openRounds.size();
+    String            message           = String.format("There are %d open rounds.", openRoundCount);
 
     System.out.println(message);
     logger.log(message);

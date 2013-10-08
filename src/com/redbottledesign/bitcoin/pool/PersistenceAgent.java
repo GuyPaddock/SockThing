@@ -43,11 +43,12 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     QueueUtils.ensureQueued(this.persistenceQueue, new PersistenceQueueItem<T>(entity, callback));
   }
 
-  public synchronized boolean evictQueueItem(long itemIds)
+  public synchronized boolean evictQueueItem(long itemId)
   {
-    return this.evictQueueItems(Collections.singleton(itemIds));
+    return this.evictQueueItems(Collections.singleton(itemId));
   }
 
+  @SuppressWarnings({ "rawtypes", "unchecked" })
   public synchronized boolean evictQueueItems(Set<Long> itemIds)
   {
     boolean                           atLeastOneItemVacated = false;
@@ -59,21 +60,26 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
 
     while (queueIterator.hasNext())
     {
-      PersistenceQueueItem<?> queueItem   = queueIterator.next();
-      long                    queueItemId = queueItem.getItemId();
+      PersistenceQueueItem  queueItem     = queueIterator.next();
+      long                  itemId        = queueItem.getItemId();
+      Entity                itemEntity    = queueItem.getEntity();
+      PersistenceCallback   itemCallback  = queueItem.getCallback();
 
-      if (itemIds.contains(queueItemId))
+      if (itemIds.contains(itemId))
       {
         String logMessage =
           String.format(
             "Evicting persistence queue item upon request (queue item ID #: %d): %s",
-            queueItemId,
-            queueItem.getEntity());
+            itemId,
+            itemEntity);
 
         System.out.println(logMessage);
         this.logger.log(logMessage);
 
         queueIterator.remove();
+
+        if (itemCallback != null)
+          itemCallback.onEntityEvicted(itemEntity);
 
         atLeastOneItemVacated = true;
         break;
@@ -81,6 +87,38 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     }
 
     return atLeastOneItemVacated;
+  }
+
+  @SuppressWarnings({ "rawtypes", "unchecked" })
+  public synchronized boolean evictAllQueueItems()
+  {
+    boolean queueHasItems;
+
+    this.interruptQueueProcessing();
+
+    queueHasItems = !this.persistenceQueue.isEmpty();
+
+    if (queueHasItems)
+    {
+      Iterator<PersistenceQueueItem<?>> queueIterator = this.persistenceQueue.iterator();
+      String                            logMessage    = "Evicting all persistence queue item upon request.";
+
+      System.out.println(logMessage);
+      this.logger.log(logMessage);
+
+      while (queueIterator.hasNext())
+      {
+        PersistenceQueueItem  queueItem     = queueIterator.next();
+        PersistenceCallback   itemCallback  = queueItem.getCallback();
+
+        queueIterator.remove();
+
+        if (itemCallback != null)
+          itemCallback.onEntityEvicted(queueItem.getEntity());
+      }
+    }
+
+    return queueHasItems;
   }
 
   @Override
@@ -160,6 +198,9 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     T                       queueEntity = queueItem.getEntity();
     PersistenceCallback<T>  callback    = queueItem.getCallback();
     EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
+
+    if (queueItem != null)
+      throw new IllegalArgumentException();
 
     if (queueEntity.isNew()) {
       requestor.saveNew(queueEntity);

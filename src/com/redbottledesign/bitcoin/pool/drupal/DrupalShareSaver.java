@@ -82,6 +82,12 @@ implements ShareSaver
           // ...then save the new share.
           DrupalShareSaver.this.persistenceAgent.queueForSave(newShare);
         }
+
+        @Override
+        public void onEntityEvicted(SolvedBlock evictedEntity)
+        {
+          // TODO: What happens to the share?
+        }
       });
     }
   }

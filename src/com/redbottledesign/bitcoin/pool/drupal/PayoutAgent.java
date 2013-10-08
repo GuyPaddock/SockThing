@@ -126,13 +126,17 @@ extends Agent
     this.server.getPersistenceAgent().queueForSave(payoutRecord, new PersistenceCallback<Payout>()
     {
       @Override
-      public void onEntitySaved(Payout savedEntity)
+      public void onEntitySaved(Payout savedPayout)
       {
-        synchronized (PayoutAgent.this.userIdsAlreadyBeingUpdated)
-        {
-          // Make the user eligible for payouts again.
-          PayoutAgent.this.userIdsAlreadyBeingUpdated.remove(savedEntity.getRecipient().getId());
-        }
+        // Make the user eligible for payouts again.
+        PayoutAgent.this.releasePayoutLockOnUser(savedPayout.getRecipient().getId());
+      }
+
+      @Override
+      public void onEntityEvicted(Payout evictedPayout)
+      {
+        // FIXME: Is this really the best way to deal with this?
+        PayoutAgent.this.releasePayoutLockOnUser(evictedPayout.getRecipient().getId());
       }
     });
   }
@@ -142,6 +146,14 @@ extends Agent
     synchronized (this.userIdsAlreadyBeingUpdated)
     {
       return this.userIdsAlreadyBeingUpdated.contains(userId);
+    }
+  }
+
+  protected void releasePayoutLockOnUser(int userId)
+  {
+    synchronized (this.userIdsAlreadyBeingUpdated)
+    {
+      this.userIdsAlreadyBeingUpdated.remove(userId);
     }
   }
 }

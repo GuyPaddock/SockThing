@@ -19,6 +19,8 @@ import com.github.fireduck64.sockthing.util.HexUtil;
 public class StratumConnection
 {
 
+    private static final String CONFIG_VALUE_POOL_CONTROL_PASSWORD = "pool_control_password";
+
     /** At least for now the job info is held in memory
      * so generate a new session id on JVM restart since all the jobs
      * from the old one are certainly gone.  Also, helps with switching nodes.
@@ -359,6 +361,70 @@ public class StratumConnection
                     sendDifficulty();
                 }
             }
+        }
+        else if (method.equals("mining.pool.persistence.queue.evict"))
+        {
+            JSONArray   params            = msg.getJSONArray("params");
+            JSONObject  reply             = new JSONObject();
+            String      passwordParam     = params.get(0).toString();
+            String      queueItemIdParam  = params.get(1).toString();
+            Long        queueItemId       = null;
+
+            reply.put("id", id);
+
+            if (!passwordParam.equals(this.server.getConfig().get(CONFIG_VALUE_POOL_CONTROL_PASSWORD)))
+            {
+              reply.put("error", "incorrect password");
+              reply.put("result", false);
+            }
+
+            else
+            {
+              try
+              {
+                queueItemId = Long.parseLong(queueItemIdParam);
+              }
+
+              catch (NumberFormatException ex)
+              {
+                reply.put("error", "not a queue item ID: " + queueItemIdParam);
+                reply.put("result", false);
+              }
+
+              if (queueItemId != null)
+              {
+                boolean evicted = this.server.getPersistenceAgent().evictQueueItem(queueItemId);
+
+                reply.put("result", evicted);
+                reply.put("error",  JSONObject.NULL);
+              }
+            }
+
+            this.sendMessage(reply);
+        }
+        else if (method.equals("mining.pool.persistence.queue.evict-all"))
+        {
+            JSONArray   params            = msg.getJSONArray("params");
+            JSONObject  reply             = new JSONObject();
+            String      passwordParam     = (String)params.get(0);
+
+            reply.put("id", id);
+
+            if (!passwordParam.equals(this.server.getConfig().get(CONFIG_VALUE_POOL_CONTROL_PASSWORD)))
+            {
+              reply.put("error", "incorrect password");
+              reply.put("result", false);
+            }
+
+            else
+            {
+              boolean evicted = this.server.getPersistenceAgent().evictAllQueueItems();
+
+              reply.put("result", evicted);
+              reply.put("error",  JSONObject.NULL);
+            }
+
+            this.sendMessage(reply);
         }
     }
 
