@@ -6,179 +6,180 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.github.fireduck64.sockthing.EventLog;
+import com.github.fireduck64.sockthing.StratumServer;
+import com.redbottledesign.bitcoin.pool.Agent;
+import com.redbottledesign.bitcoin.pool.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
 import com.redbottledesign.drupal.DateRange;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
-public class RoundAgent extends Thread
+public class RoundAgent
+extends Agent
 {
-    private static final long ROUND_POLL_ACQUIRE_MS = 500;
-    private static final long DB_CHECK_MS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
+  private static final long ROUND_UPDATE_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
 
-    private final RoundRequestor roundRequestor;
-    private long lastCheck;
-    private Round currentRound;
-    private final User.Reference poolDaemonUser;
+  private final StratumServer server;
+  private final EventLog logger;
+  private final RoundRequestor roundRequestor;
+  private final User.Reference poolDaemonUser;
 
-    public RoundAgent()
+  private Round currentRound;
+
+  public RoundAgent(StratumServer server)
+  {
+    super(ROUND_UPDATE_FREQUENCY_MS);
+
+    DrupalSession session = server.getSession();
+
+    this.server           = server;
+    this.logger           = server.getEventLog();
+    this.roundRequestor   = session.getRoundRequestor();
+    this.poolDaemonUser   = session.getPoolDaemonUser().asReference();
+  }
+
+  public Round getCurrentRoundSynchronized()
+  {
+    Round currentRound = null;
+
+    do
     {
-      SingletonDrupalSessionFactory sessionFactory = SingletonDrupalSessionFactory.getInstance();
-
-      this.setDaemon(true);
-      this.setName(this.getClass().getSimpleName());
-
-      this.roundRequestor = sessionFactory.getRoundRequestor();
-      this.poolDaemonUser = sessionFactory.getPoolDaemonUser().asReference();
-    }
-
-    public Round getCurrentRoundSynchronized()
-    {
-      Round currentRound = null;
-
-      do
+      // Block in case we're changing between rounds...
+      synchronized (this)
       {
-        // Block in case we're changing between rounds...
-        synchronized (this)
-        {
-          currentRound = this.currentRound;
-        }
+        currentRound = this.currentRound;
 
         // Wait for the round to be initialized if it hasn't been yet.
         if (currentRound == null)
         {
           try
           {
-            Thread.sleep(ROUND_POLL_ACQUIRE_MS);
+            this.wait();
           }
 
           catch (InterruptedException e)
           {
-            // Expected
+            // Suppressed; expected.
           }
         }
       }
-      while (currentRound == null);
-
-      return currentRound;
     }
+    while (currentRound == null);
 
-    /**
-     * Do the actual update in this thread to avoid ever blocking work generation
-     */
-    @Override
-    public void run()
+    return currentRound;
+  }
+
+  @Override
+  protected void runPeriodicTask()
+  {
+    try
     {
-      while (true)
+      PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
+
+      synchronized (this)
       {
-        try
-        {
-          if (System.currentTimeMillis() > (lastCheck + DB_CHECK_MS))
-          {
-            this.updateRounds();
+        this.currentRound = this.roundRequestor.requestCurrentRound();
 
-            this.lastCheck = System.currentTimeMillis();
-          }
-        }
+        if ((this.currentRound == null) || (this.currentRound.hasExpired()))
+          this.startNewRound(persistenceAgent);
 
-        catch (Throwable t)
-        {
-          // Top-level handler
-          t.printStackTrace();
-        }
-
-        synchronized(this)
-        {
-          try
-          {
-            // FIXME: Switch to scheduled threads.
-            this.wait(DB_CHECK_MS / 4);
-          }
-
-          catch (InterruptedException e)
-          {
-            // Suppressed; expected
-          }
-        }
+        this.notifyAll();
       }
+
+      this.updateStatusOfPastRounds(persistenceAgent);
     }
 
-    protected void updateRounds()
+    catch (IOException | DrupalHttpException e)
+    {
+      e.printStackTrace();
+    }
+  }
+
+  protected synchronized void startNewRound(PersistenceAgent persistenceAgent)
+  throws IOException, DrupalHttpException
+  {
+    Date      now           = new Date();
+    Round     newRound;
+    DateRange newRoundDates;
+
+    if (this.currentRound != null)
+    {
+      DateRange roundDates = this.currentRound.getRoundDates();
+
+      System.out.println("Ending round started at " + roundDates.getStartDate());
+
+      roundDates.setEndDate(now);
+
+      persistenceAgent.queueForSave(this.currentRound);
+    }
+
+    System.out.println("Starting new round at " + now);
+
+    newRound      = new Round();
+    newRoundDates = newRound.getRoundDates();
+
+    newRound.setAuthor(this.poolDaemonUser);
+    newRoundDates.setStartDate(now);
+    newRoundDates.setEndDate(now);
+
+    persistenceAgent.queueForSave(newRound, new PersistenceCallback<Round>()
+    {
+      @Override
+      public void onEntitySaved(Round newRound)
+      {
+        RoundAgent.this.currentRound = newRound;
+
+        synchronized (RoundAgent.this)
+        {
+          RoundAgent.this.notifyAll();
+        }
+      }
+    });
+
+    do
     {
       try
       {
-        synchronized (this)
-        {
-          this.currentRound = this.roundRequestor.requestCurrentRound();
-
-          if ((this.currentRound == null) || (this.currentRound.hasExpired()))
-            this.startNewRound();
-        }
-
-        this.updateStatusOfPastRounds();
+        this.wait();
       }
 
-      catch (IOException | DrupalHttpException e)
+      catch (InterruptedException ex)
       {
-        e.printStackTrace();
+        // Suppressed; expected
       }
     }
+    while (this.currentRound != newRound);
+  }
 
-    protected void startNewRound()
-    throws IOException, DrupalHttpException
+  protected void updateStatusOfPastRounds(PersistenceAgent persistenceAgent)
+  throws IOException, DrupalHttpException
+  {
+    List<Round> openRounds      = this.roundRequestor.requestAllOpenRounds();
+    int         openRoundCount  = openRounds.size();
+    String      message         = String.format("There are %d open rounds.", openRoundCount);
+
+    System.out.println(message);
+    logger.log(message);
+
+    if (openRoundCount > Round.MAX_OPEN_ROUNDS)
     {
-      Date      now           = new Date();
-      Round     newRound;
-      DateRange newRoundDates;
+      // Close everything over the round cap.
+      List<Round> roundsToClose = openRounds.subList(Round.MAX_OPEN_ROUNDS, openRoundCount);
 
-      if (this.currentRound != null)
+      for (Round roundToClose : roundsToClose)
       {
-        DateRange roundDates = this.currentRound.getRoundDates();
+        message = "Closing round started at " + roundToClose.getRoundDates().getStartDate();
 
-        System.out.println("Ending round started at " + roundDates.getStartDate());
+        System.out.println(message);
+        logger.log(message);
 
-        roundDates.setEndDate(now);
+        roundToClose.setRoundStatus(Round.Status.CLOSED);
 
-        this.roundRequestor.updateNode(this.currentRound);
-      }
-
-      System.out.println("Starting new round at " + now);
-
-      newRound      = new Round();
-      newRoundDates = newRound.getRoundDates();
-
-      newRound.setAuthor(this.poolDaemonUser);
-      newRoundDates.setStartDate(now);
-      newRoundDates.setEndDate(now);
-
-      this.roundRequestor.createNode(newRound);
-
-      this.currentRound = newRound;
-    }
-
-    protected void updateStatusOfPastRounds()
-    throws IOException, DrupalHttpException
-    {
-      List<Round> openRounds      = this.roundRequestor.requestAllOpenRounds();
-      int         openRoundCount  = openRounds.size();
-
-      System.out.println(openRounds);
-      System.out.printf("There are %d open rounds.\n", openRoundCount);
-
-      if (openRoundCount > Round.MAX_OPEN_ROUNDS)
-      {
-        // Close everything over the round cap.
-        List<Round> roundsToClose = openRounds.subList(Round.MAX_OPEN_ROUNDS, openRoundCount);
-
-        for (Round roundToClose : roundsToClose)
-        {
-          System.out.println("Closing round started at " + roundToClose.getRoundDates().getStartDate());
-
-          roundToClose.setRoundStatus(Round.Status.CLOSED);
-
-          this.roundRequestor.updateNode(roundToClose);
-        }
+        persistenceAgent.queueForSave(roundToClose);
       }
     }
+  }
 }

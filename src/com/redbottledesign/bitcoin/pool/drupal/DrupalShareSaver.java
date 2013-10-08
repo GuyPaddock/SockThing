@@ -1,9 +1,6 @@
 package com.redbottledesign.bitcoin.pool.drupal;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Date;
 
 import com.github.fireduck64.sockthing.Config;
@@ -11,13 +8,13 @@ import com.github.fireduck64.sockthing.PoolUser;
 import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
-import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
+import com.redbottledesign.bitcoin.pool.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
-import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 public class DrupalShareSaver
 implements ShareSaver
@@ -29,70 +26,72 @@ implements ShareSaver
   private static final User.Reference TEST_USER = new User.Reference(16);
   private static final Node.Reference TEST_REMARK = new Node.Reference(11);
 
-  private static final String CONFIG_VALUE_DRUPAL_SITE_URI = "drupal_site_uri";
-  private static final String CONFIG_VALUE_DAEMON_USERNAME = "drupal_site_daemon_username";
-  private static final String CONFIG_VALUE_DAEMON_PASSWORD = "drupal_site_daemon_password";
-
   private static final int SATOSHIS_PER_BITCOIN = 100000000;
 
   private final StratumServer server;
-  private final SingletonDrupalSessionFactory sessionFactory;
-  private User poolDaemonUser;
+  private final DrupalSession session;
+  private final PersistenceAgent persistenceAgent;
+  private final User poolDaemonUser;
 
   public DrupalShareSaver(Config config, StratumServer server)
   {
-    this.server         = server;
-    this.sessionFactory = SingletonDrupalSessionFactory.getInstance();
-
-    this.initialize(config);
+    this.server           = server;
+    this.session          = server.getSession();
+    this.persistenceAgent = server.getPersistenceAgent();
+    this.poolDaemonUser   = this.session.getPoolDaemonUser();
   }
 
   @Override
   public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString, long blockReward,
                         long feeTotal)
-  throws ShareSaveException
   {
     RoundAgent      roundAgent            = this.server.getRoundAgent();
-    PplnsAgent      pplnsAgent            = this.server.getPplnsAgent();
     Node.Reference  currentRoundReference = roundAgent.getCurrentRoundSynchronized().asReference();
-    WorkShare       newShare              = new WorkShare();
-    String          statusString          = SHARE_STATUS_ACCEPTED;
-    Node.Reference  solvedBlockReference  = null;
     User.Reference  daemonUserReference   = this.poolDaemonUser.asReference();
-    double          blockDifficulty       = submitResult.getNetworkDifficulty(),
-                    workDifficulty        = submitResult.getOurDifficulty();
-    BigDecimal      totalReward           = BigDecimal.valueOf(blockReward).add(BigDecimal.valueOf(feeTotal));
+    final WorkShare newShare;
 
-//    if (CONFIRM_YES.equals(submitResult.getUpstreamResult()) && (submitResult.getHash() != null))
-//    {
-      SolvedBlock newBlock = new SolvedBlock();
+    newShare = createNewShare(submitResult, source, uniqueJobString, currentRoundReference, daemonUserReference);
 
-      newBlock.setAuthor(daemonUserReference);
-      newBlock.setHash(submitResult.getHash().toString());
-      newBlock.setHeight(submitResult.getHeight());
-      newBlock.setStatus(SolvedBlock.Status.UNCONFIRMED);
-      newBlock.setCreationTime(new Date());
-      newBlock.setDifficulty(blockDifficulty);
-      newBlock.setRound(currentRoundReference);
-      newBlock.setReward(totalReward.divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN))); // TODO: Separate out fees later?
-      newBlock.setSolvingMember(TEST_USER);
-      newBlock.setWittyRemark(TEST_REMARK);
+//    if (!CONFIRM_YES.equals(submitResult.getUpstreamResult()) || (submitResult.getHash() == null))
+    if (false)
+    {
+      newShare.setBlock(null);
 
-      try
+      // Save the new share immediately
+      this.persistenceAgent.queueForSave(newShare);
+    }
+
+    else
+    {
+      SolvedBlock newBlock =
+        this.createNewBlock(submitResult, blockReward, feeTotal, currentRoundReference, daemonUserReference);
+
+      // Save the block first...
+      this.persistenceAgent.queueForSave(newBlock, new PersistenceCallback<SolvedBlock>()
       {
-        this.sessionFactory.getBlockRequestor().createNode(newBlock);
-      }
+        @Override
+        public void onEntitySaved(SolvedBlock newBlock)
+        {
+          PplnsAgent pplnsAgent = DrupalShareSaver.this.server.getPplnsAgent();
 
-      catch (IOException | DrupalHttpException ex)
-      {
-        throw new ShareSaveException(ex);
-      }
+          if (pplnsAgent != null)
+            pplnsAgent.payoutBlock(newBlock);
 
-      if (pplnsAgent != null)
-        pplnsAgent.payoutBlock(newBlock);
+          newShare.setBlock(newBlock.asReference());
 
-      solvedBlockReference = newBlock.asReference();
-//    }
+          // ...then save the new share.
+          DrupalShareSaver.this.persistenceAgent.queueForSave(newShare);
+        }
+      });
+    }
+  }
+
+  protected WorkShare createNewShare(SubmitResult submitResult, String source, String uniqueJobString,
+                                     Node.Reference currentRoundReference, User.Reference daemonUserReference)
+  {
+    WorkShare newShare        = new WorkShare();
+    double    workDifficulty  = submitResult.getWorkDifficulty();
+    String    statusString    = SHARE_STATUS_ACCEPTED;
 
     if (submitResult.getReason() != null)
     {
@@ -115,46 +114,27 @@ implements ShareSaver
     newShare.setVerifiedByPool(CONFIRM_YES.equals(submitResult.getOurResult()));
     newShare.setVerifiedByNetwork(CONFIRM_YES.equals(submitResult.getUpstreamResult()));
     newShare.setStatus(statusString);
-    newShare.setBlock(solvedBlockReference);
 
-    try
-    {
-      this.sessionFactory.getShareRequestor().createNode(newShare);
-    }
-
-    catch (IOException | DrupalHttpException ex)
-    {
-      throw new ShareSaveException(ex);
-    }
+    return newShare;
   }
 
-  protected void initialize(Config config)
+  protected SolvedBlock createNewBlock(SubmitResult submitResult, long blockReward, long feeTotal,
+                                       Node.Reference currentRoundReference, User.Reference daemonUserReference)
   {
-    String  drupalSiteUri,
-            daemonUserName,
-            daemonPassword;
-    URI     siteUri;
+    SolvedBlock newBlock        = new SolvedBlock();
+    double      blockDifficulty = submitResult.getNetworkDifficulty();
+    BigDecimal  totalReward     = BigDecimal.valueOf(blockReward).add(BigDecimal.valueOf(feeTotal));
 
-    config.require(CONFIG_VALUE_DRUPAL_SITE_URI);
-    config.require(CONFIG_VALUE_DAEMON_USERNAME);
-    config.require(CONFIG_VALUE_DAEMON_PASSWORD);
-
-    drupalSiteUri   = config.get(CONFIG_VALUE_DRUPAL_SITE_URI);
-    daemonUserName  = config.get(CONFIG_VALUE_DAEMON_USERNAME);
-    daemonPassword  = config.get(CONFIG_VALUE_DAEMON_PASSWORD);
-
-    try
-    {
-      siteUri = new URI(drupalSiteUri);
-    }
-
-    catch (URISyntaxException ex)
-    {
-      throw new RuntimeException("Invalid Drupal site URI: " + drupalSiteUri, ex);
-    }
-
-    this.sessionFactory.initializeSession(siteUri, daemonUserName, daemonPassword);
-
-    this.poolDaemonUser = this.sessionFactory.getPoolDaemonUser();
+    newBlock.setAuthor(daemonUserReference);
+    newBlock.setHash(submitResult.getHash().toString());
+    newBlock.setHeight(submitResult.getHeight());
+    newBlock.setStatus(SolvedBlock.Status.UNCONFIRMED);
+    newBlock.setCreationTime(new Date());
+    newBlock.setDifficulty(blockDifficulty);
+    newBlock.setRound(currentRoundReference);
+    newBlock.setReward(totalReward.divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN))); // TODO: Separate out fees later?
+    newBlock.setSolvingMember(TEST_USER);
+    newBlock.setWittyRemark(TEST_REMARK);
+    return newBlock;
   }
 }

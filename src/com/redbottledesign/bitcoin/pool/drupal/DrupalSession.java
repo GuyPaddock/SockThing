@@ -2,7 +2,9 @@ package com.redbottledesign.bitcoin.pool.drupal;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
+import com.github.fireduck64.sockthing.Config;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BalancesSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BlockCreditRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.PayoutRequestor;
@@ -15,9 +17,11 @@ import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.UserRequestor;
 
-public class SingletonDrupalSessionFactory
+public class DrupalSession
 {
-  private static final SingletonDrupalSessionFactory INSTANCE = new SingletonDrupalSessionFactory();
+  private static final String CONFIG_VALUE_DRUPAL_SITE_URI = "drupal_site_uri";
+  private static final String CONFIG_VALUE_DAEMON_USERNAME = "drupal_site_daemon_username";
+  private static final String CONFIG_VALUE_DAEMON_PASSWORD = "drupal_site_daemon_password";
 
   private SessionManager sessionManager;
 
@@ -32,9 +36,14 @@ public class SingletonDrupalSessionFactory
 
   private User poolDaemonUser;
 
-  public static SingletonDrupalSessionFactory getInstance()
+  public DrupalSession(Config config)
   {
-    return INSTANCE;
+    this.initializeSession(config);
+  }
+
+  public DrupalSession(URI drupalSiteUri, String userName, String password)
+  {
+    this.initializeSession(drupalSiteUri, userName, password);
   }
 
   public SessionManager getSessionManager()
@@ -104,7 +113,41 @@ public class SingletonDrupalSessionFactory
     return (this.sessionManager != null);
   }
 
-  public void initializeSession(URI drupalSiteUri, String userName, String password)
+  protected void assertInitialized()
+  {
+    if (!this.wasInitialized())
+      throw new IllegalStateException("Session must first be initialized by calling initializeSession().");
+  }
+
+  protected void initializeSession(Config config)
+  {
+    String  drupalSiteUri,
+            daemonUserName,
+            daemonPassword;
+    URI     siteUri;
+
+    config.require(CONFIG_VALUE_DRUPAL_SITE_URI);
+    config.require(CONFIG_VALUE_DAEMON_USERNAME);
+    config.require(CONFIG_VALUE_DAEMON_PASSWORD);
+
+    drupalSiteUri   = config.get(CONFIG_VALUE_DRUPAL_SITE_URI);
+    daemonUserName  = config.get(CONFIG_VALUE_DAEMON_USERNAME);
+    daemonPassword  = config.get(CONFIG_VALUE_DAEMON_PASSWORD);
+
+    try
+    {
+      siteUri = new URI(drupalSiteUri);
+    }
+
+    catch (URISyntaxException ex)
+    {
+      throw new RuntimeException("Invalid Drupal site URI: " + drupalSiteUri, ex);
+    }
+
+    this.initializeSession(siteUri, daemonUserName, daemonPassword);
+  }
+
+  protected void initializeSession(URI drupalSiteUri, String userName, String password)
   {
     if (this.wasInitialized())
       throw new IllegalStateException("Session has already been initialized.");
@@ -129,11 +172,5 @@ public class SingletonDrupalSessionFactory
     {
       throw new RuntimeException("Failed to look-up pool daemon user account: " + ex.getMessage(), ex);
     }
-  }
-
-  protected void assertInitialized()
-  {
-    if (!this.wasInitialized())
-      throw new IllegalStateException("Session must first be initialized by calling initializeSession().");
   }
 }

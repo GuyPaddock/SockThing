@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.drupal;
+package com.redbottledesign.bitcoin.pool;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -14,6 +14,7 @@ import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
+import com.redbottledesign.bitcoin.pool.drupal.RoundAgent;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
 
 public class FallbackShareSaver
@@ -163,7 +164,7 @@ implements ShareSaver
       RoundAgent  roundAgent      = this.server.getRoundAgent();
       Round       currentRound    = roundAgent.getCurrentRoundSynchronized();
       double      blockDifficulty = submitResult.getNetworkDifficulty(),
-                  workDifficulty  = submitResult.getOurDifficulty();
+                  workDifficulty  = submitResult.getWorkDifficulty();
       String      statusString    = "accepted";
 
       if (submitResult.getReason() != null)
@@ -188,7 +189,7 @@ implements ShareSaver
           Boolean.toString(CONFIRM_YES.equals(submitResult.getOurResult())),
           Boolean.toString(CONFIRM_YES.equals(submitResult.getUpstreamResult())),
           statusString,
-          submitResult.getHash().toString(),
+          String.valueOf(submitResult.getHash()),
           Integer.toString(submitResult.getHeight()),
           Long.valueOf(blockReward).toString(),
           Long.valueOf(feeTotal).toString(),

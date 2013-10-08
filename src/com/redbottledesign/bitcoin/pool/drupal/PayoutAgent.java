@@ -2,157 +2,74 @@ package com.redbottledesign.bitcoin.pool.drupal;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Map.Entry;
+import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
-
-import org.json.JSONException;
 
 import com.github.fireduck64.sockthing.EventLog;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Address;
-import com.google.bitcoin.core.AddressFormatException;
+import com.redbottledesign.bitcoin.pool.Agent;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BalancesSummaryRequestor;
-import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.PayoutRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
 import com.redbottledesign.bitcoin.pool.drupal.summary.BalancesSummary;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
-import com.redbottledesign.util.QueueUtils;
 
 public class PayoutAgent
-extends Thread
+extends Agent
 {
-  private static final long DB_CHECK_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
-  private static final long RETRY_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
+  private static final long DB_CHECK_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS); // FIXME: Payout every 15 mins!
 
-  private long lastCheck;
   private final StratumServer server;
-  private final BlockingQueue<Payout> payoutPersistenceQueue;
-  private final Thread payoutPersistenceThread;
+  private final WeakHashMap<Payout, Object> payoutsPendingPersistence;
+  private final EventLog eventLog;
 
   public PayoutAgent(StratumServer server)
   {
-    this.setDaemon(true);
-    this.setName(this.getClass().getSimpleName());
+    super(DB_CHECK_MS);
 
-    this.server                   = server;
-    this.payoutPersistenceQueue   = new LinkedBlockingQueue<>();
-    this.payoutPersistenceThread  = new PayoutPersistenceRunner(server, this.payoutPersistenceQueue);
+    this.server = server;
+    this.payoutsPendingPersistence = new WeakHashMap<>();
+    this.eventLog = server.getEventLog();
   }
 
-  /**
-   * Do the actual update in this thread to avoid ever blocking work generation
-   */
   @Override
-  public void run()
-  {
-    this.payoutPersistenceThread.start();
-
-    while (true)
-    {
-      try
-      {
-        if (System.currentTimeMillis() > (lastCheck + DB_CHECK_MS))
-        {
-          synchronized (this.payoutPersistenceQueue)
-          {
-            int outstandingPayoutCount = this.payoutPersistenceQueue.size();
-
-            /* Don't run pay-outs until all previous pay-outs have been persisted.
-             * Otherwise, we might pay users twice.
-             */
-            if (this.payoutPersistenceQueue.size() != 0)
-            {
-              String message =
-                String.format(
-                  "Not running pay-outs because %d payment records are still waiting to be written to the database.",
-                  outstandingPayoutCount);
-
-              System.err.println(message);
-              this.server.getEventLog().log(message);
-            }
-
-            else
-            {
-              this.runPayouts();
-            }
-
-            this.lastCheck = System.currentTimeMillis();
-          }
-        }
-      }
-
-      catch (Throwable t)
-      {
-        // Top-level handler
-        t.printStackTrace();
-      }
-
-      synchronized(this)
-      {
-        try
-        {
-          // FIXME: Switch to scheduled threads.
-          this.wait(DB_CHECK_MS / 4);
-        }
-
-        catch (InterruptedException e)
-        {
-          // Suppressed; expected
-        }
-      }
-    }
-  }
-
-  protected void runPayouts()
+  protected void runPeriodicTask()
   throws IOException, DrupalHttpException
   {
-    EventLog                      eventLog          = this.server.getEventLog();
-    SingletonDrupalSessionFactory sessionFactory    = SingletonDrupalSessionFactory.getInstance();
-    User.Reference                poolDaemonUser    = sessionFactory.getPoolDaemonUser().asReference();
-    BalancesSummaryRequestor      balancesRequestor = sessionFactory.getBalancesRequestor();
-    BalancesSummary               allUserBalances   = balancesRequestor.requestBalancesSummary();
+    DrupalSession             session           = this.server.getSession();
+    User.Reference            poolDaemonUser    = session.getPoolDaemonUser().asReference();
+    BalancesSummaryRequestor  balancesRequestor = session.getBalancesRequestor();
+    BalancesSummary           allUserBalances   = balancesRequestor.requestBalancesSummary();
 
     eventLog.log("Checking for pending payouts...");
 
     for (BalancesSummary.UserBalanceSummary userBalance : allUserBalances.getBalances())
     {
       BigDecimal currentUserBalance = userBalance.getUserBalanceCurrent();
-      BigDecimal userPayoutMinimum = userBalance.getUserPayoutMinimum();
+      BigDecimal userPayoutMinimum  = userBalance.getUserPayoutMinimum();
 
       if ((currentUserBalance != null) && (userPayoutMinimum != null) &&
           (currentUserBalance.compareTo(userPayoutMinimum) >= 0))
       {
-        int     userId            = userBalance.getUserId();
+        int userId = userBalance.getUserId();
+
         String  userPayoutAddress = userBalance.getUserPayoutAddress();
 
-        String message =
-          String.format("Sending %.2f BTC payout to user #%d at address '%s'.",
-            currentUserBalance.doubleValue(),
-            userId,
-            userPayoutAddress);
-
-        System.out.println(message);
-        eventLog.log(message);
-
-        try
+        if (this.isPayoutPendingForUser(userId))
         {
-          this.sendPayout(currentUserBalance, userId, userPayoutAddress, poolDaemonUser);
+          String message =
+              String.format("Not sending a payout to user #%d, since a payout is already pending for this user.",
+                userId);
+
+          System.out.println(message);
+          this.eventLog.log(message);
         }
 
-        catch (Throwable ex)
+        else
         {
-          String error = String.format(
-            "Failed to send %.2f BTC payout to user #%d at address '%s' (user skipped): %s",
-            currentUserBalance.doubleValue(),
-            userId,
-            userPayoutAddress,
-            ex.getMessage());
-
-          eventLog.log(error);
-          System.err.println(error);
-          ex.printStackTrace();
+          this.sendPayout(currentUserBalance, userId, userPayoutAddress, poolDaemonUser);
         }
       }
     }
@@ -160,123 +77,64 @@ extends Thread
 
   protected void sendPayout(BigDecimal currentUserBalance, int userId, String payoutAddress,
                             User.Reference poolDaemonUser)
-  throws AddressFormatException, IOException, JSONException
   {
-    Payout  payoutRecord  = new Payout();
-    String  paymentHash   = this.server.sendPayment(currentUserBalance, new Address(null, payoutAddress));
+    String message =
+        String.format("Sending %.2f BTC payout to user #%d at address '%s'.",
+          currentUserBalance.doubleValue(),
+          userId,
+          payoutAddress);
 
-    payoutRecord.setAuthor(poolDaemonUser);
-    payoutRecord.setRecipient(new User.Reference(userId));
-    payoutRecord.setAmount(currentUserBalance);
-    payoutRecord.setPaymentAddress(payoutAddress);
-    payoutRecord.setPaymentHash(paymentHash);
+    System.out.println(message);
+    this.eventLog.log(message);
 
-    this.queuePayoutPersistence(payoutRecord);
+    try
+    {
+      Payout  payoutRecord  = new Payout();
+      Address payeeAddress  = new Address(this.server.getNetworkParameters(), payoutAddress);
+      String  paymentHash   = this.server.sendPayment(currentUserBalance, payeeAddress);
+
+      payoutRecord.setAuthor(poolDaemonUser);
+      payoutRecord.setRecipient(new User.Reference(userId));
+      payoutRecord.setAmount(currentUserBalance);
+      payoutRecord.setPaymentAddress(payoutAddress);
+      payoutRecord.setPaymentHash(paymentHash);
+
+      this.queuePayoutRecordForPersistence(payoutRecord);
+    }
+
+    catch (Throwable ex)
+    {
+      String error = String.format(
+        "Failed to send %.2f BTC payout to user #%d at address '%s' (user skipped): %s",
+        currentUserBalance.doubleValue(),
+        userId,
+        payoutAddress,
+        ex.getMessage());
+
+      this.eventLog.log(error);
+      System.err.println(error);
+      ex.printStackTrace();
+    }
   }
 
-  protected void queuePayoutPersistence(Payout payout)
+  protected void queuePayoutRecordForPersistence(Payout payoutRecord)
   {
-    QueueUtils.ensureQueued(this.payoutPersistenceQueue, payout);
+    this.server.getPersistenceAgent().queueForSave(payoutRecord);
+    this.payoutsPendingPersistence.put(payoutRecord, null);
   }
 
-  protected static class PayoutPersistenceRunner
-  extends Thread
+  protected boolean isPayoutPendingForUser(int userId)
   {
-    protected final StratumServer server;
-    protected final BlockingQueue<Payout> payoutPersistenceQueue;
+    boolean result = false;
 
-    public PayoutPersistenceRunner(StratumServer server, BlockingQueue<Payout> payoutPersistenceQueue)
+    for (Entry<Payout, Object> pendingPayoutEntry : this.payoutsPendingPersistence.entrySet())
     {
-      this.server                 = server;
-      this.payoutPersistenceQueue = payoutPersistenceQueue;
+      Payout pendingPayout = pendingPayoutEntry.getKey();
+
+      if ((pendingPayout != null) && pendingPayout.getRecipient().getId() == userId)
+        result = true;
     }
 
-    @Override
-    public void run()
-    {
-      while (true)
-      {
-        try
-        {
-          /* NOTE: This will block indefinitely for items.
-           *
-           * We still call this method in a loop in case we get interrupted.
-           */
-         this.runPayouts();
-        }
-
-        catch (Throwable ex)
-        {
-          ex.printStackTrace();
-        }
-
-        synchronized(this)
-        {
-          try
-          {
-            this.wait(RETRY_MS);
-          }
-
-          catch (InterruptedException e)
-          {
-            // Suppressed; expected
-          }
-        }
-      }
-    }
-
-    protected void runPayouts()
-    throws InterruptedException
-    {
-      EventLog                      eventLog        = this.server.getEventLog();
-      SingletonDrupalSessionFactory sessionFactory  = SingletonDrupalSessionFactory.getInstance();
-      PayoutRequestor               payoutRequestor = sessionFactory.getPayoutRequestor();
-      Payout                        payoutRecord;
-
-      while ((payoutRecord = this.payoutPersistenceQueue.take()) != null)
-      {
-        // Ensure we don't try to issue more payouts when this is running...
-        synchronized (this.payoutPersistenceQueue)
-        {
-          double  paymentAmount   = payoutRecord.getAmount().doubleValue();
-          Integer recipientId     = payoutRecord.getRecipient().getId();
-          String  paymentAddress  = payoutRecord.getPaymentAddress(),
-                  message;
-
-          message =
-            String.format("Saving record of a %.2f BTC payout to user #%d at address '%s'.",
-              paymentAmount,
-              recipientId,
-              paymentAddress);
-
-          System.out.println(message);
-          eventLog.log(message);
-
-          try
-          {
-            payoutRequestor.createNode(payoutRecord);
-          }
-
-          catch (Throwable ex)
-          {
-            String error;
-
-            // Re-queue payout record.
-            QueueUtils.ensureQueued(this.payoutPersistenceQueue, payoutRecord);
-
-            error = String.format(
-              "A %.2f BTC payout to user #%d succeeded but failed to be written: %s",
-              paymentAmount,
-              recipientId,
-              paymentAddress,
-              ex.getMessage());
-
-            eventLog.log(error);
-
-            throw new RuntimeException(error, ex);
-          }
-        }
-      }
-    }
+    return result;
   }
 }

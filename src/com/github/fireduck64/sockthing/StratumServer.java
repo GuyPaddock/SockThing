@@ -26,9 +26,11 @@ import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
+import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
+import com.redbottledesign.bitcoin.pool.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalPplnsAgent;
+import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
-import com.redbottledesign.bitcoin.pool.drupal.FallbackShareSaver;
 import com.redbottledesign.bitcoin.pool.drupal.PayoutAgent;
 import com.redbottledesign.bitcoin.pool.drupal.RoundAgent;
 
@@ -49,6 +51,8 @@ public class StratumServer
     private ShareSaver shareSaver;
     private OutputMonster outputMonster;
     private MetricsReporter metricsReporter;
+    private DrupalSession session;
+    private PersistenceAgent persistenceAgent;
     private WittyRemarksAgent wittyRemarksAgent;
     private PplnsAgent pplnsAgent;
     private RoundAgent roundAgent;
@@ -120,6 +124,9 @@ public class StratumServer
             new ListenThread(port).start();
         }
 
+        if (this.persistenceAgent != null)
+          this.persistenceAgent.start();
+
         if (this.wittyRemarksAgent != null)
           this.wittyRemarksAgent.start();
 
@@ -176,6 +183,26 @@ public class StratumServer
     public void setInstanceId(String instanceId)
     {
         this.instanceId = instanceId;
+    }
+
+    public DrupalSession getSession()
+    {
+      return this.session;
+    }
+
+    public void setSession(DrupalSession session)
+    {
+      this.session = session;
+    }
+
+    public PersistenceAgent getPersistenceAgent()
+    {
+      return this.persistenceAgent;
+    }
+
+    public void setPersistenceAgent(PersistenceAgent persistenceAgent)
+    {
+      this.persistenceAgent = persistenceAgent;
     }
 
     public void setShareSaver(ShareSaver shareSaver)
@@ -282,7 +309,10 @@ public class StratumServer
         server.setInstanceId(conf.get("instance_id"));
         server.setMetricsReporter(new MetricsReporter(server));
 
+        server.setSession(new DrupalSession(conf));
         server.setAuthHandler(new AddressDifficultyAuthHandler(server));
+
+        server.setPersistenceAgent(new PersistenceAgent(server));
 
 //        if (conf.getBoolean("saver_messaging_enabled"))
 //        {
@@ -318,7 +348,7 @@ public class StratumServer
         }
 
         server.setPplnsAgent(new DrupalPplnsAgent(server));
-        server.setRoundAgent(new RoundAgent());
+        server.setRoundAgent(new RoundAgent(server));
 
         server.start();
     }

@@ -10,7 +10,7 @@ public class SubmitResult
     private String reason;
     private String clientVersion;
     private int height;
-    private double ourDifficulty;
+    private double workDifficulty;
     private double networkDifficulty;
 
     public SubmitResult()
@@ -78,14 +78,14 @@ public class SubmitResult
       this.height = height;
     }
 
-    public double getOurDifficulty()
+    public double getWorkDifficulty()
     {
-      return this.ourDifficulty;
+      return this.workDifficulty;
     }
 
     public void setOurDifficulty(double ourDifficulty)
     {
-      this.ourDifficulty = ourDifficulty;
+      this.workDifficulty = ourDifficulty;
     }
 
     public double getNetworkDifficulty()
