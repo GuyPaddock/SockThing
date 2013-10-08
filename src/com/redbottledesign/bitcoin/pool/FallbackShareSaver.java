@@ -14,6 +14,7 @@ import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
+import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
 
 public class FallbackShareSaver

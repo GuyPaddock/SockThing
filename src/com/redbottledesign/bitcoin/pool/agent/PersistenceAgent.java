@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.agent;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -12,6 +12,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import com.github.fireduck64.sockthing.EventLog;
 import com.github.fireduck64.sockthing.StratumServer;
+import com.redbottledesign.bitcoin.pool.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.RequestorRegistry;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.EntityRequestor;

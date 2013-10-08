@@ -1,4 +1,7 @@
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.agent;
+
+import com.redbottledesign.bitcoin.pool.Agent;
+import com.redbottledesign.bitcoin.pool.Checkpointable;
 
 public abstract class CheckpointableAgent<C>
 extends Agent

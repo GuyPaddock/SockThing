@@ -9,7 +9,7 @@ import com.github.fireduck64.sockthing.EventLog;
 import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.Agent;
-import com.redbottledesign.bitcoin.pool.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.PayoutsSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.BlockCredit;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;

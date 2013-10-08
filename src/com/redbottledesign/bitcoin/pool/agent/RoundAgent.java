@@ -1,5 +1,5 @@
 
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.agent;
 
 import java.io.IOException;
 import java.util.Date;
@@ -8,6 +8,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.github.fireduck64.sockthing.EventLog;
 import com.github.fireduck64.sockthing.StratumServer;
+import com.redbottledesign.bitcoin.pool.Agent;
+import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
