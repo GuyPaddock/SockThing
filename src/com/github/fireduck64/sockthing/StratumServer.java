@@ -16,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.github.fireduck64.sockthing.authentication.AddressDifficultyAuthHandler;
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
 import com.github.fireduck64.sockthing.output.OutputMonster;
 import com.github.fireduck64.sockthing.output.OutputMonsterSimple;
@@ -33,6 +32,7 @@ import com.redbottledesign.bitcoin.pool.RoundAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalPplnsAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
+import com.redbottledesign.bitcoin.pool.drupal.authentication.DrupalAuthHandler;
 
 public class StratumServer
 {
@@ -310,7 +310,7 @@ public class StratumServer
         server.setMetricsReporter(new MetricsReporter(server));
 
         server.setSession(new DrupalSession(conf));
-        server.setAuthHandler(new AddressDifficultyAuthHandler(server));
+        server.setAuthHandler(new DrupalAuthHandler(server));
 
         server.setPersistenceAgent(new PersistenceAgent(server));
 

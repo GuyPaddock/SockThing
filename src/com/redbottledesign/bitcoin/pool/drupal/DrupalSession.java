@@ -12,6 +12,7 @@ import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.PayoutsSummaryRequ
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.SolvedBlockRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WorkShareRequestor;
+import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WorkersSummaryRequestor;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
@@ -33,6 +34,7 @@ public class DrupalSession
   private PayoutRequestor payoutRequestor;
   private PayoutsSummaryRequestor payoutsSummaryRequestor;
   private BalancesSummaryRequestor balancesRequestor;
+  private WorkersSummaryRequestor workersRequestor;
 
   private User poolDaemonUser;
 
@@ -101,6 +103,11 @@ public class DrupalSession
     return this.balancesRequestor;
   }
 
+  public WorkersSummaryRequestor getWorkersRequestor()
+  {
+    return this.workersRequestor;
+  }
+
   public User getPoolDaemonUser()
   {
     this.assertInitialized();
@@ -162,6 +169,7 @@ public class DrupalSession
     this.payoutRequestor          = new PayoutRequestor(this.sessionManager);
     this.payoutsSummaryRequestor  = new PayoutsSummaryRequestor(this.sessionManager);
     this.balancesRequestor        = new BalancesSummaryRequestor(this.sessionManager);
+    this.workersRequestor         = new WorkersSummaryRequestor(this.sessionManager);
 
     try
     {
