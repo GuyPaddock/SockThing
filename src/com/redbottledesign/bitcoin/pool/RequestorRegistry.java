@@ -6,6 +6,7 @@ import java.util.Map;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.node.BlockCredit;
+import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
@@ -28,7 +29,7 @@ public class RequestorRegistry
     this.requestorMap.put(SolvedBlock.class,      session.getBlockRequestor());
     this.requestorMap.put(Round.class,            session.getRoundRequestor());
     this.requestorMap.put(BlockCredit.class,      session.getCreditRequestor());
-//    this.requestorMap.put(key, value)
+    this.requestorMap.put(Payout.class,           session.getPayoutRequestor());
   }
 
   @SuppressWarnings("unchecked")
