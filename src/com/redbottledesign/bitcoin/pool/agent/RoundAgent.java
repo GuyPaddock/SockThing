@@ -78,14 +78,18 @@ extends Agent
   {
     try
     {
+      // This will block if a round change is in progress.
       synchronized (this)
       {
         this.currentRound = this.roundRequestor.requestCurrentRound();
 
         if ((this.currentRound == null) || (this.currentRound.hasExpired()))
+        {
           this.startNewRound();
 
-        this.notifyAll();
+          // Wake-up any threads waiting to acquire the first round.
+          this.notifyAll();
+        }
       }
 
       this.updateStatusOfPastRounds();
