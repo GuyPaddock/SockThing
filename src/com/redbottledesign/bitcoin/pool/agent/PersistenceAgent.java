@@ -212,6 +212,15 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
       callback.onEntitySaved(queueEntity);
   }
 
+  protected synchronized void interruptQueueProcessing()
+  {
+    /* Interrupt to break out of persistenceQueue.take(); the persistence
+     * thread should block in the run() method of Agent since it doesn't hold
+     * the lock on this object.
+     */
+    this.interrupt();
+  }
+
   protected static class PersistenceQueueItem<T extends Entity<?>>
   {
     private static volatile long itemIdCounter;
@@ -246,14 +255,5 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     {
       return this.callback;
     }
-  }
-
-  protected synchronized void interruptQueueProcessing()
-  {
-    /* Interrupt to break out of persistenceQueue.take(); the persistence
-     * thread should block in the run() method of Agent since it doesn't hold
-     * the lock on this object.
-     */
-    this.interrupt();
   }
 }
