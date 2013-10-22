@@ -7,9 +7,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.util.DiffMath;
@@ -19,9 +24,12 @@ import com.google.bitcoin.core.Coinbase;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
+import com.google.bitcoin.core.VerificationException;
 
 public class JobInfo
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JobInfo.class);
+
     private NetworkParameters network_params;
     private final StratumServer server;
     private final String jobId;
@@ -182,26 +190,28 @@ public class JobInfo
             this.submits.add(submitCannonicalString);
         }
 
-        int stale = this.server.checkStale(getHeight());
+        SubmitResult.Status stale = this.server.checkStale(getHeight());
 
-        if (stale >= 2)
+        if (stale == SubmitResult.Status.REALLY_STALE)
         {
             submitResult.setOurResult("N");
             submitResult.setReason("quite stale");
             return;
         }
 
-        if (stale == 1)
+        else if (stale == SubmitResult.Status.SLIGHTLY_STALE)
         {
             submitResult.setReason("slightly stale");
         }
 
-
-        //nonce = HexUtil.swapEndianHexString(nonce);
-
-        //System.out.println("nonce: " + nonce);
-        //System.out.println("extra2: " + params.getString(2));
-
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug(
+                String.format(
+                    "validateSubmitInternal() - nonce: %s, extra2: %s",
+                    HexUtil.swapEndianHexString(nonce),
+                    params.getString(2)));
+        }
 
         /*extranonce2[0]=1;
         extranonce2[1]=0;
@@ -225,7 +235,9 @@ public class JobInfo
             {
                 Sha256Hash br = new Sha256Hash(branches.getString(i));
 
-                //System.out.println("Merkle " + merkle_root + " " + br);
+                if (LOGGER.isDebugEnabled())
+                    LOGGER.debug(String.format("validateSubmitInternal() - Merkle %s %s.", merkle_root, br));
+
                 merkle_root = HexUtil.treeHash(merkle_root, br);
             }
 
@@ -248,8 +260,11 @@ public class JobInfo
 
                 header_str = HexUtil.swapBytesInsideWord(header_str);
 
-                System.out.println("Header: " + header_str);
-                System.out.println("Header bytes: " + header_str.length());
+                if (LOGGER.isDebugEnabled())
+                {
+                    LOGGER.debug("validateSubmitInternal() - Header: " + header_str);
+                    LOGGER.debug("validateSubmitInternal() - Header bytes: " + header_str.length());
+                }
 
                 //header_str = HexUtil.swapWordHexString(header_str);
 
@@ -266,8 +281,6 @@ public class JobInfo
                   HexUtil.swapEndianHexString(
                     new Sha256Hash(md.digest()).toString()));
 
-                System.out.println("Found block hash: " + blockhash);
-
                 submitResult.setHash(blockhash);
                 submitResult.setNetworkDiffiult(this.difficulty);
                 submitResult.setOurDifficulty(DiffMath.getDifficultyForTarget(blockhash));
@@ -276,21 +289,46 @@ public class JobInfo
                 {
                     submitResult.setOurResult("Y");
 
-                    server.getEventLog().log("Share " + poolUser.getName() + " " + getHeight() + " " + blockhash);
+                    if (LOGGER.isInfoEnabled())
+                    {
+                      LOGGER.info(
+                          String.format("Share submitted: %s %d %s", poolUser.getName(), getHeight(), blockhash));
+                    }
                 }
                 else
                 {
                     submitResult.setOurResult("N");
                     submitResult.setReason("H-not-zero");
+
+                    if (LOGGER.isInfoEnabled())
+                    {
+                      LOGGER.info(
+                          String.format(
+                              "Share rejected (%s): %s %d %s",
+                              submitResult.getReason(),
+                              poolUser.getName(),
+                              getHeight(),
+                              blockhash));
+                    }
+
                     return;
                 }
-
-                String upstreamResult = null;
 
                 if (blockhash.toString().compareTo(this.blockTemplate.getString("target")) < 0)
                 {
                     submitResult.setUpstreamResult(this.buildAndSubmitBlock(params, merkle_root));
                     submitResult.setHeight(getHeight());
+
+                    if (LOGGER.isInfoEnabled())
+                    {
+                      LOGGER.info(
+                          String.format(
+                              "Block submitted upstream (result: %s): %s %d %s",
+                              submitResult.getUpstreamResult(),
+                              poolUser.getName(),
+                              getHeight(),
+                              blockhash));
+                    }
                 }
             }
 
@@ -302,9 +340,10 @@ public class JobInfo
     }
 
     public String buildAndSubmitBlock(JSONArray params, Sha256Hash merkleRoot)
-        throws org.json.JSONException, org.apache.commons.codec.DecoderException
+    throws JSONException, DecoderException
     {
-        System.out.println("WE CAN BUILD A BLOCK.  WE HAVE THE TECHNOLOGY.");
+        if (LOGGER.isInfoEnabled())
+          LOGGER.info("WE CAN BUILD A BLOCK.  WE HAVE THE TECHNOLOGY.");
 
         String user = params.getString(0);
         String job_id = params.getString(1);
@@ -345,35 +384,51 @@ public class JobInfo
             nonce_l,
             lst);
 
-        System.out.println("Constructed block hash: " + block.getHash());
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Constructed block hash: " + block.getHash());
 
         try
         {
-            block.verifyTransactions();
-            System.out.println("Block VERIFIED");
-            byte[] blockbytes = block.bitcoinSerialize();
-            System.out.println("Bytes: " + blockbytes.length);
+            byte[] blockBytes;
+            String ret;
 
-            String ret =  server.submitBlock(block);
+            block.verifyTransactions();
+
+            blockBytes = block.bitcoinSerialize();
+
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug(String.format("Block size: %d bytes.", blockBytes.length));
+
+            ret = server.submitBlock(block);
 
             if (ret.equals("Y"))
             {
                 coinbase.markRemark();
-            }
 
-            server.getEventLog().log("Block submitted: "+ getHeight() + " " + block.getHash());
+                if (LOGGER.isInfoEnabled())
+                    LOGGER.info("Block VERIFIED: "+ getHeight() + " " + block.getHash());
+            }
 
             return ret;
         }
-        catch (com.google.bitcoin.core.VerificationException e)
+
+        catch (VerificationException ex)
         {
-            e.printStackTrace();
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    String.format(
+                        "Block failed verification: %s\n",
+                        ex.getMessage(),
+                        ExceptionUtils.getStackTrace(ex)));
+            }
+
             return "N";
         }
     }
 
     public JSONArray getMerkleRoots()
-        throws org.json.JSONException
+    throws org.json.JSONException
     {
         ArrayList<Sha256Hash> hashes = new ArrayList<Sha256Hash>();
 

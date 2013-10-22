@@ -1,25 +1,28 @@
 
 package com.github.fireduck64.sockthing.output;
 
+import java.math.BigInteger;
+import java.util.LinkedList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
-import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.NetworkParameters;
-
-
-import java.math.BigInteger;
-
-import java.util.List;
-import java.util.LinkedList;
+import com.google.bitcoin.core.Transaction;
 
 public class OutputMonsterShareFees implements OutputMonster
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OutputMonsterShareFees.class);
+
     protected List<Address> pay_to;
     protected NetworkParameters params;
 
     public OutputMonsterShareFees(Config conf, NetworkParameters params)
-        throws com.google.bitcoin.core.AddressFormatException
+    throws com.google.bitcoin.core.AddressFormatException
     {
         this.params = params;
         conf.require("pay_to_address");
@@ -31,11 +34,14 @@ public class OutputMonsterShareFees implements OutputMonster
             Address a = new Address(params,addr_str);
             pay_to.add(a);
         }
-        System.out.println("Pay to: " + pay_to);
 
-
+        if (LOGGER.isInfoEnabled())
+        {
+            LOGGER.info(String.format("Pool 'pay to' address is %s.", pay_to));
+        }
     }
 
+    @Override
     public void addOutputs(PoolUser pu, Transaction tx, BigInteger total_value, BigInteger fee_value)
     {
         fee_value = fee_value.divide(BigInteger.valueOf(2));

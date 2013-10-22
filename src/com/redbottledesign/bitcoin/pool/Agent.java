@@ -6,95 +6,102 @@ public abstract class Agent
 extends Thread
 implements Stoppable
 {
-  private static final long DEFAULT_FREQUENCY_IN_MILLISECONDS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
+    private static final long DEFAULT_FREQUENCY_IN_MILLISECONDS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
 
-  private long lastCheck;
-  private final long frequencyInMilliseconds;
-  private volatile boolean isStopping;
+    private long lastCheck;
+    private final long frequencyInMilliseconds;
+    private volatile boolean isStopping;
 
-  public Agent()
-  {
-    this(DEFAULT_FREQUENCY_IN_MILLISECONDS);
-  }
-
-  public Agent(long frequencyInMilliseconds)
-  {
-    this.setDaemon(true);
-    this.setName(this.getClass().getSimpleName());
-
-    this.lastCheck                = 0;
-    this.frequencyInMilliseconds  = frequencyInMilliseconds;
-  }
-
-  public long getFrequencyInMilliseconds()
-  {
-    return this.frequencyInMilliseconds;
-  }
-
-  @Override
-  public void run()
-  {
-    while (!this.isStopping)
+    public Agent()
     {
-      try
-      {
-        if (System.currentTimeMillis() > (lastCheck + this.frequencyInMilliseconds))
+        this(DEFAULT_FREQUENCY_IN_MILLISECONDS);
+    }
+
+    public Agent(long frequencyInMilliseconds)
+    {
+        this.setDaemon(true);
+        this.setName(this.getClass().getSimpleName());
+
+        this.lastCheck = 0;
+        this.frequencyInMilliseconds = frequencyInMilliseconds;
+    }
+
+    public long getFrequencyInMilliseconds()
+    {
+        return this.frequencyInMilliseconds;
+    }
+
+    @Override
+    public void run()
+    {
+        this.checkConfig();
+
+        while (!this.isStopping)
         {
-          this.runPeriodicTask();
+            try
+            {
+                if (System.currentTimeMillis() > (lastCheck + this.frequencyInMilliseconds))
+                {
+                    this.runPeriodicTask();
 
-          this.lastCheck = System.currentTimeMillis();
+                    this.lastCheck = System.currentTimeMillis();
+                }
+            }
+
+            catch (Throwable t)
+            {
+                // Top-level handler
+                t.printStackTrace();
+            }
+
+            if (!this.isStopping)
+            {
+                synchronized (this)
+                {
+                    try
+                    {
+                        // FIXME: Switch to scheduled threads.
+                        this.wait(this.frequencyInMilliseconds / 4);
+                    }
+
+                    catch (InterruptedException e)
+                    {
+                        // Suppressed; expected
+                    }
+                }
+            }
         }
-      }
+    }
 
-      catch (Throwable t)
-      {
-        // Top-level handler
-        t.printStackTrace();
-      }
+    @Override
+    public synchronized void stopProcessing()
+    {
+        this.isStopping = true;
 
-      if (!this.isStopping)
-      {
-        synchronized(this)
+        this.interrupt();
+
+        // Block indefinitely until thread stops
+        try
         {
-          try
-          {
-            // FIXME: Switch to scheduled threads.
-            this.wait(this.frequencyInMilliseconds / 4);
-          }
-
-          catch (InterruptedException e)
-          {
-            // Suppressed; expected
-          }
+            this.join();
         }
-      }
+
+        catch (InterruptedException e)
+        {
+            // Suppress; expected.
+        }
     }
-  }
 
-  @Override
-  public synchronized void stopProcessing()
-  {
-    this.isStopping = true;
-
-    this.interrupt();
-
-    // Block indefinitely until thread stops
-    try
+    public boolean isStopping()
     {
-      this.join();
+        return this.isStopping;
     }
 
-    catch (InterruptedException e)
+    protected void checkConfig()
     {
-      // Suppress; expected.
+        // By default, there's nothing to check.
     }
-  }
 
-  public boolean isStopping()
-  {
-    return this.isStopping;
-  }
-
-  protected abstract void runPeriodicTask()
-  throws Exception;
+    protected abstract void runPeriodicTask()
+    throws Exception;
 }

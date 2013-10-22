@@ -16,9 +16,8 @@
 
 package com.google.bitcoin.core;
 
-import com.google.common.base.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.bitcoin.core.Utils.doubleDigest;
+import static com.google.bitcoin.core.Utils.doubleDigestTwoBuffers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,12 +27,14 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 import java.util.LinkedList;
-import org.apache.commons.codec.binary.Hex;
+import java.util.List;
 
-import static com.google.bitcoin.core.Utils.doubleDigest;
-import static com.google.bitcoin.core.Utils.doubleDigestTwoBuffers;
+import org.apache.commons.codec.binary.Hex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 /**
  * <p>A block is a group of transactions, and is one of the fundamental data structures of the Bitcoin system.
@@ -46,7 +47,7 @@ import static com.google.bitcoin.core.Utils.doubleDigestTwoBuffers;
  * specifically using {@link Peer#getBlock(Sha256Hash)}, or grab one from a downloaded {@link BlockChain}.
  */
 public class Block extends Message {
-    private static final Logger log = LoggerFactory.getLogger(Block.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Block.class);
     private static final long serialVersionUID = 2738848929966035281L;
 
 	/** How many bytes are required to represent a block header. */
@@ -118,8 +119,8 @@ public class Block extends Message {
      * Contruct a block object from the BitCoin wire format.
      * @param params NetworkParameters object.
      * @param parseLazy Whether to perform a full parse immediately or delay until a read is requested.
-     * @param parseRetain Whether to retain the backing byte array for quick reserialization.  
-     * If true and the backing byte array is invalidated due to modification of a field then 
+     * @param parseRetain Whether to retain the backing byte array for quick reserialization.
+     * If true and the backing byte array is invalidated due to modification of a field then
      * the cached bytes may be repopulated and retained if the message is serialized again in the future.
      * @param length The length of message if known.  Usually this is provided when deserializing of the wire
      * as the length will be provided as part of the header.  If unknown then set to Message.UNKNOWN_LENGTH
@@ -182,12 +183,14 @@ public class Block extends Message {
         transactionBytesValid = parseRetain;
     }
 
+    @Override
     void parse() throws ProtocolException {
         parseHeader();
         parseTransactions();
         length = cursor - offset;
     }
 
+    @Override
     protected void parseLite() throws ProtocolException {
         // Ignore the header since it has fixed length. If length is not provided we will have to
         // invoke a light parse of transactions to calculate the length.
@@ -244,6 +247,7 @@ public class Block extends Message {
      * Ensure the object is parsed if needed. This should be called in every getter before returning a value. If the
      * lazy parse flag is not set this is a method returns immediately.
      */
+    @Override
     protected void maybeParse() {
         throw new LazyParseException(
                 "checkParse() should never be called on a Block.  Instead use checkParseHeader() and checkParseTransactions()");
@@ -259,6 +263,7 @@ public class Block extends Message {
      *
      * @throws ProtocolException
      */
+    @Override
     public void ensureParsed() throws ProtocolException {
         try {
             maybeParseHeader();
@@ -353,6 +358,7 @@ public class Block extends Message {
      *
      * @throws IOException
      */
+    @Override
     public byte[] bitcoinSerialize() {
 
         // we have completely cached byte array.
@@ -408,6 +414,7 @@ public class Block extends Message {
         return len;
     }
 
+    @Override
     protected void unCache() {
         // Since we have alternate uncache methods to use internally this will only ever be called by a child
         // transaction so we only need to invalidate that part of the cache.
@@ -440,15 +447,25 @@ public class Block extends Message {
      * Calculates the block hash by serializing the block and hashing the
      * resulting bytes.
      */
-    private Sha256Hash calculateHash() {
-        try {
-            ByteArrayOutputStream bos = new UnsafeByteArrayOutputStream(HEADER_SIZE);
+    private Sha256Hash calculateHash()
+    {
+        try
+        {
+            ByteArrayOutputStream   bos         = new UnsafeByteArrayOutputStream(HEADER_SIZE);
+            byte[]                  hash_bytes;
+
             writeHeader(bos);
-            byte[] hash_bytes = bos.toByteArray();
-            System.out.println(Hex.encodeHexString(hash_bytes));
+
+            hash_bytes = bos.toByteArray();
+
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug("calculateHash() - Hash bytes: " + Hex.encodeHexString(hash_bytes));
 
             return new Sha256Hash(Utils.reverseBytes(doubleDigest(bos.toByteArray())));
-        } catch (IOException e) {
+        }
+
+        catch (IOException e)
+        {
             throw new RuntimeException(e); // Cannot happen.
         }
     }
@@ -458,7 +475,8 @@ public class Block extends Message {
      * the block explorer. If you call this on block 1 in the production chain
      * you will get "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048".
      */
-    public String getHashAsString() {
+    public String getHashAsString()
+    {
         return getHash().toString();
     }
 
@@ -466,9 +484,12 @@ public class Block extends Message {
      * Returns the hash of the block (which for a valid, solved block should be
      * below the target). Big endian.
      */
-    public Sha256Hash getHash() {
+    @Override
+    public Sha256Hash getHash()
+    {
         if (hash == null)
             hash = calculateHash();
+
         return hash;
     }
 
@@ -486,23 +507,29 @@ public class Block extends Message {
      * hash values. Then the work of the block will be 20. As the target gets
      * lower, the amount of work goes up.
      */
-    public BigInteger getWork() throws VerificationException {
+    public BigInteger getWork()
+    throws VerificationException
+    {
         BigInteger target = getDifficultyTargetAsInteger();
+
         return LARGEST_HASH.divide(target.add(BigInteger.ONE));
     }
 
 	/** Returns a copy of the block, but without any transactions. */
-    public Block cloneAsHeader() {
+    public Block cloneAsHeader()
+    {
         maybeParseHeader();
-        Block block = new Block(params);
-        block.nonce = nonce;
-        block.prevBlockHash = prevBlockHash.duplicate();
-        block.merkleRoot = getMerkleRoot().duplicate();
-        block.version = version;
-        block.time = time;
-        block.difficultyTarget = difficultyTarget;
-        block.transactions = null;
-        block.hash = getHash().duplicate();
+
+        Block block             = new Block(params);
+        block.nonce             = nonce;
+        block.prevBlockHash     = prevBlockHash.duplicate();
+        block.merkleRoot        = getMerkleRoot().duplicate();
+        block.version           = version;
+        block.time              = time;
+        block.difficultyTarget  = difficultyTarget;
+        block.transactions      = null;
+        block.hash              = getHash().duplicate();
+
         return block;
     }
 
@@ -511,17 +538,27 @@ public class Block extends Message {
      * the block. Use for debugging purposes only.
      */
     @Override
-    public String toString() {
-        StringBuffer s = new StringBuffer("v" + version + " block: \n" + "   previous block: "
-                + prevBlockHash.toString() + "\n" + "   merkle root: " + getMerkleRoot().toString() + "\n"
-                + "   time: [" + time + "] " + new Date(time * 1000).toString() + "\n"
-                + "   difficulty target (nBits): " + difficultyTarget + "\n" + "   nonce: " + nonce + "\n");
-        if (transactions != null && transactions.size() > 0) {
+    public String toString()
+    {
+        StringBuffer s =
+            new StringBuffer(
+                "v" + version           + " block: \n" +
+                "   previous block: "   + prevBlockHash.toString()              + "\n" +
+                "   merkle root: "      + getMerkleRoot().toString()            + "\n" +
+                "   time: [" + time + "] " + new Date(time * 1000).toString()   + "\n" +
+                "   difficulty target (nBits): " + difficultyTarget             + "\n" +
+                "   nonce: " + nonce + "\n");
+
+        if (transactions != null && transactions.size() > 0)
+        {
             s.append("   with ").append(transactions.size()).append(" transaction(s):\n");
-            for (Transaction tx : transactions) {
+
+            for (Transaction tx : transactions)
+            {
                 s.append(tx.toString());
             }
         }
+
         return s.toString();
     }
 
@@ -532,16 +569,24 @@ public class Block extends Message {
 	 *
      * This can loop forever if a solution cannot be found solely by incrementing nonce. It doesn't change extraNonce.
      */
-    void solve() {
+    void solve()
+    {
         maybeParseHeader();
-        while (true) {
-            try {
+
+        while (true)
+        {
+            try
+            {
                 // Is our proof of work valid yet?
                 if (checkProofOfWork(false))
                     return;
+
                 // No, so increment the nonce and try again.
                 setNonce(getNonce() + 1);
-            } catch (VerificationException e) {
+            }
+
+            catch (VerificationException e)
+            {
                 throw new RuntimeException(e); // Cannot happen.
             }
         }
@@ -553,15 +598,22 @@ public class Block extends Message {
      * is thrown.
      */
     public BigInteger getDifficultyTargetAsInteger() throws VerificationException {
+        BigInteger target;
+
         maybeParseHeader();
-        BigInteger target = Utils.decodeCompactBits(difficultyTarget);
+
+        target = Utils.decodeCompactBits(difficultyTarget);
+
         if (target.compareTo(BigInteger.valueOf(0)) <= 0 || target.compareTo(params.proofOfWorkLimit) > 0)
             throw new VerificationException("Difficulty target is bad: " + target.toString());
+
         return target;
     }
 
     /** Returns true if the hash of the block is OK (lower than difficulty target). */
-    private boolean checkProofOfWork(boolean throwException) throws VerificationException {
+    private boolean checkProofOfWork(boolean throwException)
+    throws VerificationException
+    {
         // This part is key - it is what proves the block was as difficult to make as it claims
         // to be. Note however that in the context of this function, the block can claim to be
         // as difficult as it wants to be .... if somebody was able to take control of our network
@@ -570,32 +622,46 @@ public class Block extends Message {
         //
         // To prevent this attack from being possible, elsewhere we check that the difficultyTarget
         // field is of the right value. This requires us to have the preceeding blocks.
-        BigInteger target = getDifficultyTargetAsInteger();
+        BigInteger target   = getDifficultyTargetAsInteger();
+        BigInteger h        = getHash().toBigInteger();
 
-        BigInteger h = getHash().toBigInteger();
-        if (h.compareTo(target) > 0) {
+        if (h.compareTo(target) > 0)
+        {
             // Proof of work check failed!
             if (throwException)
-                throw new VerificationException("Hash is higher than target: " + getHashAsString() + " vs "
-                        + target.toString(16));
+                throw new VerificationException(
+                    "Hash is higher than target: " + getHashAsString() + " vs " + target.toString(16));
             else
                 return false;
         }
+
         return true;
     }
 
-    private void checkTimestamp() throws VerificationException {
+    private void checkTimestamp()
+    throws VerificationException
+    {
+        long currentTime;
+
         maybeParseHeader();
+
         // Allow injection of a fake clock to allow unit testing.
-        long currentTime = fakeClock != 0 ? fakeClock : System.currentTimeMillis() / 1000;
+        currentTime = fakeClock != 0 ? fakeClock : System.currentTimeMillis() / 1000;
+
         if (time > currentTime + ALLOWED_TIME_DRIFT)
             throw new VerificationException("Block too far in future");
     }
 
-    private void checkMerkleRoot() throws VerificationException {
+    private void checkMerkleRoot()
+    throws VerificationException
+    {
         Sha256Hash calculatedRoot = calculateMerkleRoot();
-        if (!calculatedRoot.equals(merkleRoot)) {
-            log.error("Merkle tree did not verify");
+
+        if (!calculatedRoot.equals(merkleRoot))
+        {
+            if (LOGGER.isErrorEnabled())
+                LOGGER.error("checkMerkleRoot() - Merkle tree did not verify");
+
             throw new VerificationException("Merkle hashes do not match: " + calculatedRoot + " vs " + merkleRoot);
         }
     }

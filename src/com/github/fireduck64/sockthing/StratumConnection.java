@@ -9,15 +9,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.util.HexUtil;
 
-
 public class StratumConnection
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StratumConnection.class);
 
     private static final String CONFIG_VALUE_POOL_CONTROL_PASSWORD = "pool_control_password";
 
@@ -56,12 +59,11 @@ public class StratumConnection
         this.sock = sock;
         this.connection_id = connection_id;
 
-        open=true;
-
-        last_network_action=new AtomicLong(System.nanoTime());
+        open                = true;
+        last_network_action = new AtomicLong(System.nanoTime());
 
         //Get from user session for now.  Might do something fancy with resume later.
-        extranonce1=UserSessionData.getExtranonce1();
+        extranonce1 = UserSessionData.getExtranonce1();
 
         new OutThread().start();
         new InThread().start();
@@ -70,12 +72,17 @@ public class StratumConnection
 
     public void close()
     {
-        open=false;
+        open = false;
+
         try
         {
             sock.close();
         }
-        catch(Throwable t){}
+
+        catch (Throwable t)
+        {
+            // Suppressed
+        }
     }
 
     public long getLastNetworkAction()
@@ -99,7 +106,8 @@ public class StratumConnection
         {
             out_queue.put(msg);
         }
-        catch(java.lang.InterruptedException e)
+
+        catch (InterruptedException e)
         {
             throw new RuntimeException(e);
         }
@@ -109,9 +117,11 @@ public class StratumConnection
     public void sendRealJob(JSONObject block_template, boolean clean)
         throws Exception
     {
+        if (user_session_data == null)
+            return;
 
-        if (user_session_data == null) return;
-        if (!mining_subscribe) return;
+        if (!mining_subscribe)
+            return;
 
         String job_id = user_session_data.getNextJobId();
 
@@ -122,18 +132,17 @@ public class StratumConnection
         JSONObject msg = ji.getMiningNotifyMessage(clean);
 
         sendMessage(msg);
-
     }
 
-
-
-
-    public class OutThread extends Thread
+    public class OutThread
+    extends Thread
     {
+        private final Logger LOGGER = LoggerFactory.getLogger(OutThread.class);
+
         public OutThread()
         {
-            setName("OutThread");
-            setDaemon(true);
+            this.setName("OutThread");
+            this.setDaemon(true);
         }
 
         @Override
@@ -142,103 +151,133 @@ public class StratumConnection
             try
             {
                 PrintStream out = new PrintStream(sock.getOutputStream());
-                while(open)
+
+                while (open)
                 {
                     //Using poll rather than take so this thread will
                     //exit if the connection is closed.  Otherwise,
                     //it would wait forever on this queue
                     JSONObject msg = out_queue.poll(30, TimeUnit.SECONDS);
+
                     if (msg != null)
                     {
-
                         String msg_str = msg.toString();
+
                         out.println(msg_str);
                         out.flush();
 
-                        System.out.println("Out: " + msg.toString());
+                        if (LOGGER.isDebugEnabled())
+                            LOGGER.debug("Statrum [out]: " + msg.toString());
+
                         updateLastNetworkAction();
                     }
-
                 }
+            }
 
-            }
-            catch(Exception e)
+            catch (Exception ex)
             {
-                System.out.println(connection_id + ": " + e);
-                e.printStackTrace();
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format(
+                            "Error on connection %d: %s\n%s",
+                            connection_id,
+                            ex.getMessage(),
+                            ExceptionUtils.getStackTrace(ex)));
+                }
             }
+
             finally
             {
                 close();
             }
-
         }
     }
-    public class InThread extends Thread
+
+    public class InThread
+    extends Thread
     {
+        private final Logger LOGGER = LoggerFactory.getLogger(InThread.class);
+
         public InThread()
         {
-            setName("InThread");
-            setDaemon(true);
+            this.setName("InThread");
+            this.setDaemon(true);
         }
 
         @Override
         public void run()
         {
-            try
+            try (Scanner scan = new Scanner(sock.getInputStream()))
             {
-                Scanner scan = new Scanner(sock.getInputStream());
-
-                while(open)
+                while (open)
                 {
                     String line = scan.nextLine();
-                    updateLastNetworkAction();
+
+                    StratumConnection.this.updateLastNetworkAction();
+
                     line = line.trim();
+
                     if (line.length() > 0)
                     {
                         JSONObject msg = new JSONObject(line);
-                        System.out.println("In: " + msg.toString());
+
+                        if (LOGGER.isDebugEnabled())
+                            LOGGER.debug("Statrum [in]: " + msg.toString());
+
                         processInMessage(msg);
                     }
-
                 }
-
             }
 
-            catch(JSONException | NoSuchElementException ex)
+            catch (JSONException | NoSuchElementException ex)
             {
               // Suppress syntax errors from connecting clients
             }
 
-            catch(Exception e)
+            catch (Exception ex)
             {
-                System.out.println("" + connection_id + ": " + e);
-                e.printStackTrace();
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format(
+                            "Error on connection %d: %s\n%s",
+                            connection_id,
+                            ex.getMessage(),
+                            ExceptionUtils.getStackTrace(ex)));
+                }
             }
+
             finally
             {
                 close();
             }
-
         }
     }
 
     private void processInMessage(JSONObject msg)
-        throws Exception
+    throws Exception
     {
-        long idx = msg.optLong("id",-1);
+        long idx = msg.optLong("id", -1);
+
         if (idx != -1 && idx == get_client_id && msg.has("result"))
         {
             client_version = msg.getString("result");
             return;
         }
+
         Object id = msg.opt("id");
+
         if (!msg.has("method"))
         {
-            System.out.println("Unknown message: " + msg.toString());
+            if (LOGGER.isErrorEnabled())
+                LOGGER.error("Unknown Stratum JSON message received: " + msg.toString());
+
             return;
         }
+
         String method = msg.getString("method");
+
         if (method.equals("mining.subscribe"))
         {
             JSONObject reply = new JSONObject();
@@ -267,6 +306,7 @@ public class StratumConnection
 
             JSONObject reply = new JSONObject();
             reply.put("id", id);
+
             if (pu==null)
             {
                 reply.put("error", "unknown user");
@@ -280,10 +320,13 @@ public class StratumConnection
                 //reply.put("difficulty", pu.getDifficulty());
                 //reply.put("user", pu.getName());
                 user = pu;
+
                 sendMessage(reply);
                 sendDifficulty();
                 sendGetClient();
+
                 user_session_data = server.getUserSessionData(pu);
+
                 sendRealJob(server.getCurrentBlockTemplate(),false);
             }
 
@@ -295,19 +338,23 @@ public class StratumConnection
 
             JSONObject reply = new JSONObject();
             reply.put("id", id);
+
             // should be the same as mining.subscribe
             if (!session_id.equals(RUNTIME_SESSION))
             {
                 reply.put("error", "bad session id");
                 reply.put("result", false);
+
                 sendMessage(reply);
             }
             else
             {
                 reply.put("result", true);
                 reply.put("error", JSONObject.NULL);
+
                 sendMessage(reply);
-                mining_subscribe=true;
+
+                mining_subscribe = true;
             }
         }
         else if (method.equals("mining.submit"))
@@ -429,7 +476,7 @@ public class StratumConnection
     }
 
     private void sendDifficulty()
-        throws Exception
+    throws Exception
     {
         JSONObject msg = new JSONObject();
         msg.put("id", JSONObject.NULL);
@@ -443,7 +490,7 @@ public class StratumConnection
     }
 
     private void sendGetClient()
-        throws Exception
+    throws Exception
     {
         long id = getNextRequestId();
 
@@ -454,8 +501,5 @@ public class StratumConnection
         msg.put("method","client.get_version");
 
         sendMessage(msg);
-
     }
-
-
 }

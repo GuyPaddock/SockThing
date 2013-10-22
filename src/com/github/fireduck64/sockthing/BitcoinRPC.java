@@ -12,12 +12,16 @@ import org.apache.commons.codec.binary.Hex;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.Block;
 
 public class BitcoinRPC
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BitcoinRPC.class);
+
     private final String username;
     private final String password;
     private final String host;
@@ -50,7 +54,9 @@ public class BitcoinRPC
     public JSONObject sendPost(JSONObject post)
     throws IOException, JSONException
     {
-        //System.out.println(post.toString(2));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Bitcoin RPC POST: " + post.toString(2));
+
         String str = sendPost(getUrl(), post.toString());
         return new JSONObject(str);
     }
@@ -125,7 +131,7 @@ public class BitcoinRPC
         JSONArray params = new JSONArray();
         params.put(Hex.encodeHexString(blk.bitcoinSerialize()));
         msg.put("params", params);
-        //System.out.println(msg.toString(2));
+
         return sendPost(msg);
     }
 

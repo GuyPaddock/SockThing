@@ -1,6 +1,5 @@
 package com.github.fireduck64.sockthing.persistence.db;
 
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -10,16 +9,12 @@ import org.apache.commons.dbcp.ConnectionFactory;
 import org.apache.commons.dbcp.DriverManagerConnectionFactory;
 import org.apache.commons.dbcp.PoolableConnectionFactory;
 import org.apache.commons.dbcp.PoolingDriver;
-import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.GenericObjectPool;
-
-
 
 public class DB
 {
-
     private static void loadDriver(String driver)
-        throws SQLException
+    throws SQLException
     {
         try
         {
@@ -31,18 +26,19 @@ public class DB
         }
     }
 
-    public static void openConnectionPool(String pool_name, String driver_class, String uri, String user, String pass, int max_active, int max_idle)
-        throws SQLException
+    public static void openConnectionPool(String pool_name, String driver_class, String uri, String user, String pass,
+                                          int max_active, int max_idle)
+    throws SQLException
     {
 
         Properties props = new Properties();
+
         props.put("autoReconnect","true");
         props.put("user",user);
         props.put("password",pass);
 
         loadDriver(driver_class);
         loadDriver("org.apache.commons.dbcp.PoolingDriver");
-
 
         GenericObjectPool connectionPool = new GenericObjectPool(null);
 
@@ -56,39 +52,31 @@ public class DB
         PoolingDriver driver = (PoolingDriver) DriverManager.getDriver("jdbc:apache:commons:dbcp:");
 
         driver.registerPool(pool_name,connectionPool);
-
     }
-
 
     public static Connection openConnection(String pool_name)
-        throws SQLException
+    throws SQLException
     {
         Connection conn = DriverManager.getConnection("jdbc:apache:commons:dbcp:" + pool_name);
-        conn.setAutoCommit(true);
-        return conn;
 
+        conn.setAutoCommit(true);
+
+        return conn;
     }
+
     public static void safeClose(Connection conn)
     {
-        if (conn==null) return;
+        if (conn == null)
+            return;
+
         try
         {
             conn.close();
         }
+
         catch(SQLException e)
         {
             e.printStackTrace();
-
         }
     }
-
-    public static void printDriverStats(String pool_name) throws Exception
-    {
-        PoolingDriver driver = (PoolingDriver) DriverManager.getDriver("jdbc:apache:commons:dbcp:");
-        ObjectPool connectionPool = driver.getConnectionPool(pool_name);
-        System.out.println("NumActive: " + connectionPool.getNumActive());
-        System.out.println("NumIdle: " + connectionPool.getNumIdle());
-    }
-
-
 }

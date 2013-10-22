@@ -97,4 +97,11 @@ public class SubmitResult
     {
       this.networkDifficulty = networkDifficulty;
     }
+
+    public static enum Status
+    {
+        CURRENT,
+        SLIGHTLY_STALE,
+        REALLY_STALE
+    }
 }

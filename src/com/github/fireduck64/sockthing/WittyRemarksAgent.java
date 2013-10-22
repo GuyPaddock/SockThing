@@ -1,7 +1,16 @@
 
 package com.github.fireduck64.sockthing;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.github.fireduck64.sockthing.persistence.db.DB;
 
 /**
  * Optional database of witty remarks to be injected into Coinbase transactions
@@ -10,6 +19,8 @@ package com.github.fireduck64.sockthing;
  */
 public class WittyRemarksAgent extends Thread
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(WittyRemarksAgent.class);
+
     public static final long DB_CHECK_MS = 120000L;
 
     private long last_check;
@@ -17,18 +28,16 @@ public class WittyRemarksAgent extends Thread
 
     public WittyRemarksAgent()
     {
-        setDaemon(true);
-        setName("WittyRemarks");
-
+        this.setDaemon(true);
+        this.setName("WittyRemarks");
     }
 
     public synchronized String getNextRemark()
     {
-
         this.notifyAll();
+
         return last_remark;
     }
-
 
     /**
      * Do the actual update in this thread to avoid ever blocking work generation
@@ -40,95 +49,120 @@ public class WittyRemarksAgent extends Thread
         {
             try
             {
-                updateLastRemark();
+                this.updateLastRemark();
+
                 synchronized(this)
                 {
-                    this.wait(DB_CHECK_MS/4);
+                    this.wait(DB_CHECK_MS / 4);
                 }
             }
-            catch(Throwable t)
+
+            catch (Throwable ex)
             {
-                t.printStackTrace();
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format("Error while running processing witty remarks: %s\n%s",
+                        ex.getMessage(),
+                        ExceptionUtils.getStackTrace(ex)));
+                }
             }
         }
-
-
-
     }
 
     private void updateLastRemark()
     {
-//        if (System.currentTimeMillis() > last_check + DB_CHECK_MS)
-//        {
-//            Connection conn = null;
-//            try
-//            {
-//                conn = DB.openConnection("share_db");
-//
-//                PreparedStatement ps = conn.prepareStatement("select * from witty_remarks where used=false order by order_id asc limit 1");
-//                ResultSet rs = ps.executeQuery();
-//
-//                if (rs.next())
-//                {
-//
-//                    last_remark = rs.getString("remark");
-//                    int order = rs.getInt("order_id");
-//                    System.out.println("Witty remark selected (" + order + ") - '" + last_remark + "'");
-//
-//                }
-//                else
-//                {
-//                    System.out.println("No more witty remarks");
-//                    last_remark=null;
-//                }
-//
-//                rs.close();
-//                ps.close();
-//
-//
-//                last_check=System.currentTimeMillis();
-//            }
-//            catch(java.sql.SQLException e)
-//            {
-//                System.out.println("Error getting remark: " + e);
-//            }
-//            finally
-//            {
-//                DB.safeClose(conn);
-//            }
-//
-//        }
-//
+        if (System.currentTimeMillis() > last_check + DB_CHECK_MS)
+        {
+            Connection conn = null;
 
+            try
+            {
+                conn = DB.openConnection("share_db");
+
+                PreparedStatement ps = conn.prepareStatement("select * from witty_remarks where used=false order by order_id asc limit 1");
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next())
+                {
+
+                    last_remark = rs.getString("remark");
+                    int order = rs.getInt("order_id");
+
+                    if (LOGGER.isInfoEnabled())
+                        LOGGER.info("Witty remark selected (" + order + ") - '" + last_remark + "'");
+                }
+                else
+                {
+                    if (LOGGER.isInfoEnabled())
+                        LOGGER.info("No more witty remarks");
+
+                    last_remark=null;
+                }
+
+                rs.close();
+                ps.close();
+
+
+                last_check=System.currentTimeMillis();
+            }
+
+            catch (SQLException ex)
+            {
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format(
+                            "Error getting remark: %s\n%s",
+                            ex.getMessage(),
+                            ExceptionUtils.getStackTrace(ex)));
+                }
+            }
+
+            finally
+            {
+                DB.safeClose(conn);
+            }
+        }
     }
 
     public void markUsed(String remark)
     {
-//        Connection conn = null;
-//        try
-//        {
-//            conn = DB.openConnection("share_db");
-//
-//            PreparedStatement ps = conn.prepareStatement("update witty_remarks set used=true where remark=?");
-//            ps.setString(1, remark);
-//            ps.execute();
-//            ps.close();
-//
-//        }
-//        catch(java.sql.SQLException e)
-//        {
-//            System.out.println("Failed to mark remark as no longer remarkable: " + e);
-//        }
-//        finally
-//        {
-//            DB.safeClose(conn);
-//        }
-//
-//        synchronized(this)
-//        {
-//            last_check = 0L;
-//            this.notifyAll();
-//        }
-    }
+        Connection conn = null;
 
+        try
+        {
+            conn = DB.openConnection("share_db");
+
+            PreparedStatement ps = conn.prepareStatement("update witty_remarks set used=true where remark=?");
+            ps.setString(1, remark);
+            ps.execute();
+            ps.close();
+
+        }
+
+        catch (SQLException ex)
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    String.format(
+                        "Failed to mark remark as no longer remarkable: %s\n%s",
+                        ex.getMessage(),
+                        ExceptionUtils.getStackTrace(ex)));
+            }
+        }
+
+        finally
+        {
+            DB.safeClose(conn);
+        }
+
+        synchronized (this)
+        {
+            last_check = 0L;
+
+            this.notifyAll();
+        }
+    }
 }

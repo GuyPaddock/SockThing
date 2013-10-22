@@ -1,29 +1,24 @@
 
 package com.google.bitcoin.core;
 
-import com.github.fireduck64.sockthing.PoolUser;
-import com.github.fireduck64.sockthing.StratumServer;
-import com.google.bitcoin.core.Transaction;
-import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.core.TransactionInput;
-import com.google.bitcoin.core.TransactionOutput;
-
-import com.google.bitcoin.core.Address;
 import java.math.BigInteger;
-import org.apache.commons.codec.binary.Hex;
-
 import java.nio.ByteBuffer;
-
 import java.util.Random;
 
+import org.apache.commons.codec.binary.Hex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-
+import com.github.fireduck64.sockthing.PoolUser;
+import com.github.fireduck64.sockthing.StratumServer;
 
 /**
  * Creates a stratum compatible coinbase transaction
  */
 public class Coinbase
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Coinbase.class);
+
     Transaction tx;
 
     byte[] tx_data;
@@ -34,9 +29,9 @@ public class Coinbase
     BigInteger fee_total;
     StratumServer server;
     PoolUser pool_user;
-    
+
     String witty_remark_used;
-   
+
     public static final int BLOCK_HEIGHT_OFF=0;
     public static final int EXTRA1_OFF=4;
     public static final int EXTRA2_OFF=8;
@@ -84,7 +79,7 @@ public class Coinbase
         {
             script = new String(script.getBytes(), 0, 100);
         }
- 
+
         script_bytes= script.getBytes();
 
         if (script_bytes.length > 100) throw new RuntimeException("Script bytes too long for coinbase");
@@ -110,16 +105,14 @@ public class Coinbase
         {
             script_bytes[i+RANDOM_OFF]=rand[i];
         }
-        //System.out.println("Script bytes: " + script.length());
-        //System.out.println("Script: " + Hex.encodeHexString(script_bytes));
+
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug("Coinbase() - Script bytes: " + script.length());
+            LOGGER.debug("Coinbase() - Script: " + Hex.encodeHexString(script_bytes));
+        }
 
         genTx();
-        /*System.out.println(tx);
-        for(TransactionOutput out : tx.getOutputs())
-        {
-            System.out.println("  " + out);
-        }*/
-
     }
 
     /**
@@ -132,11 +125,14 @@ public class Coinbase
 
         tx = new Transaction(server.getNetworkParameters());
         tx.addInput(new TransactionInput(server.getNetworkParameters(), tx, script_bytes));
+
         if (first_gen)
         {
             server.getOutputMonster().addOutputs(pool_user, tx, value, fee_total);
             first_gen = false;
-        } else {
+        }
+        else
+        {
             for(TransactionOutput out : priortx.getOutputs())
             {
                 tx.addOutput(out);
@@ -145,21 +141,25 @@ public class Coinbase
 
         tx_data = tx.bitcoinSerialize();
 
-        /*System.out.println("tx_data = " + tx_data);
-
-        for(TransactionOutput out : tx.getOutputs())
+        if (LOGGER.isDebugEnabled())
         {
-            System.out.println("  " + out);
-        }*/
-        return tx;
+            LOGGER.debug("Coinbase() - Transaction: " + tx.toString());
+            LOGGER.debug("  TX data: "                + tx_data);
 
+            for (TransactionOutput out : tx.getOutputs())
+            {
+                LOGGER.debug("  TX Output: " + out);
+            }
+        }
+
+        return tx;
     }
 
     public void setExtranonce2(byte[] extranonce2)
     {
-        for(int i=0; i<4; i++)
+        for (int i = 0; i < 4; i++)
         {
-            script_bytes[i+EXTRA2_OFF] = extranonce2[i];
+            script_bytes[i + EXTRA2_OFF] = extranonce2[i];
         }
     }
 
@@ -168,10 +168,10 @@ public class Coinbase
     {
         //This contains our standard 42 byte transaction header
         //then 4 bytes of block height for block v2
-        int cb1_size=42+4;
-        byte[] buff = new byte[42+4];
+        int     cb1_size    = 42 + 4;
+        byte[]  buff        = new byte[cb1_size];
 
-        for(int i=0; i<cb1_size; i++)
+        for(int i = 0; i < cb1_size; i++)
         {
             buff[i] = tx_data[i];
         }

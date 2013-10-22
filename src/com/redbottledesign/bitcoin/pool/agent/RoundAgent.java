@@ -1,4 +1,3 @@
-
 package com.redbottledesign.bitcoin.pool.agent;
 
 import java.io.IOException;
@@ -6,7 +5,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.github.fireduck64.sockthing.EventLog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.Agent;
 import com.redbottledesign.bitcoin.pool.PersistenceCallback;
@@ -20,192 +21,237 @@ import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 public class RoundAgent
 extends Agent
 {
-  private static final long ROUND_UPDATE_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RoundAgent.class);
 
-  private final StratumServer server;
-  private final EventLog logger;
-  private final RoundRequestor roundRequestor;
-  private final User.Reference poolDaemonUser;
+    private static final long ROUND_UPDATE_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
 
-  private Round currentRound;
-  private Round nextRound;
+    private final StratumServer server;
+    private final RoundRequestor roundRequestor;
+    private final User.Reference poolDaemonUser;
 
-  public RoundAgent(StratumServer server)
-  {
-    super(ROUND_UPDATE_FREQUENCY_MS);
+    private Round currentRound;
+    private Round nextRound;
 
-    DrupalSession session = server.getSession();
-
-    this.server           = server;
-    this.logger           = server.getEventLog();
-    this.roundRequestor   = session.getRoundRequestor();
-    this.poolDaemonUser   = session.getPoolDaemonUser().asReference();
-  }
-
-  public Round getCurrentRoundSynchronized()
-  {
-    Round currentRound = null;
-
-    do
+    public RoundAgent(StratumServer server)
     {
-      // Block in case we're changing between rounds...
-      synchronized (this)
-      {
-        currentRound = this.currentRound;
+        super(ROUND_UPDATE_FREQUENCY_MS);
 
-        // Wait for the round to be initialized if it hasn't been yet.
-        if (currentRound == null)
+        DrupalSession session = server.getSession();
+
+        this.server         = server;
+        this.roundRequestor = session.getRoundRequestor();
+        this.poolDaemonUser = session.getPoolDaemonUser().asReference();
+    }
+
+    public Round getCurrentRoundSynchronized()
+    {
+        Round currentRound = null;
+
+        do
         {
-          try
-          {
-            this.wait();
-          }
+            // Block in case we're changing between rounds...
+            synchronized (this)
+            {
+                currentRound = this.currentRound;
 
-          catch (InterruptedException e)
-          {
-            // Suppressed; expected.
-          }
+                // Wait for the round to be initialized if it hasn't been yet.
+                if (currentRound == null)
+                {
+                    try
+                    {
+                        this.wait();
+                    }
+
+                    catch (InterruptedException e)
+                    {
+                        // Suppressed; expected.
+                    }
+                }
+            }
         }
-      }
+        while (currentRound == null);
+
+        return currentRound;
     }
-    while (currentRound == null);
 
-    return currentRound;
-  }
-
-  @Override
-  protected void runPeriodicTask()
-  {
-    try
+    protected Round getCurrentRound()
     {
-      // This will block if a round change is in progress.
-      synchronized (this)
-      {
-        this.currentRound = this.roundRequestor.requestCurrentRound();
+        return this.currentRound;
+    }
 
-        if ((this.currentRound == null) || (this.currentRound.hasExpired()))
+    protected synchronized void setCurrentRound(Round currentRound)
+    {
+        this.currentRound = currentRound;
+
+        this.notifyAll();
+    }
+
+    protected Round getNextRound()
+    {
+        return this.nextRound;
+    }
+
+    protected synchronized void setNextRound(Round nextRound)
+    {
+        this.nextRound = nextRound;
+
+        this.notifyAll();
+    }
+
+    @Override
+    protected void runPeriodicTask()
+    {
+        try
         {
-          this.startNewRound();
+            // This will block if a round change is in progress.
+            synchronized (this)
+            {
+                this.currentRound = this.roundRequestor.requestCurrentRound();
 
-          // Wake-up any threads waiting to acquire the first round.
-          this.notifyAll();
+                if ((this.currentRound == null) || (this.currentRound.hasExpired()))
+                {
+                    this.startNewRound();
+
+                    // Wake-up any threads waiting to acquire the first round.
+                    this.notifyAll();
+                }
+            }
+
+            this.updateStatusOfPastRounds();
         }
-      }
 
-      this.updateStatusOfPastRounds();
-    }
-
-    catch (IOException | DrupalHttpException e)
-    {
-      e.printStackTrace();
-    }
-  }
-
-  protected synchronized void startNewRound()
-  throws IOException, DrupalHttpException
-  {
-    PersistenceAgent  persistenceAgent  = this.server.getPersistenceAgent();
-    Date              now               = new Date();
-    Round             newRound;
-    DateRange         newRoundDates;
-
-    if (this.currentRound != null)
-    {
-      DateRange roundDates = this.currentRound.getRoundDates();
-
-      System.out.println("Ending round started at " + roundDates.getStartDate());
-
-      roundDates.setEndDate(now);
-
-      persistenceAgent.queueForSave(this.currentRound);
-    }
-
-    System.out.println("Starting new round at " + now);
-
-    newRound      = new Round();
-    newRoundDates = newRound.getRoundDates();
-
-    newRound.setAuthor(this.poolDaemonUser);
-    newRoundDates.setStartDate(now);
-    newRoundDates.setEndDate(now);
-
-    this.startNewRoundAndWait(newRound);
-  }
-
-  private void startNewRoundAndWait(Round newRound)
-  {
-    PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
-
-    this.nextRound = newRound;
-
-    persistenceAgent.queueForSave(newRound, new PersistenceCallback<Round>()
-    {
-      @Override
-      public void onEntitySaved(Round newRound)
-      {
-        synchronized (RoundAgent.this)
+        catch (IOException | DrupalHttpException e)
         {
-          RoundAgent.this.currentRound = newRound;
+            if (LOGGER.isErrorEnabled())
+                LOGGER.error(e.getMessage());
 
-          RoundAgent.this.notifyAll();
+            e.printStackTrace();
         }
-      }
+    }
 
-      @Override
-      public void onEntityEvicted(Round evictedEntity)
-      {
-        synchronized (RoundAgent.this)
+    protected synchronized void startNewRound()
+    throws IOException, DrupalHttpException
+    {
+        PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
+        Date now = new Date();
+        Round newRound;
+        DateRange newRoundDates;
+
+        if (this.currentRound != null)
         {
-          // FIXME: This seems hackish...
-          RoundAgent.this.nextRound = RoundAgent.this.currentRound;
+            DateRange roundDates = this.currentRound.getRoundDates();
 
-          RoundAgent.this.notifyAll();
+            if (LOGGER.isInfoEnabled())
+                LOGGER.info("Ending round started at " + roundDates.getStartDate());
+
+            roundDates.setEndDate(now);
+
+            persistenceAgent.queueForSave(this.currentRound);
         }
-      }
-    });
 
-    do
-    {
-      try
-      {
-        this.wait();
-      }
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Starting new round at " + now);
 
-      catch (InterruptedException ex)
-      {
-        // Suppressed; expected
-      }
+        newRound = new Round();
+        newRoundDates = newRound.getRoundDates();
+
+        newRound.setAuthor(this.poolDaemonUser);
+        newRoundDates.setStartDate(now);
+        newRoundDates.setEndDate(now);
+
+        this.startNewRoundAndWait(newRound);
     }
-    while (this.currentRound != this.nextRound);
-  }
 
-  protected void updateStatusOfPastRounds()
-  throws IOException, DrupalHttpException
-  {
-    PersistenceAgent  persistenceAgent  = this.server.getPersistenceAgent();
-    List<Round>       openRounds        = this.roundRequestor.requestAllOpenRounds();
-    int               openRoundCount    = openRounds.size();
-    String            message           = String.format("There are %d open rounds.", openRoundCount);
-
-    System.out.println(message);
-    logger.log(message);
-
-    if (openRoundCount > Round.MAX_OPEN_ROUNDS)
+    protected void updateStatusOfPastRounds()
+                    throws IOException, DrupalHttpException
     {
-      // Close everything over the round cap.
-      List<Round> roundsToClose = openRounds.subList(Round.MAX_OPEN_ROUNDS, openRoundCount);
+        PersistenceAgent    persistenceAgent    = this.server.getPersistenceAgent();
+        List<Round>         openRounds          = this.roundRequestor.requestAllOpenRounds();
+        int                 openRoundCount      = openRounds.size();
 
-      for (Round roundToClose : roundsToClose)
-      {
-        message = "Closing round started at " + roundToClose.getRoundDates().getStartDate();
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info(String.format("There are %d open rounds.", openRoundCount));
 
-        System.out.println(message);
-        logger.log(message);
+        if (openRoundCount > Round.MAX_OPEN_ROUNDS)
+        {
+            // Close everything over the round cap.
+            List<Round> roundsToClose = openRounds.subList(Round.MAX_OPEN_ROUNDS, openRoundCount);
 
-        roundToClose.setRoundStatus(Round.Status.CLOSED);
+            for (Round roundToClose : roundsToClose)
+            {
+                if (LOGGER.isInfoEnabled())
+                    LOGGER.info("Closing round started at " + roundToClose.getRoundDates().getStartDate());
 
-        persistenceAgent.queueForSave(roundToClose);
-      }
+                roundToClose.setRoundStatus(Round.Status.CLOSED);
+
+                persistenceAgent.queueForSave(roundToClose);
+            }
+        }
     }
-  }
+
+    private void startNewRoundAndWait(Round newRound)
+    {
+        PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
+
+        this.nextRound = newRound;
+
+        persistenceAgent.queueForSave(newRound, new RoundPersistenceCallback(this));
+
+        do
+        {
+            try
+            {
+                // Wait until we find that the current round has become the next
+                // round.
+                this.wait();
+            }
+
+            catch (InterruptedException ex)
+            {
+                // Suppressed; expected
+            }
+        }
+        while ((this.nextRound != null) && (this.currentRound != this.nextRound));
+    }
+
+    protected static class RoundPersistenceCallback
+    implements PersistenceCallback<Round>
+    {
+        private RoundAgent agent;
+
+        public RoundPersistenceCallback(RoundAgent agent)
+        {
+            this.agent = agent;
+        }
+
+        public RoundAgent getAgent()
+        {
+            return this.agent;
+        }
+
+        @Override
+        public void onEntitySaved(Round newRound)
+        {
+            synchronized (this.agent)
+            {
+                // Move to next round.
+                this.agent.setCurrentRound(newRound);
+            }
+        }
+
+        @Override
+        public void onEntityEvicted(Round evictedEntity)
+        {
+            synchronized (this.agent)
+            {
+                // Next round was canceled.
+                this.agent.setNextRound(null);
+            }
+        }
+
+        protected void setAgent(RoundAgent agent)
+        {
+            this.agent = agent;
+        }
+    }
 }

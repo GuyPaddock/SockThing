@@ -1,6 +1,12 @@
 package com.github.fireduck64.sockthing.persistence.db;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
+
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
@@ -8,10 +14,11 @@ import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 
-// import org.json.JSONObject;
-
-class DBShareSaver implements ShareSaver
+class DBShareSaver
+implements ShareSaver
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DBShareSaver.class);
+
     public DBShareSaver(Config config)
     throws java.sql.SQLException
     {
@@ -61,11 +68,14 @@ class DBShareSaver implements ShareSaver
             if (submitResult.getReason() != null)
             {
                 reason_str = submitResult.getReason();
+
                 if (reason_str.length() > 50)
                 {
                     reason_str = reason_str.substring(0, 50);
                 }
-                System.out.println("Reason: " + reason_str);
+
+                if (LOGGER.isDebugEnabled())
+                    LOGGER.debug("Reason: " + reason_str);
             }
             ps.setString(1, source);
             ps.setString(2, pu.getName());
@@ -108,19 +118,27 @@ class DBShareSaver implements ShareSaver
 
             }
         }
-        catch(java.sql.SQLIntegrityConstraintViolationException e)
+
+        catch (SQLIntegrityConstraintViolationException ex)
         {
-            System.out.println("Duplicate save - calling good");
+            if (LOGGER.isDebugEnabled())
+            {
+                LOGGER.debug(
+                    String.format(
+                        "Duplicate save - calling good: %s\n%s",
+                        ex.getMessage(),
+                        ExceptionUtils.getStackTrace(ex)));
+            }
         }
-        catch(java.sql.SQLException e)
+
+        catch (SQLException ex)
         {
-            throw new ShareSaveException(e);
+            throw new ShareSaveException(ex);
         }
+
         finally
         {
             DB.safeClose(conn);
         }
-
     }
-
 }

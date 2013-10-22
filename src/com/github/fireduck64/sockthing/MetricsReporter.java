@@ -1,22 +1,26 @@
 
 package com.github.fireduck64.sockthing;
 
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
-
+import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
-import com.amazonaws.services.cloudwatch.model.*;
+
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.amazonaws.auth.BasicAWSCredentials;
-import java.util.LinkedList;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
+import com.amazonaws.services.cloudwatch.model.MetricDatum;
+import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 
 public class MetricsReporter extends Thread
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricsReporter.class);
+
     StratumServer server;
     AmazonCloudWatchClient cw;
 
     LinkedBlockingQueue<PutMetricDataRequest> put_queue;
-
-
 
     public MetricsReporter(StratumServer server)
     {
@@ -31,7 +35,7 @@ public class MetricsReporter extends Thread
             return;
         }
 
-        put_queue=new LinkedBlockingQueue<PutMetricDataRequest>();
+        put_queue = new LinkedBlockingQueue<PutMetricDataRequest>();
 
         conf.require("metrics_aws_region");
         conf.require("metrics_aws_key");
@@ -43,92 +47,96 @@ public class MetricsReporter extends Thread
 
         cw.setEndpoint("monitoring."+conf.get("metrics_aws_region")+".amazonaws.com");
 
-        setDaemon(true);
+        this.setDaemon(true);
         this.start();
-
     }
 
     public String getNamespace()
     {
         return "sockthing/" + server.getInstanceId();
     }
+
     public String getGlobalNamespace()
     {
         return "sockthing";
     }
 
-
     public void metricCount(String name, double count)
     {
-        PutMetricDataRequest req = new PutMetricDataRequest();
-
+        PutMetricDataRequest    req = new PutMetricDataRequest();
         LinkedList<MetricDatum> lst = new LinkedList<MetricDatum>();
-
-        MetricDatum md = new MetricDatum();
+        MetricDatum             md  = new MetricDatum();
 
         md.setMetricName(name);
         md.setValue(count);
+
         lst.add(md);
+
         req.setMetricData(lst);
         req.setNamespace(getNamespace());
-    
+
         try
         {
             if (put_queue != null)
-            {
                 put_queue.put(req);
-            }
         }
-        catch(java.lang.InterruptedException e)
+
+        catch (InterruptedException ex)
         {
-            throw new RuntimeException(e);
+            throw new RuntimeException(ex);
         }
     }
 
     public void metricTime(String name, double milliseconds)
     {
-        PutMetricDataRequest req = new PutMetricDataRequest();
-
+        PutMetricDataRequest    req = new PutMetricDataRequest();
         LinkedList<MetricDatum> lst = new LinkedList<MetricDatum>();
-
-        MetricDatum md = new MetricDatum();
+        MetricDatum             md  = new MetricDatum();
 
         md.setMetricName(name);
         md.setValue(milliseconds);
         md.setUnit("Milliseconds");
+
         lst.add(md);
+
         req.setMetricData(lst);
         req.setNamespace(getGlobalNamespace());
-    
+
         try
         {
             if (put_queue != null)
-            {
                 put_queue.put(req);
-            }
         }
-        catch(java.lang.InterruptedException e)
-        {
-            throw new RuntimeException(e);
-        }
-        
-    }
-    
 
+        catch (InterruptedException ex)
+        {
+            throw new RuntimeException(ex);
+        }
+    }
+
+
+    @Override
     public void run()
     {
-        while(true)
+        while (true)
         {
             try
             {
-                doRun();
+                this.doRun();
             }
-            catch(Throwable t)
+
+            catch (Throwable ex)
             {
-                t.printStackTrace();
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format(
+                            "Metrics reporting failed: %s\n%s",
+                            ex.getMessage(),
+                            ExceptionUtils.getStackTrace(ex)));
+                }
             }
         }
-
     }
 
     private void doRun() throws Exception
@@ -138,9 +146,9 @@ public class MetricsReporter extends Thread
         if (put != null)
         {
             cw.putMetricData(put);
-            //System.out.println(put);
+
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug("Metrics: " + put);
         }
     }
-
-
 }
