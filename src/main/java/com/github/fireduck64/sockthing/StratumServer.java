@@ -551,9 +551,10 @@ public class StratumServer
           if (LOGGER.isErrorEnabled())
           {
               LOGGER.error(
-                  "Failed to submit block: %s\n%s",
-                  ex.getMessage(),
-                  ExceptionUtils.getFullStackTrace(ex));
+                  String.format(
+                      "Failed to submit block: %s\n%s",
+                      ex.getMessage(),
+                      ExceptionUtils.getFullStackTrace(ex)));
           }
 
           returnCode = "N";
@@ -607,9 +608,10 @@ public class StratumServer
                       if (LOGGER.isErrorEnabled())
                       {
                           LOGGER.error(
-                              "Pool connection error: %s\n%s",
-                              ex.getMessage(),
-                              ExceptionUtils.getFullStackTrace(ex));
+                              String.format(
+                                  "Pool connection error: %s\n%s",
+                                  ex.getMessage(),
+                                  ExceptionUtils.getFullStackTrace(ex)));
                       }
                   }
                 }
@@ -620,9 +622,10 @@ public class StratumServer
                 if (LOGGER.isErrorEnabled())
                 {
                     LOGGER.error(
-                        "Error setting-up pool listener thread: %s\n%s",
-                        ex.getMessage(),
-                        ExceptionUtils.getFullStackTrace(ex));
+                        String.format(
+                            "Error setting-up pool listener thread: %s\n%s",
+                            ex.getMessage(),
+                            ExceptionUtils.getFullStackTrace(ex)));
                 }
 
                 System.exit(-1);
@@ -710,9 +713,10 @@ public class StratumServer
                     if (LOGGER.isErrorEnabled())
                     {
                         LOGGER.error(
-                            "Error in prune thread: %s\n%s",
-                            ex.getMessage(),
-                            ExceptionUtils.getFullStackTrace(ex));
+                            String.format(
+                                "Error in prune thread: %s\n%s",
+                                ex.getMessage(),
+                                ExceptionUtils.getFullStackTrace(ex)));
                     }
                 }
             }
@@ -797,9 +801,10 @@ public class StratumServer
                     if (LOGGER.isErrorEnabled())
                     {
                         LOGGER.error(
-                            "Error in block detection thread: %s\n%s",
-                            ex.getMessage(),
-                            ExceptionUtils.getFullStackTrace(ex));
+                            String.format(
+                                "Error in block detection thread: %s\n%s",
+                                ex.getMessage(),
+                                ExceptionUtils.getFullStackTrace(ex)));
                     }
                 }
             }
