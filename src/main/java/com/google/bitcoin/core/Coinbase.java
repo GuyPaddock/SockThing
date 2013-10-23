@@ -143,12 +143,11 @@ public class Coinbase
 
         if (LOGGER.isDebugEnabled())
         {
-            LOGGER.debug("Coinbase() - Transaction: " + tx.toString());
-            LOGGER.debug("  TX data: "                + tx_data);
+            LOGGER.debug("Coinbase() - Transaction: ");
 
             for (TransactionOutput out : tx.getOutputs())
             {
-                LOGGER.debug("  TX Output: " + out);
+                LOGGER.debug("  " + out);
             }
         }
 
