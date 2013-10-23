@@ -167,7 +167,7 @@ public class StratumConnection
                         out.flush();
 
                         if (LOGGER.isDebugEnabled())
-                            LOGGER.debug("Statrum [out]: " + msg.toString());
+                            LOGGER.debug("Stratum [out]: " + msg.toString());
 
                         updateLastNetworkAction();
                     }
@@ -223,7 +223,7 @@ public class StratumConnection
                         JSONObject msg = new JSONObject(line);
 
                         if (LOGGER.isDebugEnabled())
-                            LOGGER.debug("Statrum [in]: " + msg.toString());
+                            LOGGER.debug("Stratum [in]: " + msg.toString());
 
                         processInMessage(msg);
                     }
