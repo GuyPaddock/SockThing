@@ -34,7 +34,7 @@ implements Stoppable
     @Override
     public void run()
     {
-        this.checkConfig();
+        this.loadConfig();
 
         while (!this.isStopping)
         {
@@ -97,7 +97,7 @@ implements Stoppable
         return this.isStopping;
     }
 
-    protected void checkConfig()
+    protected void loadConfig()
     {
         // By default, there's nothing to check.
     }

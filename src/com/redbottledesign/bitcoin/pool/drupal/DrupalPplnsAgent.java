@@ -33,6 +33,9 @@ implements PplnsAgent
     private final StratumServer server;
     private final BlockingQueue<SolvedBlock> pendingBlockQueue;
     private final Config config;
+    private double solverPercentage;
+    private double normalPercentage;
+    private double poolFee;
 
     public DrupalPplnsAgent(StratumServer server)
     {
@@ -53,11 +56,51 @@ implements PplnsAgent
     }
 
     @Override
-    protected void checkConfig()
+    protected void loadConfig()
     {
+        double totalPercentage;
+
         this.config.require(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_SOLVER);
         this.config.require(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_NORMAL);
         this.config.require(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_POOL_FEE);
+
+        this.solverPercentage = this.config.getDouble(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_SOLVER);
+        this.normalPercentage = this.config.getDouble(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_NORMAL);
+        this.poolFee          = this.config.getDouble(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_POOL_FEE);
+
+        totalPercentage = solverPercentage + normalPercentage;
+
+        if ((solverPercentage < 0) || (solverPercentage > 100))
+        {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Solver percentage must be between 0.00 and 1.00, but currently equals %f.",
+                    solverPercentage));
+        }
+
+        if ((normalPercentage < 0) || (normalPercentage > 100))
+        {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Normal percentage must be between 0.00 and 1.00, but currently equals %f.",
+                    normalPercentage));
+        }
+
+        if ((poolFee < 0) || (poolFee > 100))
+        {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Pool fee must be between 0.00 and 1.00, but currently equals %f.",
+                    poolFee));
+        }
+
+        if (totalPercentage != 1.0d)
+        {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Solver percentage plus normal percentage must equal 1.0, but currently equals %f.",
+                    totalPercentage));
+        }
     }
 
     @Override
@@ -72,7 +115,7 @@ implements PplnsAgent
 
         while ((currentBlock = this.pendingBlockQueue.take()) != null)
         {
-            double          blockReward = currentBlock.getReward().floatValue() * (1d - this.getPoolFeePercentage());
+            double          blockReward = currentBlock.getReward().floatValue() * (1d - this.poolFee);
             PayoutsSummary  payoutsSummary;
 
             if (LOGGER.isInfoEnabled())
@@ -161,26 +204,11 @@ implements PplnsAgent
         float difficultyUser    = userPayout.getOpenDifficultyUser(),
               difficultyTotal   = userPayout.getOpenDifficultyTotal();
 
-        return BigDecimal.valueOf(blockReward * (difficultyUser / difficultyTotal) * this.getPayoutPercentageNormal());
+        return BigDecimal.valueOf(blockReward * (difficultyUser / difficultyTotal) * this.normalPercentage);
     }
 
     protected BigDecimal calculateBlockBonus(double blockReward, PayoutsSummary.UserPayoutSummary userPayout)
     {
-        return BigDecimal.valueOf(blockReward * this.getPayoutPercentageSolver());
-    }
-
-    protected double getPayoutPercentageSolver()
-    {
-        return this.config.getDouble(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_SOLVER);
-    }
-
-    protected double getPayoutPercentageNormal()
-    {
-        return this.config.getDouble(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_NORMAL);
-    }
-
-    protected double getPoolFeePercentage()
-    {
-        return this.config.getDouble(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_POOL_FEE);
+        return BigDecimal.valueOf(blockReward * this.solverPercentage);
     }
 }
