@@ -5,11 +5,11 @@ import java.util.Collection;
 
 public interface Checkpointable
 {
-    public Type getCheckpointType();
+    public Type getCheckpointItemType();
     public String getCheckpointableName();
 
-    public Collection<? extends Checkpoint> captureCheckpoints();
-    public void restoreFromCheckpoints(Collection<? extends Checkpoint> checkpoint);
+    public Collection<? extends CheckpointItem> captureCheckpoint();
+    public void restoreFromCheckpoint(Collection<? extends CheckpointItem> checkpoint);
 
     public void registerCheckpointListener(CheckpointListener listener);
     public void unregisterCheckpointListener(CheckpointListener listener);

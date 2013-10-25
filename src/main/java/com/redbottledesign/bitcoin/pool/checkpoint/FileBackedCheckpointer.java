@@ -23,7 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 public class FileBackedCheckpointer
-implements CheckpointListener
+implements Checkpointer, CheckpointListener
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileBackedCheckpointer.class);
 
@@ -31,14 +31,15 @@ implements CheckpointListener
     private static final String FILE_STORE_PROCESSED_DIRECTORY_PATH     = "filestore/processed";
 
     private final Set<Checkpointable> registeredCheckpointables;
-    private final Map<Checkpoint, File> knownCheckpoints;
+    private final Map<CheckpointItem, File> knownCheckpointItems;
 
     public FileBackedCheckpointer()
     {
         this.registeredCheckpointables  = new LinkedHashSet<>();
-        this.knownCheckpoints           = new HashMap<>();
+        this.knownCheckpointItems       = new HashMap<>();
     }
 
+    @Override
     public void setupCheckpointing(Checkpointable... checkpointables)
     {
         this.registeredCheckpointables.addAll(Arrays.asList(checkpointables));
@@ -49,6 +50,7 @@ implements CheckpointListener
         }
     }
 
+    @Override
     public void restoreCheckpointsFromDisk()
     {
         File unprocessedFileStore = new File(FILE_STORE_UNPROCESSED_DIRECTORY_PATH);
@@ -57,18 +59,23 @@ implements CheckpointListener
         {
             for (Checkpointable checkpointable : this.registeredCheckpointables)
             {
-                Type                checkpointType      = checkpointable.getCheckpointType();
-                List<File>          checkpointFiles     = this.getSavedCheckpoints(checkpointable);
-                List<Checkpoint>    restoredCheckpoints = new LinkedList<>();
+                Type                    itemType        = checkpointable.getCheckpointItemType();
+                List<File>              checkpointFiles = this.getSavedCheckpoint(checkpointable);
+                List<CheckpointItem>    restoredItems   = new LinkedList<>();
 
                 for (File checkpointFile : checkpointFiles)
                 {
                     try
                     {
+                        CheckpointItem readCheckpointItem;
+
                         if (LOGGER.isInfoEnabled())
                             LOGGER.info(String.format("Reading in saved checkpoint '%s'.", checkpointFile.getPath()));
 
-                        restoredCheckpoints.add(this.readInCheckpoint(checkpointType, checkpointFile));
+                        readCheckpointItem = this.readInCheckpointItem(itemType, checkpointFile);
+
+                        restoredItems.add(readCheckpointItem);
+                        this.knownCheckpointItems.put(readCheckpointItem, checkpointFile);
                     }
 
                     catch (IOException ex)
@@ -85,33 +92,33 @@ implements CheckpointListener
                     }
                 }
 
-                checkpointable.restoreFromCheckpoints(restoredCheckpoints);
+                checkpointable.restoreFromCheckpoint(restoredItems);
             }
         }
     }
 
     @Override
-    public void onCheckpointItemCreated(Checkpointable checkpointable, Checkpoint checkpoint)
+    public void onCheckpointItemCreated(Checkpointable checkpointable, CheckpointItem checkpointItem)
     {
         File checkpointFile =
-            this.getFileForCheckpoint(FILE_STORE_UNPROCESSED_DIRECTORY_PATH, checkpointable, checkpoint);
+            this.getCheckpointItemFile(FILE_STORE_UNPROCESSED_DIRECTORY_PATH, checkpointable, checkpointItem);
 
         try
         {
             if (LOGGER.isInfoEnabled())
-                LOGGER.info(String.format("Writing out pre-save checkpoint for '%s'.", checkpointFile.getPath()));
+                LOGGER.info(String.format("Writing out pre-save checkpoint item '%s'.", checkpointFile.getPath()));
 
-            this.writeOutCheckpoint(checkpoint, checkpointFile);
-            this.knownCheckpoints.put(checkpoint, checkpointFile);
+            this.writeOutCheckpointItem(checkpointItem, checkpointFile);
+            this.knownCheckpointItems.put(checkpointItem, checkpointFile);
         }
 
         catch (IOException ex)
         {
             String error =
                 String.format(
-                    "Failed to write out checkpoint to '%s': %s\n\n%s\n%s",
+                    "Failed to write out checkpoint item '%s': %s\n\n%s\n%s",
                     checkpointFile.toString(),
-                    checkpoint,
+                    checkpointItem,
                     ex.getMessage(),
                     ExceptionUtils.getStackTrace(ex));
 
@@ -125,14 +132,14 @@ implements CheckpointListener
     }
 
     @Override
-    public void onCheckpointItemExpired(Checkpointable checkpointable, Checkpoint checkpoint)
+    public void onCheckpointItemExpired(Checkpointable checkpointable, CheckpointItem checkpointItem)
     {
-        File checkpointFile = this.knownCheckpoints.get(checkpoint);
+        File checkpointFile = this.knownCheckpointItems.get(checkpointItem);
 
         if ((checkpointFile != null) && checkpointFile.exists())
         {
             File processedCheckpointFile =
-                this.getFileForCheckpoint(FILE_STORE_PROCESSED_DIRECTORY_PATH, checkpointable, checkpoint);
+                this.getCheckpointItemFile(FILE_STORE_PROCESSED_DIRECTORY_PATH, checkpointable, checkpointItem);
 
             // Remove the original (now processed) file
             checkpointFile.delete();
@@ -143,12 +150,12 @@ implements CheckpointListener
                 {
                     LOGGER.info(
                         String.format(
-                            "Writing out post-save, processed checkpoint for '%s'.",
+                            "Writing out post-save, processed checkpoint item '%s'.",
                             checkpointFile.getPath()));
                 }
 
                 // Write-out the final copy of the checkpoint
-                this.writeOutCheckpoint(checkpoint, processedCheckpointFile);
+                this.writeOutCheckpointItem(checkpointItem, processedCheckpointFile);
             }
 
             catch (IOException ex)
@@ -157,7 +164,7 @@ implements CheckpointListener
                 {
                     LOGGER.error(
                         String.format(
-                            "Failed to write out post-save, processed checkpoint for '%s': %s\n%s",
+                            "Failed to write out post-save, processed checkpoint item '%s': %s\n%s",
                             checkpointFile.getPath(),
                             ex.getMessage(),
                             ExceptionUtils.getStackTrace(ex)));
@@ -165,10 +172,11 @@ implements CheckpointListener
             }
         }
 
-        this.knownCheckpoints.remove(checkpoint);
+        // Stop tracking the processed item
+        this.knownCheckpointItems.remove(checkpointItem);
     }
 
-    protected void writeOutCheckpoint(Checkpoint checkpoint, File file)
+    protected void writeOutCheckpointItem(CheckpointItem checkpoint, File file)
     throws IOException
     {
         Gson    gson    = this.getGson();
@@ -183,11 +191,11 @@ implements CheckpointListener
         }
     }
 
-    protected Checkpoint readInCheckpoint(Type checkpointType, File file)
+    protected CheckpointItem readInCheckpointItem(Type checkpointType, File file)
     throws IOException
     {
-        Checkpoint  result;
-        Gson        gson    = this.getGson();
+        CheckpointItem  result;
+        Gson            gson    = this.getGson();
 
         try (FileReader fileReader = new FileReader(file))
         {
@@ -197,13 +205,13 @@ implements CheckpointListener
         return result;
     }
 
-    protected List<File> getSavedCheckpoints(Checkpointable checkpointable)
+    protected List<File> getSavedCheckpoint(Checkpointable checkpointable)
     {
         List<File>  results         = new LinkedList<>();
         Deque<File> pathsToExplore  = new LinkedList<>();
 
         pathsToExplore.add(
-            this.getCheckpointableStorageDirectory(FILE_STORE_UNPROCESSED_DIRECTORY_PATH, checkpointable));
+            this.getCheckpointStorageDirectory(FILE_STORE_UNPROCESSED_DIRECTORY_PATH, checkpointable));
 
         do
         {
@@ -222,14 +230,14 @@ implements CheckpointListener
         return results;
     }
 
-    protected File getCheckpointableStorageDirectory(String basePath, Checkpointable checkpointable)
+    protected File getCheckpointStorageDirectory(String basePath, Checkpointable checkpointable)
     {
         return new File(
             basePath                                + File.separator +
             checkpointable.getCheckpointableName()  + File.separator);
     }
 
-    protected File getFileForCheckpoint(String basePath, Checkpointable checkpointable, Checkpoint checkpoint)
+    protected File getCheckpointItemFile(String basePath, Checkpointable checkpointable, CheckpointItem checkpoint)
     {
         return new File(
             basePath                                + File.separator +
@@ -243,7 +251,8 @@ implements CheckpointListener
         return new GsonBuilder()
             .serializeNulls()
             .setPrettyPrinting()
-            .registerTypeAdapterFactory(new PersistenceQueueItemTypeAdapterFactory())
+            .registerTypeAdapterFactory(new QueueItemTypeAdapterFactory())
+//            .registerTypeAdapter(QueueItem.class, new QueueItemCreator())
             .create();
     }
 }

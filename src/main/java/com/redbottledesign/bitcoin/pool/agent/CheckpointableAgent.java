@@ -4,7 +4,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.redbottledesign.bitcoin.pool.Agent;
-import com.redbottledesign.bitcoin.pool.checkpoint.Checkpoint;
+import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointListener;
 import com.redbottledesign.bitcoin.pool.checkpoint.Checkpointable;
 
@@ -56,7 +56,7 @@ implements Checkpointable
         this.checkpointListeners = checkpointListeners;
     }
 
-    protected void notifyCheckpointListenersOnItemCreated(Checkpoint checkpoint)
+    protected void notifyCheckpointListenersOnItemCreated(CheckpointItem checkpoint)
     {
         for (CheckpointListener listener : this.checkpointListeners)
         {
@@ -64,7 +64,7 @@ implements Checkpointable
         }
     }
 
-    protected void notifyCheckpointListenersOnItemExpired(Checkpoint checkpoint)
+    protected void notifyCheckpointListenersOnItemExpired(CheckpointItem checkpoint)
     {
         for (CheckpointListener listener : this.checkpointListeners)
         {
