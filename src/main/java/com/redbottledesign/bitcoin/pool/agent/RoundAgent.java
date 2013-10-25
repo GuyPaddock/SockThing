@@ -235,7 +235,7 @@ extends Agent
         while ((this.nextRound != null) && (this.currentRound != this.nextRound));
     }
 
-    protected static class RoundPersistenceCallback
+    public static class RoundPersistenceCallback
     implements PersistenceCallback<Round>
     {
         private RoundAgent agent;

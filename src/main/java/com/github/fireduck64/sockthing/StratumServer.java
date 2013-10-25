@@ -303,7 +303,7 @@ public class StratumServer
         conf.require("witty_remarks_enabled");
 
         StratumServer           server              = new StratumServer(conf);
-        FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer();
+        FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer(server);
         PersistenceAgent        persistenceAgent;
 
         server.setInstanceId(conf.get("instance_id"));
@@ -313,9 +313,6 @@ public class StratumServer
         server.setAuthHandler(new DrupalAuthHandler(server));
 
         persistenceAgent = new PersistenceAgent(server);
-
-        checkpointer.setupCheckpointing(persistenceAgent);
-        checkpointer.restoreCheckpointsFromDisk();
 
         server.setPersistenceAgent(persistenceAgent);
 
@@ -355,6 +352,9 @@ public class StratumServer
 
         server.setPplnsAgent(new DrupalPplnsAgent(server));
         server.setRoundAgent(new RoundAgent(server));
+
+        checkpointer.setupCheckpointing(persistenceAgent);
+        checkpointer.restoreCheckpointsFromDisk();
 
         server.start();
     }

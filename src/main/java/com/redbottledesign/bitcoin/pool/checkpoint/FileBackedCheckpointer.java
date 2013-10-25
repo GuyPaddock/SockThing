@@ -19,8 +19,10 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fireduck64.sockthing.StratumServer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 
 public class FileBackedCheckpointer
 implements Checkpointer, CheckpointListener
@@ -30,11 +32,13 @@ implements Checkpointer, CheckpointListener
     private static final String FILE_STORE_UNPROCESSED_DIRECTORY_PATH   = "filestore/unprocessed";
     private static final String FILE_STORE_PROCESSED_DIRECTORY_PATH     = "filestore/processed";
 
+    private final StratumServer server;
     private final Set<Checkpointable> registeredCheckpointables;
     private final Map<CheckpointItem, File> knownCheckpointItems;
 
-    public FileBackedCheckpointer()
+    public FileBackedCheckpointer(StratumServer server)
     {
+        this.server                     = server;
         this.registeredCheckpointables  = new LinkedHashSet<>();
         this.knownCheckpointItems       = new HashMap<>();
     }
@@ -252,6 +256,7 @@ implements Checkpointer, CheckpointListener
             .serializeNulls()
             .setPrettyPrinting()
             .registerTypeAdapterFactory(new QueueItemTypeAdapterFactory())
+            .registerTypeAdapter(PersistenceCallback.class, new PersistenceCallbackCreator(this.server))
 //            .registerTypeAdapter(QueueItem.class, new QueueItemCreator())
             .create();
     }

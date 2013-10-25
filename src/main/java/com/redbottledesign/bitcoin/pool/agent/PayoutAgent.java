@@ -153,7 +153,7 @@ extends Agent
         }
     }
 
-    protected static class PayoutPersistenceCallback
+    public static class PayoutPersistenceCallback
     implements PersistenceCallback<Payout>
     {
         private PayoutAgent agent;

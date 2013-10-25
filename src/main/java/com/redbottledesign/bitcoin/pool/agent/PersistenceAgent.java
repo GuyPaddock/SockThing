@@ -180,8 +180,8 @@ extends CheckpointableAgent
     @Override
     public synchronized void restoreFromCheckpoint(Collection<? extends CheckpointItem> checkpointItems)
     {
-        Set<Long>                       checkpointItemIds   = new HashSet<>();
-        List<QueueItem<?>>   newQueueItems       = new ArrayList<>(checkpointItems.size());
+        Set<Long>           checkpointItemIds   = new HashSet<>();
+        List<QueueItem<?>>  newQueueItems       = new ArrayList<>(checkpointItems.size());
 
         this.interruptQueueProcessing();
 
@@ -254,7 +254,7 @@ extends CheckpointableAgent
                 error =
                     String.format(
                         "Failed to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s; " +
-                        "requeued): %s",
+                        "has been re-queued): %s",
                         queueItemId,
                         queueItemEntity.getEntityType(),
                         queueItemEntity.getBundleType(),
@@ -287,9 +287,9 @@ extends CheckpointableAgent
         EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
 
         /// FIXME: REMOVE. THIS IS FOR TESTING.
-        Object object = null;
-
-        object.toString();
+//        Object object = null;
+//
+//        object.toString();
         /// END FIXME
 
         if (queueEntity.isNew())

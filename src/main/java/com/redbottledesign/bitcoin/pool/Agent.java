@@ -5,13 +5,11 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
-
 public abstract class Agent
 extends Thread
 implements Stoppable
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RoundAgent.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Agent.class);
 
     private static final long DEFAULT_FREQUENCY_IN_MILLISECONDS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
 

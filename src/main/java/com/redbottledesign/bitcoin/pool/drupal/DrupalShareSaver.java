@@ -149,7 +149,7 @@ implements ShareSaver
         return newBlock;
     }
 
-    protected static class BlockPersistenceCallback
+    public static class BlockPersistenceCallback
     implements PersistenceCallback<SolvedBlock>
     {
         private static final Logger LOGGER = LoggerFactory.getLogger(BlockPersistenceCallback.class);
