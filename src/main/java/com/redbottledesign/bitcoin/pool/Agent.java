@@ -2,10 +2,17 @@ package com.redbottledesign.bitcoin.pool;
 
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
+
 public abstract class Agent
 extends Thread
 implements Stoppable
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RoundAgent.class);
+
     private static final long DEFAULT_FREQUENCY_IN_MILLISECONDS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.SECONDS);
 
     private long lastCheck;
@@ -48,10 +55,11 @@ implements Stoppable
                 }
             }
 
-            catch (Throwable t)
+            catch (Throwable ex)
             {
                 // Top-level handler
-                t.printStackTrace();
+                if (LOGGER.isErrorEnabled())
+                    LOGGER.error(ex.getMessage());
             }
 
             if (!this.isStopping)

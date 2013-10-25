@@ -1,8 +1,12 @@
 package com.redbottledesign.bitcoin.pool.agent;
 
+import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -14,15 +18,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.StratumServer;
+import com.google.gson.reflect.TypeToken;
 import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.RequestorRegistry;
+import com.redbottledesign.bitcoin.pool.checkpoint.Checkpoint;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.EntityRequestor;
 import com.redbottledesign.util.QueueUtils;
 
 public class PersistenceAgent
-extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends Entity<?>>>>
+extends CheckpointableAgent
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PersistenceAgent.class);
 
@@ -44,7 +50,10 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
 
     public <T extends Entity<?>> void queueForSave(T entity, PersistenceCallback<T> callback)
     {
-        QueueUtils.ensureQueued(this.persistenceQueue, new PersistenceQueueItem<T>(entity, callback));
+        PersistenceQueueItem<T> queueItem = new PersistenceQueueItem<T>(entity, callback);
+
+        this.notifyCheckpointListenersOnItemCreated(queueItem);
+        QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
     }
 
     public synchronized boolean evictQueueItem(long itemId)
@@ -138,8 +147,30 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
         return queueHasItems;
     }
 
+    public synchronized boolean queueHasItemOfType(Class<? extends Entity<?>> type)
+    {
+        boolean result = false;
+
+        for (PersistenceQueueItem<? extends Entity<?>> queueItem : this.persistenceQueue)
+        {
+            if (type.isAssignableFrom(queueItem.getEntity().getClass()))
+            {
+                result = true;
+                break;
+            }
+        }
+
+        return result;
+    }
+
     @Override
-    public synchronized List<PersistenceQueueItem<? extends Entity<?>>> captureCheckpoint()
+    public Type getCheckpointType()
+    {
+        return new TypeToken<PersistenceQueueItem<?>>(){}.getType();
+    }
+
+    @Override
+    public synchronized Collection<? extends Checkpoint> captureCheckpoints()
     {
         this.interruptQueueProcessing();
 
@@ -147,19 +178,37 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
     }
 
     @Override
-    public synchronized void restoreFromCheckpoint(List<PersistenceQueueItem<? extends Entity<?>>> checkpointItems)
+    public synchronized void restoreFromCheckpoints(Collection<? extends Checkpoint> checkpointItems)
     {
-        Set<Long> checkpointItemIds = new HashSet<>();
+        Set<Long>                       checkpointItemIds   = new HashSet<>();
+        List<PersistenceQueueItem<?>>   newQueueItems       = new ArrayList<>(checkpointItems.size());
 
         this.interruptQueueProcessing();
 
-        for (PersistenceQueueItem<?> checkpointItem : checkpointItems)
+        for (Checkpoint checkpointItem : checkpointItems)
         {
-            checkpointItemIds.add(checkpointItem.getItemId());
+            PersistenceQueueItem<?> queueItem;
+
+            if (!(checkpointItem instanceof PersistenceQueueItem))
+            {
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        "A checkpoint was provided that is not a PersistenceQueueItem (ignoring): " + checkpointItem);
+                }
+            }
+
+            else
+            {
+                queueItem = (PersistenceQueueItem<?>)checkpointItem;
+
+                checkpointItemIds.add(queueItem.getItemId());
+                newQueueItems.add(queueItem);
+            }
         }
 
         this.evictQueueItems(checkpointItemIds);
-        this.persistenceQueue.addAll(checkpointItems);
+        this.persistenceQueue.addAll(newQueueItems);
     }
 
     @Override
@@ -237,6 +286,12 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
         PersistenceCallback<T>  callback    = queueItem.getCallback();
         EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
 
+        /// FIXME: REMOVE. THIS IS FOR TESTING.
+        Object object = null;
+
+        object.toString();
+        /// END FIXME
+
         if (queueEntity.isNew())
         {
             requestor.saveNew(queueEntity);
@@ -246,6 +301,8 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
         {
             requestor.update(queueEntity);
         }
+
+        this.notifyCheckpointListenersOnItemExpired(queueItem);
 
         if (callback != null)
             callback.onEntitySaved(queueEntity);
@@ -261,10 +318,13 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
         this.interrupt();
     }
 
-    protected static class PersistenceQueueItem<T extends Entity<?>>
+    public static class PersistenceQueueItem<T extends Entity<?>>
+    implements Checkpoint
     {
         private static volatile long itemIdCounter;
+
         private final long itemId;
+        private final long timestamp;
         private final T entity;
         private final PersistenceCallback<T> callback;
 
@@ -275,7 +335,13 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
 
         public PersistenceQueueItem(T entity, PersistenceCallback<T> callback)
         {
+            this(entity, callback, new Date().getTime());
+        }
+
+        public PersistenceQueueItem(T entity, PersistenceCallback<T> callback, long timestamp)
+        {
             this.itemId     = getNextIndex();
+            this.timestamp  = timestamp;
             this.entity     = entity;
             this.callback   = callback;
         }
@@ -283,6 +349,11 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
         public long getItemId()
         {
             return this.itemId;
+        }
+
+        public long getTimestamp()
+        {
+            return this.timestamp;
         }
 
         public T getEntity()
@@ -293,6 +364,28 @@ extends CheckpointableAgent<List<PersistenceAgent.PersistenceQueueItem<? extends
         public PersistenceCallback<T> getCallback()
         {
             return this.callback;
+        }
+
+        @Override
+        public String getCheckpointId()
+        {
+            String entityIdString = "new";
+
+            if (this.entity != null)
+            {
+                Integer entityId = this.entity.getId();
+
+                if (entityId != null)
+                    entityIdString = entityId.toString();
+            }
+
+            return String.format("%d-%d-%s", this.getTimestamp(), this.getItemId(), entityIdString);
+        }
+
+        @Override
+        public String getCheckpointType()
+        {
+            return this.entity.getEntityType() + File.separator + this.entity.getBundleType();
         }
     }
 }

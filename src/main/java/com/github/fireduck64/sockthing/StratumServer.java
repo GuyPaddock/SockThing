@@ -33,6 +33,7 @@ import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
 import com.redbottledesign.bitcoin.pool.agent.PayoutAgent;
 import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
+import com.redbottledesign.bitcoin.pool.checkpoint.FileBackedCheckpointer;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalPplnsAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
@@ -301,7 +302,9 @@ public class StratumServer
         conf.require("saver_messaging_enabled");
         conf.require("witty_remarks_enabled");
 
-        StratumServer server = new StratumServer(conf);
+        StratumServer           server              = new StratumServer(conf);
+        FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer();
+        PersistenceAgent        persistenceAgent;
 
         server.setInstanceId(conf.get("instance_id"));
         server.setMetricsReporter(new MetricsReporter(server));
@@ -309,7 +312,12 @@ public class StratumServer
         server.setSession(new DrupalSession(conf));
         server.setAuthHandler(new DrupalAuthHandler(server));
 
-        server.setPersistenceAgent(new PersistenceAgent(server));
+        persistenceAgent = new PersistenceAgent(server);
+
+        checkpointer.setupCheckpointing(persistenceAgent);
+        checkpointer.restoreCheckpointsFromDisk();
+
+        server.setPersistenceAgent(persistenceAgent);
 
 //        if (conf.getBoolean("saver_messaging_enabled"))
 //        {

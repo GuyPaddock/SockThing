@@ -78,6 +78,9 @@ extends Agent
                 }
             }
         }
+
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Payout run complete.");
     }
 
     protected void sendPayout(BigDecimal currentUserBalance, int userId, String payoutAddress,
@@ -121,15 +124,14 @@ extends Agent
                         ex.getMessage(),
                         ExceptionUtils.getStackTrace(ex)));
             }
-
-            ex.printStackTrace();
         }
     }
 
     protected void queuePayoutRecordForPersistence(Payout payoutRecord)
     {
-        // Prevent the user for this payout from getting any other pay-outs
-        // until their balance is up-to-date.
+        /* Prevent this user from getting any other pay-outs until their
+         * balance is up-to-date.
+         */
         this.userIdsAlreadyBeingUpdated.add(payoutRecord.getRecipient().getId());
 
         this.server.getPersistenceAgent().queueForSave(payoutRecord, new PayoutPersistenceCallback(this));

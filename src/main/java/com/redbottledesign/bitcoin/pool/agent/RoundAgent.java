@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,7 @@ extends Agent
     private static final long ROUND_UPDATE_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
 
     private final StratumServer server;
+    private final PersistenceAgent persistenceAgent;
     private final RoundRequestor roundRequestor;
     private final User.Reference poolDaemonUser;
 
@@ -38,9 +40,10 @@ extends Agent
 
         DrupalSession session = server.getSession();
 
-        this.server         = server;
-        this.roundRequestor = session.getRoundRequestor();
-        this.poolDaemonUser = session.getPoolDaemonUser().asReference();
+        this.server             = server;
+        this.persistenceAgent   = server.getPersistenceAgent();
+        this.roundRequestor     = session.getRoundRequestor();
+        this.poolDaemonUser     = session.getPoolDaemonUser().asReference();
     }
 
     public Round getCurrentRoundSynchronized()
@@ -101,56 +104,74 @@ extends Agent
     @Override
     protected void runPeriodicTask()
     {
-        try
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Checking and updating the status of open and closed rounds...");
+
+        if (this.persistenceAgent.queueHasItemOfType(Round.class))
         {
-            // This will block if a round change is in progress.
-            synchronized (this)
+            if (LOGGER.isInfoEnabled())
+                LOGGER.info("  Not updating round information -- a Round is still waiting to be persisted.");
+        }
+
+        else
+        {
+            try
             {
-                this.currentRound = this.roundRequestor.requestCurrentRound();
-
-                if ((this.currentRound == null) || (this.currentRound.hasExpired()))
+                // This will block if a round change is in progress.
+                synchronized (this)
                 {
-                    this.startNewRound();
+                    this.currentRound = this.roundRequestor.requestCurrentRound();
 
-                    // Wake-up any threads waiting to acquire the first round.
-                    this.notifyAll();
+                    if ((this.currentRound == null) || (this.currentRound.hasExpired()))
+                    {
+                        this.startNewRound();
+
+                        // Wake-up any threads waiting to acquire the first round.
+                        this.notifyAll();
+                    }
                 }
+
+                this.updateStatusOfPastRounds();
             }
 
-            this.updateStatusOfPastRounds();
+            catch (IOException | DrupalHttpException ex)
+            {
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format(
+                            "  Error updating round information: %s\n%s",
+                            ex.getMessage(),
+                            ExceptionUtils.getStackTrace(ex)));
+                }
+            }
         }
 
-        catch (IOException | DrupalHttpException e)
-        {
-            if (LOGGER.isErrorEnabled())
-                LOGGER.error(e.getMessage());
-
-            e.printStackTrace();
-        }
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Round check complete.");
     }
 
     protected synchronized void startNewRound()
     throws IOException, DrupalHttpException
     {
-        PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
-        Date now = new Date();
-        Round newRound;
-        DateRange newRoundDates;
+        Date        now = new Date();
+        Round       newRound;
+        DateRange   newRoundDates;
 
         if (this.currentRound != null)
         {
             DateRange roundDates = this.currentRound.getRoundDates();
 
             if (LOGGER.isInfoEnabled())
-                LOGGER.info("Ending round started at " + roundDates.getStartDate());
+                LOGGER.info("  Ending round started at " + roundDates.getStartDate());
 
             roundDates.setEndDate(now);
 
-            persistenceAgent.queueForSave(this.currentRound);
+            this.persistenceAgent.queueForSave(this.currentRound);
         }
 
         if (LOGGER.isInfoEnabled())
-            LOGGER.info("Starting new round at " + now);
+            LOGGER.info("  Starting new round at " + now);
 
         newRound = new Round();
         newRoundDates = newRound.getRoundDates();
@@ -163,14 +184,14 @@ extends Agent
     }
 
     protected void updateStatusOfPastRounds()
-                    throws IOException, DrupalHttpException
+    throws IOException, DrupalHttpException
     {
         PersistenceAgent    persistenceAgent    = this.server.getPersistenceAgent();
         List<Round>         openRounds          = this.roundRequestor.requestAllOpenRounds();
         int                 openRoundCount      = openRounds.size();
 
         if (LOGGER.isInfoEnabled())
-            LOGGER.info(String.format("There are %d open rounds.", openRoundCount));
+            LOGGER.info(String.format("  There are %d open rounds.", openRoundCount));
 
         if (openRoundCount > Round.MAX_OPEN_ROUNDS)
         {
@@ -180,7 +201,7 @@ extends Agent
             for (Round roundToClose : roundsToClose)
             {
                 if (LOGGER.isInfoEnabled())
-                    LOGGER.info("Closing round started at " + roundToClose.getRoundDates().getStartDate());
+                    LOGGER.info("  Closing round started at " + roundToClose.getRoundDates().getStartDate());
 
                 roundToClose.setRoundStatus(Round.Status.CLOSED);
 
