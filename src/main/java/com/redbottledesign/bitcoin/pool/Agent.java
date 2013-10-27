@@ -2,6 +2,7 @@ package com.redbottledesign.bitcoin.pool;
 
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,13 @@ implements Stoppable
             {
                 // Top-level handler
                 if (LOGGER.isErrorEnabled())
-                    LOGGER.error(ex.getMessage());
+                {
+                    LOGGER.error(
+                        String.format(
+                            "Unhandled exception: %s\n%s",
+                            ex.getMessage(),
+                            ExceptionUtils.getStackTrace(ex)));
+                }
             }
 
             if (!this.isStopping)

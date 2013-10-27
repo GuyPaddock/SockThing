@@ -120,7 +120,7 @@ implements PplnsAgent
 
             if (LOGGER.isInfoEnabled())
             {
-                LOGGER.info("Running payouts for block %d...", currentBlock.getHeight());
+                LOGGER.info(String.format("Running payouts for block %d...", currentBlock.getHeight()));
             }
 
             try
