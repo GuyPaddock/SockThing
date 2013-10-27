@@ -71,7 +71,7 @@ extends CheckpointableAgent
 
         if (LOGGER.isDebugEnabled())
         {
-            LOGGER.debug("Vacating items from persistence queue: " + itemIds);
+            LOGGER.debug("Evicting items from persistence queue: " + itemIds);
         }
 
         queueIterator = this.persistenceQueue.iterator();
@@ -107,10 +107,10 @@ extends CheckpointableAgent
         if (LOGGER.isInfoEnabled())
         {
             if (atLeastOneItemVacated)
-                LOGGER.info("evictQueueItems() was called and at least one item was vacated.");
+                LOGGER.info("evictQueueItems() was called and at least one item was evicted.");
 
             else
-                LOGGER.info("evictQueueItems() was called, but no items were vacated.");
+                LOGGER.info("evictQueueItems() was called, but no items were evicted.");
         }
 
         return atLeastOneItemVacated;
