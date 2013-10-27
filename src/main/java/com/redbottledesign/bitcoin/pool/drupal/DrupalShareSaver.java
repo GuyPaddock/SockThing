@@ -1,5 +1,6 @@
 package com.redbottledesign.bitcoin.pool.drupal;
 
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.Date;
 
@@ -13,8 +14,11 @@ import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.redbottledesign.bitcoin.pool.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.PersistenceCallbackFactory;
 import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
+import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointGsonBuilder;
+import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver.BlockPersistenceCallback;
 import com.redbottledesign.bitcoin.pool.drupal.authentication.DrupalPoolUser;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
@@ -22,7 +26,7 @@ import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
 
 public class DrupalShareSaver
-implements ShareSaver
+implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
 {
     private static final String SHARE_STATUS_ACCEPTED = "accepted";
 
@@ -32,7 +36,7 @@ implements ShareSaver
 
     private static final int SATOSHIS_PER_BITCOIN = 100000000;
 
-    private final StratumServer server;
+    final StratumServer server;
     private final DrupalSession session;
     private final PersistenceAgent persistenceAgent;
     private final User poolDaemonUser;
@@ -43,6 +47,8 @@ implements ShareSaver
         this.session            = server.getSession();
         this.persistenceAgent   = server.getPersistenceAgent();
         this.poolDaemonUser     = this.session.getPoolDaemonUser();
+
+        CheckpointGsonBuilder.getInstance().registerCallbackFactory(this);
     }
 
     @Override
@@ -64,7 +70,8 @@ implements ShareSaver
                 currentRoundReference,
                 daemonUserReference);
 
-        if (!CONFIRM_YES.equals(submitResult.getUpstreamResult()) || (submitResult.getHash() == null))
+//        if (!CONFIRM_YES.equals(submitResult.getUpstreamResult()) || (submitResult.getHash() == null))
+        if (false)
         {
             newShare.setBlock(null);
 
@@ -146,16 +153,28 @@ implements ShareSaver
 
         newBlock.setSolvingMember(drupalSubmitter);
         newBlock.setWittyRemark(TEST_REMARK);
+
         return newBlock;
     }
 
-    public static class BlockPersistenceCallback
+    @Override
+    public BlockPersistenceCallback createCallback(Type desiredType)
+    {
+        BlockPersistenceCallback result = null;
+
+        if (BlockPersistenceCallback.class.equals(desiredType))
+            result = new BlockPersistenceCallback(this, null);
+
+        return result;
+    }
+
+    protected static class BlockPersistenceCallback
     implements PersistenceCallback<SolvedBlock>
     {
         private static final Logger LOGGER = LoggerFactory.getLogger(BlockPersistenceCallback.class);
 
-        private DrupalShareSaver shareSaver;
-        private WorkShare        relatedNewShare;
+        private transient DrupalShareSaver shareSaver;
+        private WorkShare relatedNewShare;
 
         public BlockPersistenceCallback(DrupalShareSaver shareSaver, WorkShare relatedNewShare)
         {

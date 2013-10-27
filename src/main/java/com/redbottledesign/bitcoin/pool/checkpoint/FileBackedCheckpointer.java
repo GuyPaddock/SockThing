@@ -19,10 +19,7 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.fireduck64.sockthing.StratumServer;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 
 public class FileBackedCheckpointer
 implements Checkpointer, CheckpointListener
@@ -32,13 +29,11 @@ implements Checkpointer, CheckpointListener
     private static final String FILE_STORE_UNPROCESSED_DIRECTORY_PATH   = "filestore/unprocessed";
     private static final String FILE_STORE_PROCESSED_DIRECTORY_PATH     = "filestore/processed";
 
-    private final StratumServer server;
     private final Set<Checkpointable> registeredCheckpointables;
     private final Map<CheckpointItem, File> knownCheckpointItems;
 
-    public FileBackedCheckpointer(StratumServer server)
+    public FileBackedCheckpointer()
     {
-        this.server                     = server;
         this.registeredCheckpointables  = new LinkedHashSet<>();
         this.knownCheckpointItems       = new HashMap<>();
     }
@@ -96,7 +91,8 @@ implements Checkpointer, CheckpointListener
                     }
                 }
 
-                checkpointable.restoreFromCheckpoint(restoredItems);
+                if (!restoredItems.isEmpty())
+                    checkpointable.restoreFromCheckpoint(restoredItems);
             }
         }
     }
@@ -110,7 +106,7 @@ implements Checkpointer, CheckpointListener
         try
         {
             if (LOGGER.isInfoEnabled())
-                LOGGER.info(String.format("Writing out pre-save checkpoint item '%s'.", checkpointFile.getPath()));
+                LOGGER.info(String.format("Writing out pre-save checkpoint item to '%s'.", checkpointFile.getPath()));
 
             this.writeOutCheckpointItem(checkpointItem, checkpointFile);
             this.knownCheckpointItems.put(checkpointItem, checkpointFile);
@@ -120,7 +116,7 @@ implements Checkpointer, CheckpointListener
         {
             String error =
                 String.format(
-                    "Failed to write out checkpoint item '%s': %s\n\n%s\n%s",
+                    "Failed to write out checkpoint item to '%s': %s\n\n%s\n%s",
                     checkpointFile.toString(),
                     checkpointItem,
                     ex.getMessage(),
@@ -154,8 +150,8 @@ implements Checkpointer, CheckpointListener
                 {
                     LOGGER.info(
                         String.format(
-                            "Writing out post-save, processed checkpoint item '%s'.",
-                            checkpointFile.getPath()));
+                            "Updating and moving processed checkpoint item to '%s'.",
+                            processedCheckpointFile.getPath()));
                 }
 
                 // Write-out the final copy of the checkpoint
@@ -168,7 +164,7 @@ implements Checkpointer, CheckpointListener
                 {
                     LOGGER.error(
                         String.format(
-                            "Failed to write out post-save, processed checkpoint item '%s': %s\n%s",
+                            "Failed to write out updated checkpoint item to '%s': %s\n%s",
                             checkpointFile.getPath(),
                             ex.getMessage(),
                             ExceptionUtils.getStackTrace(ex)));
@@ -180,30 +176,30 @@ implements Checkpointer, CheckpointListener
         this.knownCheckpointItems.remove(checkpointItem);
     }
 
-    protected void writeOutCheckpointItem(CheckpointItem checkpoint, File file)
+    protected void writeOutCheckpointItem(CheckpointItem checkpointItem, File destinationFile)
     throws IOException
     {
-        Gson    gson    = this.getGson();
-        String  json    = gson.toJson(checkpoint);
+        Gson    gson    = CheckpointGsonBuilder.getInstance().getGson();
+        String  json    = gson.toJson(checkpointItem);
 
         // Create directory structure
-        file.getParentFile().mkdirs();
+        destinationFile.getParentFile().mkdirs();
 
-        try (FileWriter fileWriter = new FileWriter(file))
+        try (FileWriter fileWriter = new FileWriter(destinationFile))
         {
             fileWriter.write(json);
         }
     }
 
-    protected CheckpointItem readInCheckpointItem(Type checkpointType, File file)
+    protected CheckpointItem readInCheckpointItem(Type itemType, File sourceFile)
     throws IOException
     {
         CheckpointItem  result;
-        Gson            gson    = this.getGson();
+        Gson            gson    = CheckpointGsonBuilder.getInstance().getGson();
 
-        try (FileReader fileReader = new FileReader(file))
+        try (FileReader fileReader = new FileReader(sourceFile))
         {
-            result = gson.fromJson(fileReader, checkpointType);
+            result = gson.fromJson(fileReader, itemType);
         }
 
         return result;
@@ -248,16 +244,5 @@ implements Checkpointer, CheckpointListener
             checkpointable.getCheckpointableName()  + File.separator +
             checkpoint.getCheckpointType()          + File.separator +
             checkpoint.getCheckpointId()            + ".json");
-    }
-
-    protected Gson getGson()
-    {
-        return new GsonBuilder()
-            .serializeNulls()
-            .setPrettyPrinting()
-            .registerTypeAdapterFactory(new QueueItemTypeAdapterFactory())
-            .registerTypeAdapter(PersistenceCallback.class, new PersistenceCallbackCreator(this.server))
-//            .registerTypeAdapter(QueueItem.class, new QueueItemCreator())
-            .create();
     }
 }

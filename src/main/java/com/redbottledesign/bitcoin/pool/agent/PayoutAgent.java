@@ -2,8 +2,6 @@ package com.redbottledesign.bitcoin.pool.agent;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -13,11 +11,13 @@ import org.slf4j.LoggerFactory;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Address;
 import com.redbottledesign.bitcoin.pool.Agent;
-import com.redbottledesign.bitcoin.pool.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItem;
+import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItemSieve;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BalancesSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
 import com.redbottledesign.bitcoin.pool.drupal.summary.BalancesSummary;
+import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
@@ -28,14 +28,14 @@ extends Agent
     private static final long PAYOUT_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(15, TimeUnit.MINUTES);
 
     private final StratumServer server;
-    private final Set<Integer>  userIdsAlreadyBeingUpdated;
+    private final PersistenceAgent persistenceAgent;
 
     public PayoutAgent(StratumServer server)
     {
         super(PAYOUT_FREQUENCY_MS);
 
-        this.server                     = server;
-        this.userIdsAlreadyBeingUpdated = new HashSet<>();
+        this.server = server;
+        this.persistenceAgent = server.getPersistenceAgent();
     }
 
     @Override
@@ -108,7 +108,7 @@ extends Agent
             payoutRecord.setPaymentAddress(payoutAddress);
             payoutRecord.setPaymentHash(paymentHash);
 
-            this.queuePayoutRecordForPersistence(payoutRecord);
+            this.persistenceAgent.queueForSave(payoutRecord);
         }
 
         catch (Throwable ex)
@@ -127,64 +127,25 @@ extends Agent
         }
     }
 
-    protected void queuePayoutRecordForPersistence(Payout payoutRecord)
-    {
-        /* Prevent this user from getting any other pay-outs until their
-         * balance is up-to-date.
-         */
-        this.userIdsAlreadyBeingUpdated.add(payoutRecord.getRecipient().getId());
-
-        this.server.getPersistenceAgent().queueForSave(payoutRecord, new PayoutPersistenceCallback(this));
-    }
-
     protected boolean isPayoutPendingForUser(int userId)
     {
-        synchronized (this.userIdsAlreadyBeingUpdated)
-        {
-            return this.userIdsAlreadyBeingUpdated.contains(userId);
-        }
-    }
+        final Integer userIdInteger = userId;
 
-    protected void releasePayoutLockOnUser(int userId)
-    {
-        synchronized (this.userIdsAlreadyBeingUpdated)
-        {
-            this.userIdsAlreadyBeingUpdated.remove(userId);
-        }
-    }
+        /* Look through the persistence queue to see if we have any payouts
+         * pending for this user.
+         */
+        return this.persistenceAgent.hasQueuedItemMatchingSieve(
+            new QueueItemSieve()
+            {
 
-    public static class PayoutPersistenceCallback
-    implements PersistenceCallback<Payout>
-    {
-        private PayoutAgent agent;
+                @Override
+                public boolean matches(QueueItem<? extends Entity<?>> queueItem)
+                {
+                    Entity<?> entity = queueItem.getEntity();
 
-        public PayoutPersistenceCallback(PayoutAgent agent)
-        {
-            this.agent = agent;
-        }
-
-        public PayoutAgent getAgent()
-        {
-            return this.agent;
-        }
-
-        @Override
-        public void onEntitySaved(Payout savedPayout)
-        {
-            // Make the user eligible for payouts again.
-            this.agent.releasePayoutLockOnUser(savedPayout.getRecipient().getId());
-        }
-
-        @Override
-        public void onEntityEvicted(Payout evictedPayout)
-        {
-            // FIXME: Is this really the best way to deal with this?
-            this.agent.releasePayoutLockOnUser(evictedPayout.getRecipient().getId());
-        }
-
-        protected void setAgent(PayoutAgent agent)
-        {
-            this.agent = agent;
-        }
+                    return (Payout.class.isAssignableFrom(entity.getClass()) &&
+                            userIdInteger.equals(((Payout)entity).getRecipient().getId()));
+                }
+            });
     }
 }

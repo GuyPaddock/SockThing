@@ -64,8 +64,8 @@ extends CheckpointableAgent
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public synchronized boolean evictQueueItems(Set<Long> itemIds)
     {
-        boolean                             atLeastOneItemVacated = false;
-        Iterator<QueueItem<?>>   queueIterator;
+        boolean                 atLeastOneItemVacated = false;
+        Iterator<QueueItem<?>>  queueIterator;
 
         this.interruptQueueProcessing();
 
@@ -147,13 +147,13 @@ extends CheckpointableAgent
         return queueHasItems;
     }
 
-    public synchronized boolean queueHasItemOfType(Class<? extends Entity<?>> type)
+    public synchronized boolean hasQueuedItemMatchingSieve(PersistenceAgent.QueueItemSieve sieve)
     {
         boolean result = false;
 
         for (QueueItem<? extends Entity<?>> queueItem : this.persistenceQueue)
         {
-            if (type.isAssignableFrom(queueItem.getEntity().getClass()))
+            if (sieve.matches(queueItem))
             {
                 result = true;
                 break;
@@ -382,5 +382,10 @@ extends CheckpointableAgent
         {
             return this.entity.getEntityType() + File.separator + this.entity.getBundleType();
         }
+    }
+
+    public interface QueueItemSieve
+    {
+        public boolean matches(QueueItem<? extends Entity<?>> queueItem);
     }
 }

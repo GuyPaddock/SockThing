@@ -1,6 +1,7 @@
 package com.redbottledesign.bitcoin.pool.agent;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -12,15 +13,21 @@ import org.slf4j.LoggerFactory;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.Agent;
 import com.redbottledesign.bitcoin.pool.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.PersistenceCallbackFactory;
+import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItem;
+import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItemSieve;
+import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointGsonBuilder;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
 import com.redbottledesign.drupal.DateRange;
+import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 public class RoundAgent
 extends Agent
+implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(RoundAgent.class);
 
@@ -44,6 +51,8 @@ extends Agent
         this.persistenceAgent   = server.getPersistenceAgent();
         this.roundRequestor     = session.getRoundRequestor();
         this.poolDaemonUser     = session.getPoolDaemonUser().asReference();
+
+        CheckpointGsonBuilder.getInstance().registerCallbackFactory(this);
     }
 
     public Round getCurrentRoundSynchronized()
@@ -62,6 +71,9 @@ extends Agent
                 {
                     try
                     {
+                        if (LOGGER.isInfoEnabled())
+                            LOGGER.info("Waiting for information on the current round...");
+
                         this.wait();
                     }
 
@@ -107,7 +119,7 @@ extends Agent
         if (LOGGER.isInfoEnabled())
             LOGGER.info("Checking and updating the status of open and closed rounds...");
 
-        if (this.persistenceAgent.queueHasItemOfType(Round.class))
+        if (this.roundChangesArePending())
         {
             if (LOGGER.isInfoEnabled())
                 LOGGER.info("  Not updating round information -- a Round is still waiting to be persisted.");
@@ -222,6 +234,9 @@ extends Agent
         {
             try
             {
+                if (LOGGER.isInfoEnabled())
+                    LOGGER.info(String.format("  Waiting for new round to start..."));
+
                 // Wait until we find that the current round has become the next
                 // round.
                 this.wait();
@@ -233,12 +248,39 @@ extends Agent
             }
         }
         while ((this.nextRound != null) && (this.currentRound != this.nextRound));
+
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info(String.format("  New round started."));
     }
 
-    public static class RoundPersistenceCallback
+    protected boolean roundChangesArePending()
+    {
+        return this.persistenceAgent.hasQueuedItemMatchingSieve(
+            new QueueItemSieve()
+            {
+                @Override
+                public boolean matches(QueueItem<? extends Entity<?>> queueItem)
+                {
+                    return Round.class.isAssignableFrom(queueItem.getEntity().getClass());
+                }
+            });
+    }
+
+    @Override
+    public RoundPersistenceCallback createCallback(Type desiredType)
+    {
+        RoundPersistenceCallback result = null;
+
+        if (RoundPersistenceCallback.class.equals(desiredType))
+            result = new RoundPersistenceCallback(this);
+
+        return result;
+    }
+
+    protected static class RoundPersistenceCallback
     implements PersistenceCallback<Round>
     {
-        private RoundAgent agent;
+        private transient RoundAgent agent;
 
         public RoundPersistenceCallback(RoundAgent agent)
         {

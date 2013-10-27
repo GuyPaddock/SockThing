@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.checkpoint;
+package com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter;
 
 import java.lang.reflect.Type;
 
