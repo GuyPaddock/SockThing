@@ -15,7 +15,8 @@
   
   <logger name="com.github.fireduck64.sockthing.BitcoinRPC" level="INFO"/>
   
-  <root level="debug">
+<!-- <root level="INFO"> -->  
+  <root level="DEBUG">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="FILE" />
   </root>
