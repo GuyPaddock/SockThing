@@ -28,12 +28,11 @@ import com.redbottledesign.drupal.User;
 public class DrupalShareSaver
 implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
 {
+    private static final boolean DEBUG_EVERY_SHARE_AS_BLOCK = false;
+
     private static final String SHARE_STATUS_ACCEPTED = "accepted";
-
     private static final String CONFIRM_YES = "Y";
-
     private static final Node.Reference TEST_REMARK = new Node.Reference(11);
-
     private static final int SATOSHIS_PER_BITCOIN = 100000000;
 
     final StratumServer server;
@@ -70,8 +69,8 @@ implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
                 currentRoundReference,
                 daemonUserReference);
 
-//        if (!CONFIRM_YES.equals(submitResult.getUpstreamResult()) || (submitResult.getHash() == null))
-        if (false)
+        if (!DEBUG_EVERY_SHARE_AS_BLOCK &&
+            (!CONFIRM_YES.equals(submitResult.getUpstreamResult()) || (submitResult.getHash() == null)))
         {
             newShare.setBlock(null);
 
