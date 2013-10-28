@@ -34,8 +34,8 @@ implements Checkpointer, CheckpointListener
 
     public FileBackedCheckpointer()
     {
-        this.registeredCheckpointables  = new LinkedHashSet<>();
-        this.knownCheckpointItems       = new HashMap<>();
+        this.registeredCheckpointables  = Collections.synchronizedSet(new LinkedHashSet<Checkpointable>());
+        this.knownCheckpointItems       = Collections.synchronizedMap(new HashMap<CheckpointItem, File>());
     }
 
     @Override

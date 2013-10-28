@@ -14,9 +14,11 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.gson.reflect.TypeToken;
 import com.redbottledesign.bitcoin.pool.PersistenceCallback;
@@ -25,22 +27,115 @@ import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.EntityRequestor;
+import com.redbottledesign.drupal.gson.requestor.HttpClientFactory;
 import com.redbottledesign.util.QueueUtils;
 
 public class PersistenceAgent
 extends CheckpointableAgent
 {
+    private static final String CONFIG_VALUE_PERSISTENCE_THREAD_COUNT = "persistence_threads";
+    private static final int MAX_EXTRA_HTTP_CONNECTIONS = 5;
+    private static final int DEFAULT_PERSISTENCE_THREAD_COUNT = 1;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(PersistenceAgent.class);
 
     private final StratumServer server;
     private final RequestorRegistry requestorRegistry;
     private final BlockingQueue<QueueItem<? extends Entity<?>>> persistenceQueue;
 
+    private int numPersistenceThreads;
+
     public PersistenceAgent(StratumServer server)
     {
-        this.server             = server;
-        this.requestorRegistry  = new RequestorRegistry(this.server);
-        this.persistenceQueue   = new LinkedBlockingQueue<>();
+        this.server                 = server;
+        this.requestorRegistry      = new RequestorRegistry(this.server);
+        this.persistenceQueue       = new LinkedBlockingQueue<>();
+
+        this.setNumPersistenceThreads(DEFAULT_PERSISTENCE_THREAD_COUNT);
+    }
+
+    @Override
+    public synchronized void start()
+    {
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Starting persistence threads...");
+
+        // Not loadConfig(), since that's called when each thread starts.
+        this.loadThreadConfig();
+
+        /* We actually don't start ourselves as a single thread. We spin off
+         * multiple threads on this same object.
+         */
+        for (int threadIndex = 0; threadIndex < this.numPersistenceThreads; ++threadIndex)
+        {
+            String threadName        = this.getName() + " #" + (threadIndex + 1);
+            Thread persistenceThread = new Thread(this, threadName);
+
+            if (LOGGER.isInfoEnabled())
+                LOGGER.info(String.format("  Persistence thread %s starting.", threadName));
+
+            persistenceThread.start();
+        }
+
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Persistence threads started.");
+    }
+
+    protected void setNumPersistenceThreads(int numPersistenceThreads)
+    {
+        PoolingHttpClientConnectionManager connectionManager = HttpClientFactory.getInstance().getConnectionManager();
+        int                                maxConnections    = numPersistenceThreads + MAX_EXTRA_HTTP_CONNECTIONS;
+
+        this.numPersistenceThreads = numPersistenceThreads;
+
+        // Scale HTTP connection pool size accordingly.
+        connectionManager.setMaxTotal(maxConnections);
+        connectionManager.setDefaultMaxPerRoute(maxConnections);
+    }
+
+    protected void loadThreadConfig()
+    {
+        Config config = this.server.getConfig();
+
+        if (config.isSet(CONFIG_VALUE_PERSISTENCE_THREAD_COUNT))
+        {
+            int configThreadCount = config.getInt(CONFIG_VALUE_PERSISTENCE_THREAD_COUNT);
+
+            if ((configThreadCount < 1) || (configThreadCount > 16))
+            {
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format(
+                            "Config %s is invalid (was %d but must be between 1 and 16). Number of persistence " +
+                            "threads is using the default of %d.",
+                            CONFIG_VALUE_PERSISTENCE_THREAD_COUNT,
+                            configThreadCount,
+                            DEFAULT_PERSISTENCE_THREAD_COUNT));
+                }
+
+                this.setNumPersistenceThreads(DEFAULT_PERSISTENCE_THREAD_COUNT);
+            }
+
+            else
+            {
+                this.setNumPersistenceThreads(configThreadCount);
+            }
+        }
+
+        else
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    String.format(
+                        "Config %s not found. Number of persistence threads is using the default of %d.",
+                        CONFIG_VALUE_PERSISTENCE_THREAD_COUNT,
+                        DEFAULT_PERSISTENCE_THREAD_COUNT));
+
+                this.setNumPersistenceThreads(DEFAULT_PERSISTENCE_THREAD_COUNT);
+            }
+        }
     }
 
     public void queueForSave(Entity<?> entity)
@@ -78,10 +173,10 @@ extends CheckpointableAgent
 
         while (queueIterator.hasNext())
         {
-            QueueItem    queueItem       = queueIterator.next();
-            long                    itemId          = queueItem.getItemId();
-            Entity                  itemEntity      = queueItem.getEntity();
-            PersistenceCallback     itemCallback    = queueItem.getCallback();
+            QueueItem           queueItem       = queueIterator.next();
+            long                itemId          = queueItem.getItemId();
+            Entity              itemEntity      = queueItem.getEntity();
+            PersistenceCallback itemCallback    = queueItem.getCallback();
 
             if (itemIds.contains(itemId))
             {
