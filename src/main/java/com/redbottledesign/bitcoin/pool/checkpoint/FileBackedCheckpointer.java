@@ -19,21 +19,29 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fireduck64.sockthing.Config;
+import com.github.fireduck64.sockthing.StratumServer;
 import com.google.gson.Gson;
 
 public class FileBackedCheckpointer
 implements Checkpointer, CheckpointListener
 {
+    private static final String CONFIG_PATH_FILE_STORE                  = "fileStorePath";
+    private static final String FILE_STORE_UNPROCESSED_DIRECTORY_PATH   = "unprocessed";
+    private static final String FILE_STORE_PROCESSED_DIRECTORY_PATH     = "processed";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(FileBackedCheckpointer.class);
 
-    private static final String FILE_STORE_UNPROCESSED_DIRECTORY_PATH   = "filestore/unprocessed";
-    private static final String FILE_STORE_PROCESSED_DIRECTORY_PATH     = "filestore/processed";
-
+    private final StratumServer server;
     private final Set<Checkpointable> registeredCheckpointables;
     private final Map<CheckpointItem, File> knownCheckpointItems;
 
-    public FileBackedCheckpointer()
+    private String fileStorePath;
+
+    public FileBackedCheckpointer(StratumServer server)
     {
+        this.server = server;
+
         this.registeredCheckpointables  = Collections.synchronizedSet(new LinkedHashSet<Checkpointable>());
         this.knownCheckpointItems       = Collections.synchronizedMap(new HashMap<CheckpointItem, File>());
     }
@@ -41,6 +49,8 @@ implements Checkpointer, CheckpointListener
     @Override
     public void setupCheckpointing(Checkpointable... checkpointables)
     {
+        this.loadConfig();
+
         this.registeredCheckpointables.addAll(Arrays.asList(checkpointables));
 
         for (Checkpointable checkpointable : checkpointables)
@@ -52,7 +62,7 @@ implements Checkpointer, CheckpointListener
     @Override
     public void restoreCheckpointsFromDisk()
     {
-        File unprocessedFileStore = new File(FILE_STORE_UNPROCESSED_DIRECTORY_PATH);
+        File unprocessedFileStore = this.getFileStoreDirectory(FILE_STORE_UNPROCESSED_DIRECTORY_PATH);
 
         if (unprocessedFileStore.exists())
         {
@@ -100,8 +110,7 @@ implements Checkpointer, CheckpointListener
     @Override
     public void onCheckpointItemCreated(Checkpointable checkpointable, CheckpointItem checkpointItem)
     {
-        File checkpointFile =
-            this.getCheckpointItemFile(FILE_STORE_UNPROCESSED_DIRECTORY_PATH, checkpointable, checkpointItem);
+        File checkpointFile = this.getCheckpointItemFile(FileStoreType.UNPROCESSED, checkpointable, checkpointItem);
 
         try
         {
@@ -139,7 +148,7 @@ implements Checkpointer, CheckpointListener
         if ((checkpointFile != null) && checkpointFile.exists())
         {
             File processedCheckpointFile =
-                this.getCheckpointItemFile(FILE_STORE_PROCESSED_DIRECTORY_PATH, checkpointable, checkpointItem);
+                this.getCheckpointItemFile(FileStoreType.PROCESSED, checkpointable, checkpointItem);
 
             // Remove the original (now processed) file
             checkpointFile.delete();
@@ -176,6 +185,15 @@ implements Checkpointer, CheckpointListener
         this.knownCheckpointItems.remove(checkpointItem);
     }
 
+    protected void loadConfig()
+    {
+        Config config = this.server.getConfig();
+
+        config.require(CONFIG_PATH_FILE_STORE);
+
+        this.fileStorePath = config.get(CONFIG_PATH_FILE_STORE);
+    }
+
     protected void writeOutCheckpointItem(CheckpointItem checkpointItem, File destinationFile)
     throws IOException
     {
@@ -210,8 +228,7 @@ implements Checkpointer, CheckpointListener
         List<File>  results         = new LinkedList<>();
         Deque<File> pathsToExplore  = new LinkedList<>();
 
-        pathsToExplore.add(
-            this.getCheckpointStorageDirectory(FILE_STORE_UNPROCESSED_DIRECTORY_PATH, checkpointable));
+        pathsToExplore.add(this.getCheckpointStorageDirectory(FileStoreType.UNPROCESSED, checkpointable));
 
         do
         {
@@ -230,19 +247,44 @@ implements Checkpointer, CheckpointListener
         return results;
     }
 
-    protected File getCheckpointStorageDirectory(String basePath, Checkpointable checkpointable)
+    protected File getFileStoreDirectory(String subPath)
+    {
+        return new File(this.fileStorePath + "/" + subPath);
+    }
+
+    protected File getCheckpointStorageDirectory(FileStoreType storeType, Checkpointable checkpointable)
     {
         return new File(
-            basePath                                + File.separator +
+            storeType.getRelativePath()             + File.separator +
             checkpointable.getCheckpointableName()  + File.separator);
     }
 
-    protected File getCheckpointItemFile(String basePath, Checkpointable checkpointable, CheckpointItem checkpoint)
+    protected File getCheckpointItemFile(FileStoreType storeType, Checkpointable checkpointable,
+                                         CheckpointItem checkpoint)
     {
         return new File(
-            basePath                                + File.separator +
+            this.fileStorePath                      + File.separator +
+            storeType.getRelativePath()             + File.separator +
             checkpointable.getCheckpointableName()  + File.separator +
             checkpoint.getCheckpointType()          + File.separator +
             checkpoint.getCheckpointId()            + ".json");
+    }
+
+    protected enum FileStoreType
+    {
+        PROCESSED(  FILE_STORE_PROCESSED_DIRECTORY_PATH),
+        UNPROCESSED(FILE_STORE_UNPROCESSED_DIRECTORY_PATH);
+
+        private final String relativePath;
+
+        private FileStoreType(String relativePath)
+        {
+            this.relativePath = relativePath;
+        }
+
+        public String getRelativePath()
+        {
+            return this.relativePath;
+        }
     }
 }

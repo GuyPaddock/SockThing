@@ -303,7 +303,7 @@ public class StratumServer
         conf.require("witty_remarks_enabled");
 
         StratumServer           server              = new StratumServer(conf);
-        FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer();
+        FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer(server);
         PersistenceAgent        persistenceAgent;
 
         server.setInstanceId(conf.get("instance_id"));
