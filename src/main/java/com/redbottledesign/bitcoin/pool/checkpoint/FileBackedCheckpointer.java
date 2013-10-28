@@ -235,10 +235,17 @@ implements Checkpointer, CheckpointListener
             File currentPath = pathsToExplore.pop();
 
             if (currentPath.isFile())
+            {
                 results.add(currentPath);
+            }
 
             else
-                pathsToExplore.addAll(Arrays.asList(currentPath.listFiles()));
+            {
+                File[] filesInPath = currentPath.listFiles();
+
+                if ((filesInPath != null) && (filesInPath.length > 0))
+                    pathsToExplore.addAll(Arrays.asList(filesInPath));
+            }
         }
         while (!pathsToExplore.isEmpty());
 
