@@ -46,7 +46,7 @@ implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
         this.persistenceAgent   = server.getAgent(PersistenceAgent.class);
         this.poolDaemonUser     = this.session.getPoolDaemonUser();
 
-        CheckpointGsonBuilder.getInstance().registerCallbackFactory(this);
+        CheckpointGsonBuilder.getInstance().registerPersistenceCallbackFactory(this);
     }
 
     @Override

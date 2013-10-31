@@ -52,7 +52,7 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
         this.roundRequestor     = session.getRoundRequestor();
         this.poolDaemonUser     = session.getPoolDaemonUser().asReference();
 
-        CheckpointGsonBuilder.getInstance().registerCallbackFactory(this);
+        CheckpointGsonBuilder.getInstance().registerPersistenceCallbackFactory(this);
     }
 
     public Round getCurrentRoundSynchronized()

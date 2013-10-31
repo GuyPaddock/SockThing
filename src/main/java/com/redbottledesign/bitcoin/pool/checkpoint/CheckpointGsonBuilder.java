@@ -7,7 +7,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.PersistenceCallbackFactory;
-import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItem;
+import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceCallbackAdapter;
 import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceQueueItemCreator;
 import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceQueueItemTypeAdapterFactory;
@@ -35,12 +35,12 @@ public final class CheckpointGsonBuilder
         return this.gson;
     }
 
-    public void registerCallbackFactory(PersistenceCallbackFactory<?> callbackFactory)
+    public void registerPersistenceCallbackFactory(PersistenceCallbackFactory<?> callbackFactory)
     {
         this.factories.add(callbackFactory);
     }
 
-    public void unregisterCallbackFactory(PersistenceCallbackFactory<?> callbackFactory)
+    public void unregisterPersistenceCallbackFactory(PersistenceCallbackFactory<?> callbackFactory)
     {
         this.factories.remove(callbackFactory);
     }
@@ -55,7 +55,7 @@ public final class CheckpointGsonBuilder
                 .serializeNulls()
                 .setPrettyPrinting()
                 .registerTypeAdapterFactory(new PersistenceQueueItemTypeAdapterFactory())
-                .registerTypeAdapter(QueueItem.class, new PersistenceQueueItemCreator())
+                .registerTypeAdapter(PersistenceAgent.QueueItem.class, new PersistenceQueueItemCreator())
                 .registerTypeAdapter(PersistenceCallback.class, persistenceCallbackAdapter)
                 .create();
 
