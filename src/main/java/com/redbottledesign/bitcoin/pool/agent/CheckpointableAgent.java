@@ -3,6 +3,9 @@ package com.redbottledesign.bitcoin.pool.agent;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.redbottledesign.bitcoin.pool.Agent;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointListener;
@@ -12,6 +15,8 @@ public abstract class CheckpointableAgent
 extends Agent
 implements Checkpointable
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CheckpointableAgent.class);
+
     private List<CheckpointListener> checkpointListeners;
 
     public CheckpointableAgent()
@@ -58,6 +63,15 @@ implements Checkpointable
 
     protected void notifyCheckpointListenersOnItemCreated(CheckpointItem checkpoint)
     {
+        if (LOGGER.isTraceEnabled())
+        {
+            LOGGER.trace(
+                String.format(
+                    "%s.notifyCheckpointListenersOnItemCreated(%s)",
+                    this.getClass().getSimpleName(),
+                    checkpoint));
+        }
+
         for (CheckpointListener listener : this.checkpointListeners)
         {
             listener.onCheckpointItemCreated(this, checkpoint);
@@ -66,6 +80,15 @@ implements Checkpointable
 
     protected void notifyCheckpointListenersOnItemExpired(CheckpointItem checkpoint)
     {
+        if (LOGGER.isTraceEnabled())
+        {
+            LOGGER.trace(
+                String.format(
+                    "%s.notifyCheckpointListenersOnItemExpired(%s)",
+                    this.getClass().getSimpleName(),
+                    checkpoint));
+        }
+
         for (CheckpointListener listener : this.checkpointListeners)
         {
             listener.onCheckpointItemExpired(this, checkpoint);

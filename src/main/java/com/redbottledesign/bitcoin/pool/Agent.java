@@ -25,11 +25,22 @@ implements Stoppable
 
     public Agent(long frequencyInMilliseconds)
     {
-        this.setDaemon(true);
-        this.setName(this.getClass().getSimpleName());
+        final String className = this.getClass().getSimpleName();
 
-        this.lastCheck = 0;
-        this.frequencyInMilliseconds = frequencyInMilliseconds;
+        if (LOGGER.isTraceEnabled())
+        {
+            LOGGER.trace(
+                String.format(
+                    "%s constructed with frequency of %d milliseconds.",
+                    className,
+                    frequencyInMilliseconds));
+        }
+
+        this.setDaemon(true);
+        this.setName(className);
+
+        this.lastCheck                  = 0;
+        this.frequencyInMilliseconds    = frequencyInMilliseconds;
     }
 
     public long getFrequencyInMilliseconds()
@@ -46,8 +57,19 @@ implements Stoppable
         {
             try
             {
-                if (System.currentTimeMillis() > (lastCheck + this.frequencyInMilliseconds))
+                if (System.currentTimeMillis() > (this.lastCheck + this.frequencyInMilliseconds))
                 {
+                    if (LOGGER.isTraceEnabled())
+                    {
+                        LOGGER.trace(
+                            String.format(
+                                "Timer threshold of %d milliseconds since last check at %d reached. " +
+                                "Calling %s.runPeriodicTask()",
+                                this.frequencyInMilliseconds,
+                                this.lastCheck,
+                                this.getClass().getSimpleName()));
+                    }
+
                     this.runPeriodicTask();
 
                     this.lastCheck = System.currentTimeMillis();
@@ -73,8 +95,19 @@ implements Stoppable
                 {
                     try
                     {
+                        final long waitDuration = this.frequencyInMilliseconds / 4L;
+
+                        if (LOGGER.isTraceEnabled())
+                        {
+                            LOGGER.trace(
+                                String.format(
+                                    "%s.wait(%d)",
+                                    this.getClass().getSimpleName(),
+                                    waitDuration));
+                        }
+
                         // FIXME: Switch to scheduled threads.
-                        this.wait(this.frequencyInMilliseconds / 4);
+                        this.wait(waitDuration);
                     }
 
                     catch (InterruptedException e)
@@ -91,11 +124,20 @@ implements Stoppable
     {
         this.isStopping = true;
 
+        if (LOGGER.isTraceEnabled())
+        {
+            LOGGER.trace(
+                String.format("%s.stopProcessing() called; calling interrupt().", this.getClass().getSimpleName()));
+        }
+
         this.interrupt();
 
-        // Block indefinitely until thread stops
         try
         {
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace(String.format("Calling %s.join().", this.getClass().getSimpleName()));
+
+            // Block indefinitely until thread stops
             this.join();
         }
 
