@@ -119,17 +119,35 @@ public class BitcoinRPC
         return sendPost(new JSONObject(getSimplePostRequest(cmd)));
     }
 
-    public JSONObject submitBlock(Block blk)
+    public JSONObject submitBlock(Block block)
     throws IOException, JSONException
     {
-        Random rnd = new Random();
+        Random      rnd     = new Random();
+        JSONObject  msg     = new JSONObject();
+        JSONArray   params  = new JSONArray();
 
-        JSONObject msg = new JSONObject();
         msg.put("method", "submitblock");
-        msg.put("id", "" + rnd.nextInt());
+        msg.put("id",     Integer.toString(rnd.nextInt()));
 
-        JSONArray params = new JSONArray();
-        params.put(Hex.encodeHexString(blk.bitcoinSerialize()));
+        params.put(Hex.encodeHexString(block.bitcoinSerialize()));
+
+        msg.put("params", params);
+
+        return sendPost(msg);
+    }
+
+    public JSONObject getBlockInfo(String blockHash)
+    throws IOException, JSONException
+    {
+        Random      rnd     = new Random();
+        JSONObject  msg     = new JSONObject();
+        JSONArray   params  = new JSONArray();
+
+        msg.put("method", "getblock");
+        msg.put("id",     Integer.toString(rnd.nextInt()));
+
+        params.put(blockHash);
+
         msg.put("params", params);
 
         return sendPost(msg);
@@ -138,18 +156,18 @@ public class BitcoinRPC
     public JSONObject sendPayment(double amount, Address payFromAddress, Address payToAddress)
     throws IOException, JSONException
     {
-      Random      rnd           = new Random();
-      JSONObject  msg           = new JSONObject();
-      JSONArray   params        = new JSONArray();
+        Random      rnd     = new Random();
+        JSONObject  msg     = new JSONObject();
+        JSONArray   params  = new JSONArray();
 
-      msg.put("method", "sendtoaddress");
-      msg.put("id", "" + rnd.nextInt());
+        msg.put("method", "sendtoaddress");
+        msg.put("id",     Integer.toString(rnd.nextInt()));
 
-      params.put(payToAddress.toString());    // <bitcoinaddress>
-      params.put(amount);                     // <amount>
+        params.put(payToAddress.toString()); // <bitcoinaddress>
+        params.put(amount);                  // <amount>
 
-      msg.put("params", params);
+        msg.put("params", params);
 
-      return sendPost(msg);
+        return sendPost(msg);
     }
 }

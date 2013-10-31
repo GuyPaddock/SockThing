@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,7 +14,9 @@ import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -29,7 +32,10 @@ import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
+import com.google.bitcoin.core.Transaction;
+import com.redbottledesign.bitcoin.pool.Agent;
 import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
+import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent;
 import com.redbottledesign.bitcoin.pool.agent.PayoutAgent;
 import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
@@ -59,11 +65,8 @@ public class StratumServer
     private OutputMonster outputMonster;
     private MetricsReporter metricsReporter;
     private DrupalSession session;
-    private PersistenceAgent persistenceAgent;
-    private WittyRemarksAgent wittyRemarksAgent;
-    private PplnsAgent pplnsAgent;
-    private RoundAgent roundAgent;
-    private PayoutAgent payoutAgent;
+
+    private final Map<Class<?>, Agent> agents;
 
     private String instanceId;
 
@@ -95,6 +98,8 @@ public class StratumServer
 
         this.bitcoinRpc = new BitcoinRPC(config);
         this.server = this;
+
+        this.agents = new HashMap<>();
     }
 
     public void start()
@@ -132,20 +137,10 @@ public class StratumServer
             new ListenThread(port).start();
         }
 
-        if (this.persistenceAgent != null)
-            this.persistenceAgent.start();
-
-        if (this.wittyRemarksAgent != null)
-            this.wittyRemarksAgent.start();
-
-        if (this.pplnsAgent != null)
-            this.pplnsAgent.start();
-
-        if (this.roundAgent != null)
-            this.roundAgent.start();
-
-        if (this.payoutAgent != null)
-            this.payoutAgent.start();
+        for (Agent agent : this.agents.values())
+        {
+            agent.start();
+        }
     }
 
     public void setAuthHandler(AuthHandler authHandler)
@@ -203,16 +198,6 @@ public class StratumServer
         this.session = session;
     }
 
-    public PersistenceAgent getPersistenceAgent()
-    {
-        return this.persistenceAgent;
-    }
-
-    public void setPersistenceAgent(PersistenceAgent persistenceAgent)
-    {
-        this.persistenceAgent = persistenceAgent;
-    }
-
     public void setShareSaver(ShareSaver shareSaver)
     {
         this.shareSaver = shareSaver;
@@ -233,46 +218,6 @@ public class StratumServer
         return this.outputMonster;
     }
 
-    public void setWittyRemarksAgent(WittyRemarksAgent remarks)
-    {
-        this.wittyRemarksAgent = remarks;
-    }
-
-    public WittyRemarksAgent getWittyRemarksAgent()
-    {
-        return this.wittyRemarksAgent;
-    }
-
-    public void setPplnsAgent(PplnsAgent pplnsAgent)
-    {
-        this.pplnsAgent = pplnsAgent;
-    }
-
-    public PplnsAgent getPplnsAgent()
-    {
-        return this.pplnsAgent;
-    }
-
-    public PayoutAgent getPayoutAgent()
-    {
-        return this.payoutAgent;
-    }
-
-    public void setPayoutAgent(PayoutAgent payoutAgent)
-    {
-        this.payoutAgent = payoutAgent;
-    }
-
-    public void setRoundAgent(RoundAgent roundAgent)
-    {
-        this.roundAgent = roundAgent;
-    }
-
-    public RoundAgent getRoundAgent()
-    {
-        return this.roundAgent;
-    }
-
     public NetworkParameters getNetworkParameters()
     {
         return this.networkParams;
@@ -281,6 +226,28 @@ public class StratumServer
     public void setNetworkParameters(NetworkParameters networkParams)
     {
         this.networkParams = networkParams;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T getAgent(Class<T> agentType)
+    {
+        return (T)this.agents.get(agentType);
+    }
+
+    protected void registerAgent(Agent agent)
+    {
+        this.registerAgent(agent.getClass(), agent);
+    }
+
+    protected void registerAgent(Class<?> agentType, Agent agent)
+    {
+        if (this.agents.containsKey(agentType))
+        {
+            throw new IllegalArgumentException(
+                String.format("An agent of type '%s' is already registered.", agentType));
+        }
+
+        this.agents.put(agentType, agent);
     }
 
     public static void main(String args[])
@@ -304,6 +271,7 @@ public class StratumServer
 
         StratumServer           server              = new StratumServer(conf);
         FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer(server);
+        DrupalPplnsAgent        pplnsAgent          = new DrupalPplnsAgent(server);
         PersistenceAgent        persistenceAgent;
 
         server.setInstanceId(conf.get("instance_id"));
@@ -314,7 +282,7 @@ public class StratumServer
 
         persistenceAgent = new PersistenceAgent(server);
 
-        server.setPersistenceAgent(persistenceAgent);
+        server.registerAgent(persistenceAgent);
 
 //        if (conf.getBoolean("saver_messaging_enabled"))
 //        {
@@ -326,7 +294,10 @@ public class StratumServer
 //        }
 
         server.setShareSaver(
-            new FallbackShareSaver(conf, server, new DrupalShareSaver(conf, server)));
+            new FallbackShareSaver(
+                conf,
+                server,
+                new DrupalShareSaver(conf, server)));
 
         String network = conf.get("network");
 
@@ -339,21 +310,22 @@ public class StratumServer
             server.setNetworkParameters(NetworkParameters.testNet3());
         }
 
-//        server.setOutputMonster(new OutputMonsterShareFees(conf, server.getNetworkParameters()));
-
         // Fee sharing is done elsewhere.
+//        server.setOutputMonster(new OutputMonsterShareFees(conf, server.getNetworkParameters()));
         server.setOutputMonster(new OutputMonsterSimple(conf, server.getNetworkParameters()));
-        server.setPayoutAgent(new PayoutAgent(server));
+
+        server.registerAgent(new PayoutAgent(server));
 
         if (conf.getBoolean("witty_remarks_enabled"))
         {
-            server.setWittyRemarksAgent(new WittyRemarksAgent());
+            server.registerAgent(new WittyRemarksAgent());
         }
 
-        server.setPplnsAgent(new DrupalPplnsAgent(server));
-        server.setRoundAgent(new RoundAgent(server));
+        server.registerAgent(PplnsAgent.class, pplnsAgent);
+        server.registerAgent(new RoundAgent(server));
+        server.registerAgent(new BlockConfirmationAgent(server));
 
-        checkpointer.setupCheckpointing(persistenceAgent);
+        checkpointer.setupCheckpointing(persistenceAgent, pplnsAgent);
         checkpointer.restoreCheckpointsFromDisk();
 
         server.start();
@@ -453,6 +425,69 @@ public class StratumServer
       paymentHash = resultObject.getString("result");
 
       return paymentHash;
+    }
+
+    public int getBlockConfirmationCount(String blockHash)
+    throws IOException, JSONException
+    {
+        JSONObject  responseResult       = this.bitcoinRpc.getBlockInfo(blockHash),
+                    responseResultObject;
+
+        if (!responseResult.isNull("error"))
+            throw new RuntimeException("Block retrieval failed: " + responseResult.get("error"));
+
+        responseResultObject = responseResult.getJSONObject("result");
+
+        return responseResultObject.getInt("confirmations");
+    }
+
+    public Block getBlock(String blockHash)
+    throws IOException, JSONException
+    {
+        Block               blockResult;
+        JSONObject          responseResult       = this.bitcoinRpc.getBlockInfo(blockHash),
+                            responseResultObject;
+        JSONArray           responseTransactions;
+        int                 responseVersion;
+        List<Transaction>   transactions;
+
+        if (!responseResult.isNull("error"))
+            throw new RuntimeException("Block retrieval failed: " + responseResult.get("error"));
+
+        responseResultObject = responseResult.getJSONObject("result");
+        responseTransactions = responseResultObject.getJSONArray("tx");
+        responseVersion      = responseResultObject.getInt("version");
+
+        transactions = new ArrayList<>(responseTransactions.length());
+
+        try
+        {
+            for (int resultIndex = 0; resultIndex < responseTransactions.length(); ++resultIndex)
+            {
+                transactions.add(
+                    new Transaction(
+                        this.networkParams,
+                        responseVersion,
+                        HexUtil.hexToHash(responseTransactions.getString(resultIndex))));
+            }
+
+            blockResult = new Block(
+                this.networkParams,
+                responseVersion,
+                HexUtil.hexToHash(responseResultObject.getString("hash")),
+                HexUtil.hexToHash(responseResultObject.getString("merkleroot")),
+                responseResultObject.getLong("time"),
+                responseResultObject.getLong("difficulty"),
+                responseResultObject.getLong("nonce"),
+                transactions);
+        }
+
+        catch (DecoderException ex)
+        {
+            throw new JSONException(ex);
+        }
+
+        return blockResult;
     }
 
     public UserSessionData getUserSessionData(PoolUser pu)

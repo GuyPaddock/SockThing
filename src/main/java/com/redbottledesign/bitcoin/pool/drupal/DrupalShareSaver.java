@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PoolUser;
-import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
@@ -44,7 +43,7 @@ implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
     {
         this.server             = server;
         this.session            = server.getSession();
-        this.persistenceAgent   = server.getPersistenceAgent();
+        this.persistenceAgent   = server.getAgent(PersistenceAgent.class);
         this.poolDaemonUser     = this.session.getPoolDaemonUser();
 
         CheckpointGsonBuilder.getInstance().registerCallbackFactory(this);
@@ -54,7 +53,7 @@ implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
     public void saveShare(PoolUser submitter, SubmitResult submitResult, String source, String uniqueJobString,
                           long blockReward, long feeTotal)
     {
-        RoundAgent      roundAgent              = this.server.getRoundAgent();
+        RoundAgent      roundAgent              = this.server.getAgent(RoundAgent.class);
         Node.Reference  currentRoundReference   = roundAgent.getCurrentRoundSynchronized().asReference();
         User.Reference  daemonUserReference     = this.poolDaemonUser.asReference();
         User.Reference  drupalSubmitter         = ((DrupalPoolUser) submitter).getDrupalUser().asReference();
@@ -194,13 +193,16 @@ implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
         @Override
         public void onEntitySaved(SolvedBlock newBlock)
         {
-            PplnsAgent pplnsAgent = this.shareSaver.server.getPplnsAgent();
-
             if (LOGGER.isInfoEnabled())
                 LOGGER.info(String.format("New block %d saved successfully.", newBlock.getHeight()));
 
-            if (pplnsAgent != null)
-                pplnsAgent.payoutBlock(newBlock);
+            /* NOTE: We do NOT issue pay-outs here. We used to, and it was bad;
+             * we were paying out for blocks that weren't confirmed, and a lot
+             * of them were dupes, either ones someone else got to first, or
+             * dupes within the pool.
+             *
+             * The block payouts are now initiated by the BlockConfirmationAgent.
+             */
 
             if (LOGGER.isInfoEnabled())
             {

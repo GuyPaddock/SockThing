@@ -1,14 +1,13 @@
 package com.github.fireduck64.sockthing.util;
 
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
-
-import org.apache.commons.codec.binary.Hex;
 import java.security.MessageDigest;
+
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 
 import com.google.bitcoin.core.Sha256Hash;
-
-import java.security.MessageDigest;
-import java.math.BigInteger;
 
 public class HexUtil
 {
@@ -33,7 +32,7 @@ public class HexUtil
             byte[] pass = md.digest();
             md = MessageDigest.getInstance("SHA-256");
             md.update(pass);
-        
+
             return new Sha256Hash(md.digest());
         }
         catch(java.security.NoSuchAlgorithmException e)
@@ -67,11 +66,11 @@ public class HexUtil
             sb.insert(0,s);
         }
         return sb.toString();
- 
+
     }
 
     public static String swapBytesInsideWord(String in)
-    {   
+    {
         StringBuilder sb=new StringBuilder();
 
         for(int i=0; i<in.length(); i+=8)
@@ -81,7 +80,7 @@ public class HexUtil
         }
         return sb.toString();
 
- 
+
 
     }
 
@@ -121,6 +120,10 @@ public class HexUtil
         double max_body = Math.log(0x00ffff), scaland = Math.log(256);
         return Math.exp(max_body - Math.log(bits & 0x00ffffff) + scaland * (0x1d - ((bits & 0xff000000) >> 24)));
     }
- 
 
+    public static Sha256Hash hexToHash(String hexString)
+    throws DecoderException
+    {
+        return Sha256Hash.create(Hex.decodeHex(hexString.toCharArray()));
+    }
 }

@@ -48,7 +48,7 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
         DrupalSession session = server.getSession();
 
         this.server             = server;
-        this.persistenceAgent   = server.getPersistenceAgent();
+        this.persistenceAgent   = server.getAgent(PersistenceAgent.class);
         this.roundRequestor     = session.getRoundRequestor();
         this.poolDaemonUser     = session.getPoolDaemonUser().asReference();
 
@@ -198,7 +198,6 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
     protected void updateStatusOfPastRounds()
     throws IOException, DrupalHttpException
     {
-        PersistenceAgent    persistenceAgent    = this.server.getPersistenceAgent();
         List<Round>         openRounds          = this.roundRequestor.requestAllOpenRounds();
         int                 openRoundCount      = openRounds.size();
 
@@ -217,18 +216,16 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
 
                 roundToClose.setRoundStatus(Round.Status.CLOSED);
 
-                persistenceAgent.queueForSave(roundToClose);
+                this.persistenceAgent.queueForSave(roundToClose);
             }
         }
     }
 
-    private void startNewRoundAndWait(Round newRound)
+    protected void startNewRoundAndWait(Round newRound)
     {
-        PersistenceAgent persistenceAgent = this.server.getPersistenceAgent();
-
         this.nextRound = newRound;
 
-        persistenceAgent.queueForSave(newRound, new RoundPersistenceCallback(this));
+        this.persistenceAgent.queueForSave(newRound, new RoundPersistenceCallback(this));
 
         do
         {

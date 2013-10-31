@@ -17,6 +17,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.util.HexUtil;
+import com.redbottledesign.bitcoin.pool.agent.EvictableQueue;
+import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
 
 public class StratumConnection
 {
@@ -409,7 +411,7 @@ public class StratumConnection
                 }
             }
         }
-        else if (method.equals("mining.pool.persistence.queue.evict"))
+        else if (method.equals("mining.pool.queue.persistence.evict"))
         {
             JSONArray   params            = msg.getJSONArray("params");
             JSONObject  reply             = new JSONObject();
@@ -421,54 +423,122 @@ public class StratumConnection
 
             if (!passwordParam.equals(this.server.getConfig().get(CONFIG_VALUE_POOL_CONTROL_PASSWORD)))
             {
-              reply.put("error", "incorrect password");
-              reply.put("result", false);
+                reply.put("error", "incorrect password");
+                reply.put("result", false);
             }
 
             else
             {
-              try
-              {
-                queueItemId = Long.parseLong(queueItemIdParam);
-              }
+                try
+                {
+                    queueItemId = Long.parseLong(queueItemIdParam);
+                }
 
-              catch (NumberFormatException ex)
-              {
-                reply.put("error", "not a queue item ID: " + queueItemIdParam);
-                reply.put("result", false);
-              }
+                catch (NumberFormatException ex)
+                {
+                    reply.put("error", "not a queue item ID: " + queueItemIdParam);
+                    reply.put("result", false);
+                }
 
-              if (queueItemId != null)
-              {
-                boolean evicted = this.server.getPersistenceAgent().evictQueueItem(queueItemId);
+                if (queueItemId != null)
+                {
+                    boolean evicted = this.server.getAgent(PersistenceAgent.class).evictQueueItem(queueItemId);
 
-                reply.put("result", evicted);
-                reply.put("error",  JSONObject.NULL);
-              }
+                    reply.put("result", evicted);
+                    reply.put("error", JSONObject.NULL);
+                }
             }
 
             this.sendMessage(reply);
         }
-        else if (method.equals("mining.pool.persistence.queue.evict-all"))
+        else if (method.equals("mining.pool.queue.persistence.evict-all"))
         {
-            JSONArray   params            = msg.getJSONArray("params");
-            JSONObject  reply             = new JSONObject();
-            String      passwordParam     = (String)params.get(0);
+            JSONArray   params          = msg.getJSONArray("params");
+            JSONObject  reply           = new JSONObject();
+            String      passwordParam   = (String) params.get(0);
 
             reply.put("id", id);
 
             if (!passwordParam.equals(this.server.getConfig().get(CONFIG_VALUE_POOL_CONTROL_PASSWORD)))
             {
-              reply.put("error", "incorrect password");
-              reply.put("result", false);
+                reply.put("error", "incorrect password");
+                reply.put("result", false);
             }
 
             else
             {
-              boolean evicted = this.server.getPersistenceAgent().evictAllQueueItems();
+                boolean evicted = this.server.getAgent(PersistenceAgent.class).evictAllQueueItems();
 
-              reply.put("result", evicted);
-              reply.put("error",  JSONObject.NULL);
+                reply.put("result", evicted);
+                reply.put("error", JSONObject.NULL);
+            }
+
+            this.sendMessage(reply);
+        }
+        else if (method.equals("mining.pool.queue.pplns.evict"))
+        {
+            JSONArray   params              = msg.getJSONArray("params");
+            JSONObject  reply               = new JSONObject();
+            String      passwordParam       = params.get(0).toString();
+            String      queueItemIdParam    = params.get(1).toString();
+            PplnsAgent  pplnsAgent          = this.server.getAgent(PplnsAgent.class);
+
+            reply.put("id", id);
+
+            if (!passwordParam.equals(this.server.getConfig().get(CONFIG_VALUE_POOL_CONTROL_PASSWORD)))
+            {
+                reply.put("error", "incorrect password");
+                reply.put("result", false);
+            }
+
+            else if (!(pplnsAgent instanceof EvictableQueue))
+            {
+                reply.put("error", "PPLNS agent does not support eviction");
+                reply.put("result", false);
+            }
+
+            else
+            {
+                if ((queueItemIdParam != null) && !queueItemIdParam.isEmpty())
+                {
+                    @SuppressWarnings("unchecked")
+                    boolean evicted = ((EvictableQueue<String>)pplnsAgent).evictQueueItem(queueItemIdParam);
+
+                    reply.put("result", evicted);
+                    reply.put("error", JSONObject.NULL);
+                }
+            }
+
+            this.sendMessage(reply);
+        }
+        else if (method.equals("mining.pool.queue.pplns.evict-all"))
+        {
+            JSONArray   params          = msg.getJSONArray("params");
+            JSONObject  reply           = new JSONObject();
+            String      passwordParam   = (String) params.get(0);
+            PplnsAgent  pplnsAgent      = this.server.getAgent(PplnsAgent.class);
+
+            reply.put("id", id);
+
+            if (!passwordParam.equals(this.server.getConfig().get(CONFIG_VALUE_POOL_CONTROL_PASSWORD)))
+            {
+                reply.put("error", "incorrect password");
+                reply.put("result", false);
+            }
+
+            else if (!(pplnsAgent instanceof EvictableQueue))
+            {
+                reply.put("error", "PPLNS agent does not support eviction");
+                reply.put("result", false);
+            }
+
+            else
+            {
+                @SuppressWarnings("unchecked")
+                boolean evicted = ((EvictableQueue<String>)pplnsAgent).evictAllQueueItems();
+
+                reply.put("result", evicted);
+                reply.put("error", JSONObject.NULL);
             }
 
             this.sendMessage(reply);

@@ -34,8 +34,8 @@ extends Agent
     {
         super(PAYOUT_FREQUENCY_MS);
 
-        this.server = server;
-        this.persistenceAgent = server.getPersistenceAgent();
+        this.server             = server;
+        this.persistenceAgent   = server.getAgent(PersistenceAgent.class);
     }
 
     @Override

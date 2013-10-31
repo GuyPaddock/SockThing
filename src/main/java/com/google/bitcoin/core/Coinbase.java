@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.PoolUser;
 import com.github.fireduck64.sockthing.StratumServer;
+import com.github.fireduck64.sockthing.WittyRemarksAgent;
 
 /**
  * Creates a stratum compatible coinbase transaction
@@ -66,9 +67,12 @@ public class Coinbase
         //        can't submit duplicates to other jobs if the EXT1 is always the same
         String script = "BLKH" + "EXT1" + "EXT2" + "RNDN" + "/SockThing/" + server.getConfig().get("coinbase_text");
 
-        if (server.getWittyRemarksAgent()!=null)
+        final WittyRemarksAgent wittyRemarksAgent = server.getAgent(WittyRemarksAgent.class);
+
+        if (wittyRemarksAgent != null)
         {
-            String remark = server.getWittyRemarksAgent().getNextRemark();
+            String remark = wittyRemarksAgent.getNextRemark();
+
             if (remark != null)
             {
                 witty_remark_used = remark;
@@ -195,10 +199,6 @@ public class Coinbase
     public void markRemark()
     {
         if (witty_remark_used!=null)
-        {
-            server.getWittyRemarksAgent().markUsed(witty_remark_used);
-        }
+            server.getAgent(WittyRemarksAgent.class).markUsed(witty_remark_used);
     }
-
-
 }

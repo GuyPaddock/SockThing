@@ -11,13 +11,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.persistence.db.DB;
+import com.redbottledesign.bitcoin.pool.Agent;
 
 /**
  * Optional database of witty remarks to be injected into Coinbase transactions
  *
  * Assumes using a table from the sharedb.
  */
-public class WittyRemarksAgent extends Thread
+public class WittyRemarksAgent
+extends Agent
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(WittyRemarksAgent.class);
 
@@ -164,5 +166,13 @@ public class WittyRemarksAgent extends Thread
 
             this.notifyAll();
         }
+    }
+
+    @Override
+    protected void runPeriodicTask()
+    throws Exception
+    {
+        // TODO Auto-generated method stub
+
     }
 }

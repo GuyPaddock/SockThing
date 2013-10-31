@@ -32,6 +32,7 @@ import com.redbottledesign.util.QueueUtils;
 
 public class PersistenceAgent
 extends CheckpointableAgent
+implements EvictableQueue<Long>
 {
     private static final String CONFIG_VALUE_PERSISTENCE_THREAD_COUNT = "persistence_threads";
     private static final int MAX_EXTRA_HTTP_CONNECTIONS = 5;
@@ -151,23 +152,23 @@ extends CheckpointableAgent
         QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
     }
 
-    public synchronized boolean evictQueueItem(long itemId)
+    @Override
+    public synchronized boolean evictQueueItem(Long itemId)
     {
         return this.evictQueueItems(Collections.singleton(itemId));
     }
 
+    @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public synchronized boolean evictQueueItems(Set<Long> itemIds)
     {
-        boolean                 atLeastOneItemVacated = false;
+        boolean                 atLeastOneItemEvicted = false;
         Iterator<QueueItem<?>>  queueIterator;
 
         this.interruptQueueProcessing();
 
         if (LOGGER.isDebugEnabled())
-        {
             LOGGER.debug("Evicting items from persistence queue: " + itemIds);
-        }
 
         queueIterator = this.persistenceQueue.iterator();
 
@@ -194,23 +195,24 @@ extends CheckpointableAgent
                 if (itemCallback != null)
                     itemCallback.onEntityEvicted(itemEntity);
 
-                atLeastOneItemVacated = true;
+                atLeastOneItemEvicted = true;
                 break;
             }
         }
 
         if (LOGGER.isInfoEnabled())
         {
-            if (atLeastOneItemVacated)
+            if (atLeastOneItemEvicted)
                 LOGGER.info("evictQueueItems() was called and at least one item was evicted.");
 
             else
                 LOGGER.info("evictQueueItems() was called, but no items were evicted.");
         }
 
-        return atLeastOneItemVacated;
+        return atLeastOneItemEvicted;
     }
 
+    @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public synchronized boolean evictAllQueueItems()
     {
@@ -229,8 +231,8 @@ extends CheckpointableAgent
 
             while (queueIterator.hasNext())
             {
-                QueueItem    queueItem       = queueIterator.next();
-                PersistenceCallback     itemCallback    = queueItem.getCallback();
+                QueueItem           queueItem       = queueIterator.next();
+                PersistenceCallback itemCallback    = queueItem.getCallback();
 
                 queueIterator.remove();
 
@@ -269,18 +271,27 @@ extends CheckpointableAgent
     {
         this.interruptQueueProcessing();
 
+        if (LOGGER.isInfoEnabled())
+        {
+            LOGGER.info(
+                String.format("Capturing checkpoint of %d persistence queue items.", this.persistenceQueue.size()));
+        }
+
         return new ArrayList<>(this.persistenceQueue);
     }
 
     @Override
-    public synchronized void restoreFromCheckpoint(Collection<? extends CheckpointItem> checkpointItems)
+    public synchronized void restoreFromCheckpoint(Collection<? extends CheckpointItem> checkpoint)
     {
         Set<Long>           checkpointItemIds   = new HashSet<>();
-        List<QueueItem<?>>  newQueueItems       = new ArrayList<>(checkpointItems.size());
+        List<QueueItem<?>>  newQueueItems       = new ArrayList<>(checkpoint.size());
+
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info(String.format("Restoring %d items from a checkpoint.", checkpoint.size()));
 
         this.interruptQueueProcessing();
 
-        for (CheckpointItem checkpointItem : checkpointItems)
+        for (CheckpointItem checkpointItem : checkpoint)
         {
             QueueItem<?> queueItem;
 
@@ -289,7 +300,8 @@ extends CheckpointableAgent
                 if (LOGGER.isErrorEnabled())
                 {
                     LOGGER.error(
-                        "A checkpoint was provided that is not a PersistenceQueueItem (ignoring): " + checkpointItem);
+                        "A checkpoint item was provided that is not a PersistenceQueueItem (ignoring): " +
+                        checkpointItem);
                 }
             }
 
@@ -302,7 +314,9 @@ extends CheckpointableAgent
             }
         }
 
+        // Only evict items we're replacing from the checkpoint.
         this.evictQueueItems(checkpointItemIds);
+
         this.persistenceQueue.addAll(newQueueItems);
     }
 
@@ -405,6 +419,9 @@ extends CheckpointableAgent
 
     protected synchronized void interruptQueueProcessing()
     {
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Queue processing has been temporarily interrupted.");
+
         /*
          * Interrupt to break out of persistenceQueue.take(); the persistence
          * thread should block in the run() method of Agent since it doesn't

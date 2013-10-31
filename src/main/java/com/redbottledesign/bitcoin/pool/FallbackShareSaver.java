@@ -161,7 +161,7 @@ implements ShareSaver
 
     try
     {
-      RoundAgent  roundAgent      = this.server.getRoundAgent();
+      RoundAgent  roundAgent      = this.server.getAgent(RoundAgent.class);
       Round       currentRound    = roundAgent.getCurrentRoundSynchronized();
       double      blockDifficulty = submitResult.getNetworkDifficulty(),
                   workDifficulty  = submitResult.getWorkDifficulty();
