@@ -279,15 +279,17 @@ implements PplnsAgent, EvictableQueue<String>
         // NOTE: This will block indefinitely.
         while ((currentQueueItem = this.pendingBlockQueue.take()) != null)
         {
-            SolvedBlock     currentBlock    = currentQueueItem.getValue();
-            double          blockReward     = currentBlock.getReward().floatValue() * (1d - this.poolFee);
-            PayoutsSummary  payoutsSummary;
+            SolvedBlock         currentBlock    = currentQueueItem.getValue();
+            double              blockReward     = currentBlock.getReward().floatValue() * (1d - this.poolFee);
+            PayoutsSummary      payoutsSummary;
+            List<BlockCredit>   blockCredits    = new LinkedList<>();
 
             if (LOGGER.isInfoEnabled())
                 LOGGER.info(String.format("Running payouts for block %d...", currentBlock.getHeight()));
 
             try
             {
+                // FIXME: Request the 12 open rounds at the time that the block was solved rather than right now
                 payoutsSummary = payoutsRequestor.requestPayoutsSummary();
             }
 
@@ -310,37 +312,72 @@ implements PplnsAgent, EvictableQueue<String>
                 throw new RuntimeException(error, ex);
             }
 
-            for (PayoutsSummary.UserPayoutSummary userPayout : payoutsSummary.getPayouts())
+            try
             {
-                User.Reference recipient = userPayout.getUserReference();
-
-                this.creditUserForBlock(
-                    recipient,
-                    this.calculateBlockCredit(blockReward, userPayout),
-                    currentBlock,
-                    BlockCredit.Type.REGULAR_SHARE,
-                    persistenceAgent,
-                    poolDaemonUser);
-
-                if (currentBlock.getSolvingMember().equals(recipient))
+                for (PayoutsSummary.UserPayoutSummary userPayout : payoutsSummary.getPayouts())
                 {
-                    this.creditUserForBlock(
-                        recipient,
-                        this.calculateBlockBonus(blockReward, userPayout),
-                        currentBlock,
-                        BlockCredit.Type.BLOCK_SOLUTION_BONUS,
-                        persistenceAgent,
-                        poolDaemonUser);
+                    User.Reference recipient = userPayout.getUserReference();
+
+                    blockCredits.add(
+                        this.createUserCreditForBlock(
+                            recipient,
+                            this.calculateBlockCredit(blockReward, userPayout),
+                            currentBlock,
+                            BlockCredit.Type.REGULAR_SHARE,
+                            persistenceAgent,
+                            poolDaemonUser));
+
+                    if (currentBlock.getSolvingMember().equals(recipient))
+                    {
+                        blockCredits.add(
+                            this.createUserCreditForBlock(
+                                recipient,
+                                this.calculateBlockBonus(blockReward, userPayout),
+                                currentBlock,
+                                BlockCredit.Type.BLOCK_SOLUTION_BONUS,
+                                persistenceAgent,
+                                poolDaemonUser));
+                    }
                 }
             }
+
+            catch (Throwable ex)
+            {
+                String error;
+
+                // Re-queue block.
+                QueueUtils.ensureQueued(this.pendingBlockQueue, currentQueueItem);
+
+                error =
+                    String.format(
+                        "Failed to issue payouts for block '%s' (no payouts issued; block queued to retry): %s",
+                        currentBlock,
+                        ex.getMessage());
+
+                if (LOGGER.isErrorEnabled())
+                    LOGGER.error(error + "\n" + ExceptionUtils.getStackTrace(ex));
+
+                throw new RuntimeException(error, ex);
+            }
+
+            /* We queue up the credits for persistence only at the end, to ensure all-or-nothing behavior for credits.
+             *
+             * We don't want only some of the users to get credit for a block and not others.
+             */
+            for (BlockCredit blockCredit : blockCredits)
+            {
+                persistenceAgent.queueForSave(blockCredit);
+            }
+
+            this.notifyCheckpointListenersOnItemExpired(currentQueueItem);
         }
     }
 
-    protected void creditUserForBlock(User.Reference user, BigDecimal creditAmount, SolvedBlock block,
-                                      BlockCredit.Type creditType, PersistenceAgent persistenceAgent,
-                                      User.Reference poolDaemonUser)
+    protected BlockCredit createUserCreditForBlock(User.Reference user, BigDecimal creditAmount, SolvedBlock block,
+                                                   BlockCredit.Type creditType, PersistenceAgent persistenceAgent,
+                                                   User.Reference poolDaemonUser)
     {
-        BlockCredit newCredit = new BlockCredit();
+        BlockCredit result = new BlockCredit();
 
         if (LOGGER.isInfoEnabled())
         {
@@ -353,13 +390,13 @@ implements PplnsAgent, EvictableQueue<String>
                     block.getHeight()));
         }
 
-        newCredit.setAuthor(poolDaemonUser);
-        newCredit.setRecipient(user);
-        newCredit.setBlock(block.asReference());
-        newCredit.setAmount(creditAmount);
-        newCredit.setCreditType(creditType);
+        result.setAuthor(poolDaemonUser);
+        result.setRecipient(user);
+        result.setBlock(block.asReference());
+        result.setAmount(creditAmount);
+        result.setCreditType(creditType);
 
-        persistenceAgent.queueForSave(newCredit);
+        return result;
     }
 
     protected BigDecimal calculateBlockCredit(double blockReward, PayoutsSummary.UserPayoutSummary userPayout)
