@@ -31,6 +31,7 @@ extends NodeRequestor<SolvedBlock>
       Map<String, Object> criteriaMap       = new HashMap<>();
 
       criteriaMap.put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME,   SolvedBlock.CONTENT_TYPE);
+      criteriaMap.put(Node.DRUPAL_PUBLISHED_FIELD_NAME,     1);
       criteriaMap.put(SolvedBlock.DRUPAL_FIELD_STATUS,      SolvedBlock.Status.UNCONFIRMED.ordinal());
 
       try

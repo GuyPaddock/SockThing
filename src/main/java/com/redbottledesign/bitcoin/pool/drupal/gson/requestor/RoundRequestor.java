@@ -34,6 +34,7 @@ extends NodeRequestor<Round>
     Map<String, Object> criteriaMap   = new HashMap<>();
 
     criteriaMap.put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, Round.CONTENT_TYPE);
+    criteriaMap.put(Node.DRUPAL_PUBLISHED_FIELD_NAME, 1);
     criteriaMap.put(JSON_PARAM_LIMIT, 1);
 
     try
@@ -61,6 +62,7 @@ extends NodeRequestor<Round>
     Map<String, Object> criteriaMap = new HashMap<>();
 
     criteriaMap.put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, Round.CONTENT_TYPE);
+    criteriaMap.put(Node.DRUPAL_PUBLISHED_FIELD_NAME, true);
     criteriaMap.put(Round.DRUPAL_FIELD_ROUND_STATUS, Round.Status.OPEN.ordinal());
 
     try
