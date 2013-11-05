@@ -323,68 +323,82 @@ implements EvictableQueue<Long>
     @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
     protected void runPeriodicTask()
-    throws Exception
+    throws InterruptedException
     {
         QueueItem queueItem;
 
-        while ((queueItem = this.persistenceQueue.take()) != null)
+        try
         {
-            long    queueItemId     = queueItem.getItemId();
-            Entity  queueItemEntity = queueItem.getEntity();
-
-            try
+            while ((queueItem = this.persistenceQueue.take()) != null)
             {
-                if (LOGGER.isInfoEnabled())
+                long    queueItemId     = queueItem.getItemId();
+                Entity  queueItemEntity = queueItem.getEntity();
+
+                try
                 {
-                    LOGGER.info(
+                    if (LOGGER.isInfoEnabled())
+                    {
+                        LOGGER.info(
+                            String.format(
+                                "Attempting to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s).",
+                                queueItemId,
+                                queueItemEntity.getEntityType(),
+                                queueItemEntity.getBundleType()));
+                    }
+
+                    if (LOGGER.isDebugEnabled())
+                    {
+                        LOGGER.debug(
+                            String.format("Entity details (queue item ID #: %d): %s", queueItemId, queueItemEntity));
+                    }
+
+                    this.attemptToPersistItem(queueItem);
+                }
+
+                catch (Throwable ex)
+                {
+                    String error;
+
+                    // Re-queue entity for persistence
+                    QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
+
+                    error =
                         String.format(
-                            "Attempting to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s).",
+                            "Failed to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s; " +
+                            "has been re-queued): %s",
                             queueItemId,
                             queueItemEntity.getEntityType(),
-                            queueItemEntity.getBundleType()));
-                }
+                            queueItemEntity.getBundleType(),
+                            ex.getMessage());
 
-                if (LOGGER.isDebugEnabled())
-                {
-                    LOGGER.debug(
-                        String.format("Entity details (queue item ID #: %d): %s", queueItemId, queueItemEntity));
-                }
+                    if (LOGGER.isErrorEnabled())
+                    {
+                        LOGGER.error(error);
+                    }
 
-                this.attemptToPersistItem(queueItem);
+                    if (LOGGER.isDebugEnabled())
+                    {
+                        LOGGER.debug(
+                            String.format(
+                                "Contents of entity failing persistence (queue item ID #: %d): %s",
+                                queueItemId,
+                                queueItemEntity));
+                    }
+
+                    throw new RuntimeException(error, ex);
+                }
             }
+        }
 
-            catch (Throwable ex)
-            {
-                String error;
+        catch (InterruptedException ex)
+        {
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace("runPeriodicTask(): take() interrupted.");
 
-                // Re-queue entity for persistence
-                QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
-
-                error =
-                    String.format(
-                        "Failed to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s; " +
-                        "has been re-queued): %s",
-                        queueItemId,
-                        queueItemEntity.getEntityType(),
-                        queueItemEntity.getBundleType(),
-                        ex.getMessage());
-
-                if (LOGGER.isErrorEnabled())
-                {
-                    LOGGER.error(error);
-                }
-
-                if (LOGGER.isDebugEnabled())
-                {
-                    LOGGER.debug(
-                        String.format(
-                            "Contents of entity failing persistence (queue item ID #: %d): %s",
-                            queueItemId,
-                            queueItemEntity));
-                }
-
-                throw new RuntimeException(error, ex);
-            }
+            /* Important: MUST re-throw. This is necessary for
+             * interruptQueueProcessing() to work properly.
+             */
+            throw ex;
         }
     }
 

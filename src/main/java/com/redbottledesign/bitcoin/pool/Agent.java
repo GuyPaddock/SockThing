@@ -31,7 +31,7 @@ implements Stoppable
         {
             LOGGER.trace(
                 String.format(
-                    "%s constructed with frequency of %d milliseconds.",
+                    "%s constructed with a frequency of %d milliseconds.",
                     className,
                     frequencyInMilliseconds));
         }
@@ -63,10 +63,13 @@ implements Stoppable
                     {
                         LOGGER.trace(
                             String.format(
-                                "Timer threshold of %d milliseconds since last check at %d reached. " +
-                                "Calling %s.runPeriodicTask()",
+                                "Timer threshold of %d milliseconds since last check at %d reached.",
                                 this.frequencyInMilliseconds,
-                                this.lastCheck,
+                                this.lastCheck));
+
+                        LOGGER.trace(
+                            String.format(
+                                "Calling %s.runPeriodicTask()",
                                 this.getClass().getSimpleName()));
                     }
 
@@ -91,6 +94,9 @@ implements Stoppable
 
             if (!this.isStopping)
             {
+                /* NOTE: This may block if this agent was interrupted to
+                 * modify with its data.
+                 */
                 synchronized (this)
                 {
                     try
@@ -110,9 +116,10 @@ implements Stoppable
                         this.wait(waitDuration);
                     }
 
-                    catch (InterruptedException e)
+                    catch (InterruptedException ex)
                     {
-                        // Suppressed; expected
+                        if (LOGGER.isTraceEnabled())
+                            LOGGER.trace("run(): wait() interrupted.");
                     }
                 }
             }
@@ -143,7 +150,8 @@ implements Stoppable
 
         catch (InterruptedException e)
         {
-            // Suppress; expected.
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace("stopProcessing(): join() interrupted.");
         }
     }
 

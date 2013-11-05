@@ -2,26 +2,32 @@ package com.redbottledesign.util;
 
 import java.util.concurrent.BlockingQueue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class QueueUtils
 {
-  public static <T> void ensureQueued(BlockingQueue<T> queue, T object)
-  {
-    boolean saved = false;
+    private static final Logger LOGGER = LoggerFactory.getLogger(QueueUtils.class);
 
-    do
+    public static <T> void ensureQueued(BlockingQueue<T> queue, T object)
     {
-      try
-      {
-        queue.put(object);
+        boolean saved = false;
 
-        saved = true;
-      }
+        do
+        {
+            try
+            {
+                queue.put(object);
 
-      catch (InterruptedException innerEx)
-      {
-        // Suppressed; expected
-      }
+                saved = true;
+            }
+
+            catch (InterruptedException innerEx)
+            {
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("ensureQueued(): put() interrupted.");
+            }
+        }
+        while (!saved);
     }
-    while (!saved);
-  }
 }

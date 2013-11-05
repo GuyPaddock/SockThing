@@ -33,7 +33,6 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
 
     private static final long ROUND_UPDATE_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
 
-    private final StratumServer server;
     private final PersistenceAgent persistenceAgent;
     private final RoundRequestor roundRequestor;
     private final User.Reference poolDaemonUser;
@@ -47,7 +46,6 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
 
         DrupalSession session = server.getSession();
 
-        this.server             = server;
         this.persistenceAgent   = server.getAgent(PersistenceAgent.class);
         this.roundRequestor     = session.getRoundRequestor();
         this.poolDaemonUser     = session.getPoolDaemonUser().asReference();
@@ -79,7 +77,8 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
 
                     catch (InterruptedException e)
                     {
-                        // Suppressed; expected.
+                        if (LOGGER.isTraceEnabled())
+                            LOGGER.trace("getCurrentRoundSynchronized(): wait() interrupted.");
                     }
                 }
             }
@@ -241,7 +240,8 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
 
             catch (InterruptedException ex)
             {
-                // Suppressed; expected
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("startNewRoundAndWait(): wait() interrupted.");
             }
         }
         while ((this.nextRound != null) && (this.currentRound != this.nextRound));

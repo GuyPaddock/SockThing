@@ -678,6 +678,8 @@ public class StratumServer
 
     protected class TimeoutThread extends Thread
     {
+        private final Logger LOGGER = LoggerFactory.getLogger(TimeoutThread.class);
+
         public TimeoutThread()
         {
             this.setName("TimeoutThread");
@@ -721,7 +723,8 @@ public class StratumServer
 
                 catch (InterruptedException ex)
                 {
-                    // Expected
+                    if (LOGGER.isTraceEnabled())
+                        LOGGER.trace("run(): sleep() interrupted.");
                 }
             }
         }
