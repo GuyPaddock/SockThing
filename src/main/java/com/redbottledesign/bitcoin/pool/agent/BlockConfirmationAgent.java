@@ -92,13 +92,25 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
                 {
                     int confirmationCount = this.server.getBlockConfirmationCount(blockHash);
 
-                    if (confirmationCount >= MIN_REQUIRED_BLOCK_CONFIRMATIONS)
+                    if (confirmationCount < MIN_REQUIRED_BLOCK_CONFIRMATIONS)
+                    {
+                        if (LOGGER.isDebugEnabled())
+                        {
+                            LOGGER.info(
+                                String.format(
+                                    "  Block '%s' is not yet mature (only %d confirmations but need %d).",
+                                    blockHash,
+                                    confirmationCount,
+                                    MIN_REQUIRED_BLOCK_CONFIRMATIONS));
+                        }
+                    }
+
+                    else
                     {
                         if (LOGGER.isInfoEnabled())
-                            LOGGER.info(String.format("  Block '%s' is now confirmed; updating status."));
+                            LOGGER.info(String.format("  Block '%s' is now confirmed; updating status.", blockHash));
 
                         block.setStatus(SolvedBlock.Status.CONFIRMED);
-                        blockRequestor.update(block);
 
                         this.persistenceAgent.queueForSave(block, new BlockConfirmationCallback());
                     }
@@ -150,7 +162,12 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
             if (pplnsAgent != null)
             {
                 if (LOGGER.isInfoEnabled())
-                    LOGGER.info(String.format("  Block '%s' status updated. Queuing-up PPLNS block credits."));
+                {
+                    LOGGER.info(
+                        String.format(
+                            "  Block '%s' status updated. Queuing-up PPLNS block credits.",
+                            savedBlock.getHash()));
+                }
 
                 pplnsAgent.queueBlockForPayout(savedBlock);
             }
@@ -158,7 +175,12 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
             else
             {
                 if (LOGGER.isInfoEnabled())
-                    LOGGER.info(String.format("  Block '%s' status updated, but there is no PPLNS agent configured."));
+                {
+                    LOGGER.info(
+                        String.format(
+                            "  Block '%s' status updated, but there is no PPLNS agent configured.",
+                            savedBlock.getHash()));
+                }
             }
         }
 
