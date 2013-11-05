@@ -411,10 +411,13 @@ implements EvictableQueue<Long>
             requestor.update(queueEntity);
         }
 
-        this.notifyCheckpointListenersOnItemExpired(queueItem);
-
         if (callback != null)
             callback.onEntitySaved(queueEntity);
+
+        /* BUG BUG: If the entity saved but the callback failed, we're going to
+         *          end up trying to save the entity all over again...
+         */
+        this.notifyCheckpointListenersOnItemExpired(queueItem);
     }
 
     protected synchronized void interruptQueueProcessing()
