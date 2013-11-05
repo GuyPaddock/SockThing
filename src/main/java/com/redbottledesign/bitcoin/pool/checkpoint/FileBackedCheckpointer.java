@@ -262,6 +262,7 @@ implements Checkpointer, CheckpointListener
     protected File getCheckpointStorageDirectory(FileStoreType storeType, Checkpointable checkpointable)
     {
         return new File(
+            this.fileStorePath                      + File.separator +
             storeType.getRelativePath()             + File.separator +
             checkpointable.getCheckpointableName()  + File.separator);
     }
@@ -269,12 +270,12 @@ implements Checkpointer, CheckpointListener
     protected File getCheckpointItemFile(FileStoreType storeType, Checkpointable checkpointable,
                                          CheckpointItem checkpoint)
     {
+        String checkpointStoragePath = this.getCheckpointStorageDirectory(storeType, checkpointable).getPath();
+
         return new File(
-            this.fileStorePath                      + File.separator +
-            storeType.getRelativePath()             + File.separator +
-            checkpointable.getCheckpointableName()  + File.separator +
-            checkpoint.getCheckpointType()          + File.separator +
-            checkpoint.getCheckpointId()            + ".json");
+            checkpointStoragePath           + File.separator +
+            checkpoint.getCheckpointType()  + File.separator +
+            checkpoint.getCheckpointId()    + ".json");
     }
 
     protected enum FileStoreType
