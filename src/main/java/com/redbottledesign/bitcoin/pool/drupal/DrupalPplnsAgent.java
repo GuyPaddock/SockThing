@@ -36,11 +36,12 @@ public class DrupalPplnsAgent
 extends CheckpointableAgent
 implements PplnsAgent, EvictableQueue<String>
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DrupalPplnsAgent.class);
-
     private static final String CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_SOLVER = "payout_block_percentage_solver";
     private static final String CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_NORMAL = "payout_block_percentage_normal";
     private static final String CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_POOL_FEE = "payout_block_percentage_pool_fee";
+    private static final String CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE = "testing.agents.pplns.simulate_payout_failure";
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DrupalPplnsAgent.class);
 
     private final StratumServer server;
     private final BlockingQueue<BlockQueueItem> pendingBlockQueue;
@@ -48,6 +49,7 @@ implements PplnsAgent, EvictableQueue<String>
     private double solverPercentage;
     private double normalPercentage;
     private double poolFee;
+    private boolean testingSimulateFailure;
 
     public DrupalPplnsAgent(StratumServer server)
     {
@@ -59,7 +61,12 @@ implements PplnsAgent, EvictableQueue<String>
     }
 
     @Override
-    public void queueBlockForPayout(SolvedBlock block)
+    public void payoutForBlock(SolvedBlock block)
+    {
+        this.queueBlockForPayoutForBlock(block);
+    }
+
+    public void queueBlockForPayoutForBlock(SolvedBlock block)
     {
         BlockQueueItem queueItem = new BlockQueueItem(block);
 
@@ -83,6 +90,9 @@ implements PplnsAgent, EvictableQueue<String>
         boolean                     atLeastOneItemEvicted = false;
         Iterator<BlockQueueItem>    queueIterator;
 
+        /* After this call, the PPLNS agent should block before the wait() in
+         * Agent.run().
+         */
         this.interruptQueueProcessing();
 
         if (LOGGER.isDebugEnabled())
@@ -130,6 +140,9 @@ implements PplnsAgent, EvictableQueue<String>
     {
         boolean queueHasItems;
 
+        /* After this call, the PPLNS agent should block before the wait() in
+         * Agent.run().
+         */
         this.interruptQueueProcessing();
 
         queueHasItems = !this.pendingBlockQueue.isEmpty();
@@ -148,12 +161,15 @@ implements PplnsAgent, EvictableQueue<String>
     @Override
     public Type getCheckpointItemType()
     {
-        return SolvedBlock.class;
+        return BlockQueueItem.class;
     }
 
     @Override
     public synchronized Collection<? extends CheckpointItem> captureCheckpoint()
     {
+        /* After this call, the PPLNS agent should block before the wait() in
+         * Agent.run().
+         */
         this.interruptQueueProcessing();
 
         if (LOGGER.isInfoEnabled())
@@ -174,6 +190,9 @@ implements PplnsAgent, EvictableQueue<String>
         if (LOGGER.isInfoEnabled())
             LOGGER.info(String.format("Restoring %d items from a checkpoint.", checkpoint.size()));
 
+        /* After this call, the PPLNS agent should block before the wait() in
+         * Agent.run().
+         */
         this.interruptQueueProcessing();
 
         for (CheckpointItem checkpointItem : checkpoint)
@@ -209,6 +228,10 @@ implements PplnsAgent, EvictableQueue<String>
     protected void loadConfig()
     {
         double totalPercentage;
+
+        this.testingSimulateFailure =
+            config.isSet(CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE) &&
+            config.getBoolean(CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE);
 
         this.config.require(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_SOLVER);
         this.config.require(CONFIG_VALUE_PAYOUT_BLOCK_PERCENTAGE_NORMAL);
@@ -318,6 +341,9 @@ implements PplnsAgent, EvictableQueue<String>
                                     poolDaemonUser));
                         }
                     }
+
+                    if (this.testingSimulateFailure)
+                        throw new RuntimeException("Simulated failure for testing.");
                 }
 
                 catch (Throwable ex)

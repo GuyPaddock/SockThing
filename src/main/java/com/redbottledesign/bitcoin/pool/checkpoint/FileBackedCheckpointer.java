@@ -29,6 +29,7 @@ implements Checkpointer, CheckpointListener
     private static final String CONFIG_PATH_FILE_STORE                  = "fileStorePath";
     private static final String FILE_STORE_UNPROCESSED_DIRECTORY_PATH   = "unprocessed";
     private static final String FILE_STORE_PROCESSED_DIRECTORY_PATH     = "processed";
+    private static final String FILENAME_SUFFIX_JSON = ".json";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FileBackedCheckpointer.class);
 
@@ -110,7 +111,7 @@ implements Checkpointer, CheckpointListener
     @Override
     public void onCheckpointItemCreated(Checkpointable checkpointable, CheckpointItem checkpointItem)
     {
-        File checkpointFile = this.getCheckpointItemFile(FileStoreType.UNPROCESSED, checkpointable, checkpointItem);
+        File checkpointFile = this.generateCheckpointItemFile(FileStoreType.UNPROCESSED, checkpointable, checkpointItem);
 
         try
         {
@@ -148,7 +149,7 @@ implements Checkpointer, CheckpointListener
         if ((checkpointFile != null) && checkpointFile.exists())
         {
             File processedCheckpointFile =
-                this.getCheckpointItemFile(FileStoreType.PROCESSED, checkpointable, checkpointItem);
+                this.generateCheckpointItemFile(FileStoreType.PROCESSED, checkpointable, checkpointItem);
 
             // Remove the original (now processed) file
             checkpointFile.delete();
@@ -267,15 +268,37 @@ implements Checkpointer, CheckpointListener
             checkpointable.getCheckpointableName()  + File.separator);
     }
 
-    protected File getCheckpointItemFile(FileStoreType storeType, Checkpointable checkpointable,
-                                         CheckpointItem checkpoint)
+    protected File generateCheckpointItemFile(FileStoreType storeType, Checkpointable checkpointable,
+                                              CheckpointItem checkpoint)
     {
-        String checkpointStoragePath = this.getCheckpointStorageDirectory(storeType, checkpointable).getPath();
+        String  checkpointStoragePath = this.getCheckpointStorageDirectory(storeType, checkpointable).getPath(),
+                candidateFilename;
+        int     candidateIndex        = 0;
+        File    candidateFile;
 
-        return new File(
+        candidateFilename =
             checkpointStoragePath           + File.separator +
             checkpoint.getCheckpointType()  + File.separator +
-            checkpoint.getCheckpointId()    + ".json");
+            checkpoint.getCheckpointId();
+
+        candidateFile = new File(candidateFilename + FILENAME_SUFFIX_JSON);
+
+        while (candidateFile.exists())
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    String.format(
+                        "Checkpoint file '%s' already exists?! All checkpoint filenames should be unique. " +
+                        "Attempting to generate a unique filename.",
+                        candidateFile.getAbsolutePath()));
+            }
+
+            candidateFile =
+                new File(String.format("%s-%d%s", candidateFilename, ++candidateIndex, FILENAME_SUFFIX_JSON));
+        }
+
+        return candidateFile;
     }
 
     protected enum FileStoreType

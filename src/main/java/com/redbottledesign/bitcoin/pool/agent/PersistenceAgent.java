@@ -9,10 +9,14 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
@@ -35,6 +39,8 @@ extends CheckpointableAgent
 implements EvictableQueue<Long>
 {
     private static final String CONFIG_VALUE_PERSISTENCE_THREAD_COUNT = "persistence_threads";
+    private static final String CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE = "testing.agents.persistence.simulate_persistence_failure";
+
     private static final int MAX_EXTRA_HTTP_CONNECTIONS = 5;
     private static final int DEFAULT_PERSISTENCE_THREAD_COUNT = 1;
 
@@ -43,20 +49,23 @@ implements EvictableQueue<Long>
     private final StratumServer server;
     private final RequestorRegistry requestorRegistry;
     private final BlockingQueue<QueueItem<? extends Entity<?>>> persistenceQueue;
+    private final ShadowQueue shadowQueueCopy;
 
     private int numPersistenceThreads;
+    private boolean testingSimulateFailure;
 
     public PersistenceAgent(StratumServer server)
     {
-        this.server                 = server;
-        this.requestorRegistry      = new RequestorRegistry(this.server);
-        this.persistenceQueue       = new LinkedBlockingQueue<>();
+        this.server             = server;
+        this.requestorRegistry  = new RequestorRegistry(this.server);
+        this.persistenceQueue   = new LinkedBlockingQueue<>();
+        this.shadowQueueCopy    = new ShadowQueue();
 
         this.setNumPersistenceThreads(DEFAULT_PERSISTENCE_THREAD_COUNT);
     }
 
     @Override
-    public synchronized void start()
+    public void start()
     {
         if (LOGGER.isInfoEnabled())
             LOGGER.info("Starting persistence threads...");
@@ -82,21 +91,202 @@ implements EvictableQueue<Long>
             LOGGER.info("Persistence threads started.");
     }
 
-    protected void setNumPersistenceThreads(int numPersistenceThreads)
+    public void queueForSave(Entity<?> entity)
     {
-        PoolingHttpClientConnectionManager connectionManager = HttpClientFactory.getInstance().getConnectionManager();
-        int                                maxConnections    = numPersistenceThreads + MAX_EXTRA_HTTP_CONNECTIONS;
+        this.queueForSave(entity, null);
+    }
 
-        this.numPersistenceThreads = numPersistenceThreads;
+    public <T extends Entity<?>> void queueForSave(T entity, PersistenceCallback<T> callback)
+    {
+        QueueItem<T> queueItem = new QueueItem<T>(entity, callback);
 
-        // Scale HTTP connection pool size accordingly.
-        connectionManager.setMaxTotal(maxConnections);
-        connectionManager.setDefaultMaxPerRoute(maxConnections);
+        this.notifyCheckpointListenersOnItemCreated(queueItem);
+
+        // Add to shadow queue first...
+        this.shadowQueueCopy.addItem(queueItem);
+        QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
+    }
+
+    @Override
+    public synchronized boolean evictQueueItem(Long itemId)
+    {
+        return this.evictQueueItems(Collections.singleton(itemId));
+    }
+
+    @Override
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public synchronized boolean evictQueueItems(Set<Long> itemIds)
+    {
+        boolean                 atLeastOneItemEvicted = false;
+        Iterator<QueueItem<?>>  queueIterator;
+
+        /* After this call, all persistence agent threads should block before
+         * the wait() in Agent.run().
+         */
+        this.interruptQueueProcessing();
+
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Evicting items from persistence queue: " + itemIds);
+
+        queueIterator = this.persistenceQueue.iterator();
+
+        while (queueIterator.hasNext())
+        {
+            QueueItem           queueItem       = queueIterator.next();
+            long                itemId          = queueItem.getItemId();
+            Entity              itemEntity      = queueItem.getEntity();
+            PersistenceCallback itemCallback    = queueItem.getCallback();
+
+            if (itemIds.contains(itemId))
+            {
+                if (LOGGER.isInfoEnabled())
+                {
+                    LOGGER.info(
+                        String.format(
+                            "Evicting persistence queue item upon request (queue item ID #: %d): %s",
+                            itemId,
+                            itemEntity));
+                }
+
+                // Remove from shadow queue last...
+                queueIterator.remove();
+                this.shadowQueueCopy.removeItem(queueItem);
+
+                if (itemCallback != null)
+                    itemCallback.onEntityEvicted(itemEntity);
+
+                atLeastOneItemEvicted = true;
+                break;
+            }
+        }
+
+        if (LOGGER.isInfoEnabled())
+        {
+            if (atLeastOneItemEvicted)
+                LOGGER.info("evictQueueItems() was called and at least one item was evicted.");
+
+            else
+                LOGGER.info("evictQueueItems() was called, but no items were evicted.");
+        }
+
+        return atLeastOneItemEvicted;
+    }
+
+    @Override
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public synchronized boolean evictAllQueueItems()
+    {
+        boolean queueHasItems;
+
+        /* After this call, all persistence agent threads should block before
+         * the wait() in Agent.run().
+         */
+        this.interruptQueueProcessing();
+
+        queueHasItems = !this.persistenceQueue.isEmpty();
+
+        if (queueHasItems)
+        {
+            Iterator<QueueItem<?>> queueIterator = this.persistenceQueue.iterator();
+
+            if (LOGGER.isInfoEnabled())
+                LOGGER.info("Evicting all persistence queue item upon request.");
+
+            while (queueIterator.hasNext())
+            {
+                QueueItem           queueItem       = queueIterator.next();
+                PersistenceCallback itemCallback    = queueItem.getCallback();
+
+                queueIterator.remove();
+
+                if (itemCallback != null)
+                    itemCallback.onEntityEvicted(queueItem.getEntity());
+            }
+        }
+
+        return queueHasItems;
+    }
+
+    public QueryableQueue getQueryableQueue()
+    {
+        return this.shadowQueueCopy;
+    }
+
+    @Override
+    public Type getCheckpointItemType()
+    {
+        return new TypeToken<QueueItem<?>>(){}.getType();
+    }
+
+    @Override
+    public synchronized Collection<? extends CheckpointItem> captureCheckpoint()
+    {
+        /* After this call, all persistence agent threads should block before
+         * the wait() in Agent.run().
+         */
+        this.interruptQueueProcessing();
+
+        if (LOGGER.isInfoEnabled())
+        {
+            LOGGER.info(
+                String.format("Capturing checkpoint of %d persistence queue items.", this.persistenceQueue.size()));
+        }
+
+        return new ArrayList<>(this.persistenceQueue);
+    }
+
+    @Override
+    public synchronized void restoreFromCheckpoint(Collection<? extends CheckpointItem> checkpoint)
+    {
+        Set<Long>           checkpointItemIds   = new HashSet<>();
+        List<QueueItem<?>>  newQueueItems       = new ArrayList<>(checkpoint.size());
+
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info(String.format("Restoring %d items from a checkpoint.", checkpoint.size()));
+
+        /* After this call, all persistence agent threads should block before
+         * the wait() in Agent.run().
+         */
+        this.interruptQueueProcessing();
+
+        for (CheckpointItem checkpointItem : checkpoint)
+        {
+            QueueItem<?> queueItem;
+
+            if (!(checkpointItem instanceof QueueItem))
+            {
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        "A checkpoint item was provided that is not a PersistenceQueueItem (ignoring): " +
+                        checkpointItem);
+                }
+            }
+
+            else
+            {
+                queueItem = (QueueItem<?>)checkpointItem;
+
+                checkpointItemIds.add(queueItem.getItemId());
+                newQueueItems.add(queueItem);
+            }
+        }
+
+        // Only evict items we're replacing from the checkpoint.
+        this.evictQueueItems(checkpointItemIds);
+
+        // Add to shadow queue first...
+        this.shadowQueueCopy.addAllItems(newQueueItems);
+        this.persistenceQueue.addAll(newQueueItems);
     }
 
     protected void loadThreadConfig()
     {
         Config config = this.server.getConfig();
+
+        this.testingSimulateFailure =
+            config.isSet(CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE) &&
+            config.getBoolean(CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE);
 
         if (config.isSet(CONFIG_VALUE_PERSISTENCE_THREAD_COUNT))
         {
@@ -139,185 +329,16 @@ implements EvictableQueue<Long>
         }
     }
 
-    public void queueForSave(Entity<?> entity)
+    protected void setNumPersistenceThreads(int numPersistenceThreads)
     {
-        this.queueForSave(entity, null);
-    }
+        PoolingHttpClientConnectionManager connectionManager = HttpClientFactory.getInstance().getConnectionManager();
+        int                                maxConnections    = numPersistenceThreads + MAX_EXTRA_HTTP_CONNECTIONS;
 
-    public <T extends Entity<?>> void queueForSave(T entity, PersistenceCallback<T> callback)
-    {
-        QueueItem<T> queueItem = new QueueItem<T>(entity, callback);
+        this.numPersistenceThreads = numPersistenceThreads;
 
-        this.notifyCheckpointListenersOnItemCreated(queueItem);
-        QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
-    }
-
-    @Override
-    public synchronized boolean evictQueueItem(Long itemId)
-    {
-        return this.evictQueueItems(Collections.singleton(itemId));
-    }
-
-    @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public synchronized boolean evictQueueItems(Set<Long> itemIds)
-    {
-        boolean                 atLeastOneItemEvicted = false;
-        Iterator<QueueItem<?>>  queueIterator;
-
-        this.interruptQueueProcessing();
-
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Evicting items from persistence queue: " + itemIds);
-
-        queueIterator = this.persistenceQueue.iterator();
-
-        while (queueIterator.hasNext())
-        {
-            QueueItem           queueItem       = queueIterator.next();
-            long                itemId          = queueItem.getItemId();
-            Entity              itemEntity      = queueItem.getEntity();
-            PersistenceCallback itemCallback    = queueItem.getCallback();
-
-            if (itemIds.contains(itemId))
-            {
-                if (LOGGER.isInfoEnabled())
-                {
-                    LOGGER.info(
-                        String.format(
-                            "Evicting persistence queue item upon request (queue item ID #: %d): %s",
-                            itemId,
-                            itemEntity));
-                }
-
-                queueIterator.remove();
-
-                if (itemCallback != null)
-                    itemCallback.onEntityEvicted(itemEntity);
-
-                atLeastOneItemEvicted = true;
-                break;
-            }
-        }
-
-        if (LOGGER.isInfoEnabled())
-        {
-            if (atLeastOneItemEvicted)
-                LOGGER.info("evictQueueItems() was called and at least one item was evicted.");
-
-            else
-                LOGGER.info("evictQueueItems() was called, but no items were evicted.");
-        }
-
-        return atLeastOneItemEvicted;
-    }
-
-    @Override
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public synchronized boolean evictAllQueueItems()
-    {
-        boolean queueHasItems;
-
-        this.interruptQueueProcessing();
-
-        queueHasItems = !this.persistenceQueue.isEmpty();
-
-        if (queueHasItems)
-        {
-            Iterator<QueueItem<?>> queueIterator = this.persistenceQueue.iterator();
-
-            if (LOGGER.isInfoEnabled())
-                LOGGER.info("Evicting all persistence queue item upon request.");
-
-            while (queueIterator.hasNext())
-            {
-                QueueItem           queueItem       = queueIterator.next();
-                PersistenceCallback itemCallback    = queueItem.getCallback();
-
-                queueIterator.remove();
-
-                if (itemCallback != null)
-                    itemCallback.onEntityEvicted(queueItem.getEntity());
-            }
-        }
-
-        return queueHasItems;
-    }
-
-    public synchronized boolean hasQueuedItemMatchingSieve(PersistenceAgent.QueueItemSieve sieve)
-    {
-        boolean result = false;
-
-        for (QueueItem<? extends Entity<?>> queueItem : this.persistenceQueue)
-        {
-            if (sieve.matches(queueItem))
-            {
-                result = true;
-                break;
-            }
-        }
-
-        return result;
-    }
-
-    @Override
-    public Type getCheckpointItemType()
-    {
-        return new TypeToken<QueueItem<?>>(){}.getType();
-    }
-
-    @Override
-    public synchronized Collection<? extends CheckpointItem> captureCheckpoint()
-    {
-        this.interruptQueueProcessing();
-
-        if (LOGGER.isInfoEnabled())
-        {
-            LOGGER.info(
-                String.format("Capturing checkpoint of %d persistence queue items.", this.persistenceQueue.size()));
-        }
-
-        return new ArrayList<>(this.persistenceQueue);
-    }
-
-    @Override
-    public synchronized void restoreFromCheckpoint(Collection<? extends CheckpointItem> checkpoint)
-    {
-        Set<Long>           checkpointItemIds   = new HashSet<>();
-        List<QueueItem<?>>  newQueueItems       = new ArrayList<>(checkpoint.size());
-
-        if (LOGGER.isInfoEnabled())
-            LOGGER.info(String.format("Restoring %d items from a checkpoint.", checkpoint.size()));
-
-        this.interruptQueueProcessing();
-
-        for (CheckpointItem checkpointItem : checkpoint)
-        {
-            QueueItem<?> queueItem;
-
-            if (!(checkpointItem instanceof QueueItem))
-            {
-                if (LOGGER.isErrorEnabled())
-                {
-                    LOGGER.error(
-                        "A checkpoint item was provided that is not a PersistenceQueueItem (ignoring): " +
-                        checkpointItem);
-                }
-            }
-
-            else
-            {
-                queueItem = (QueueItem<?>)checkpointItem;
-
-                checkpointItemIds.add(queueItem.getItemId());
-                newQueueItems.add(queueItem);
-            }
-        }
-
-        // Only evict items we're replacing from the checkpoint.
-        this.evictQueueItems(checkpointItemIds);
-
-        this.persistenceQueue.addAll(newQueueItems);
+        // Scale HTTP connection pool size accordingly.
+        connectionManager.setMaxTotal(maxConnections);
+        connectionManager.setDefaultMaxPerRoute(maxConnections);
     }
 
     @Override
@@ -340,7 +361,8 @@ implements EvictableQueue<Long>
                     {
                         LOGGER.info(
                             String.format(
-                                "Attempting to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s).",
+                                "Attempting to persist entity (queue item ID #: %d, entity type: %s, bundle " +
+                                "type: %s).",
                                 queueItemId,
                                 queueItemEntity.getEntityType(),
                                 queueItemEntity.getBundleType()));
@@ -349,10 +371,16 @@ implements EvictableQueue<Long>
                     if (LOGGER.isDebugEnabled())
                     {
                         LOGGER.debug(
-                            String.format("Entity details (queue item ID #: %d): %s", queueItemId, queueItemEntity));
+                            String.format(
+                                "Entity details (queue item ID #: %d): %s",
+                                queueItemId,
+                                queueItemEntity));
                     }
 
                     this.attemptToPersistItem(queueItem);
+
+                    // Remove from shadow copy, now that item has been successfully processed.
+                    this.shadowQueueCopy.removeItem(queueItem);
                 }
 
                 catch (Throwable ex)
@@ -372,9 +400,7 @@ implements EvictableQueue<Long>
                             ex.getMessage());
 
                     if (LOGGER.isErrorEnabled())
-                    {
                         LOGGER.error(error);
-                    }
 
                     if (LOGGER.isDebugEnabled())
                     {
@@ -409,19 +435,22 @@ implements EvictableQueue<Long>
         PersistenceCallback<T>  callback    = queueItem.getCallback();
         EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
 
-        /// FIXME: REMOVE. THIS IS FOR TESTING.
-//        Object object = null;
-//
-//        object.toString();
-        /// END FIXME
+        if (this.testingSimulateFailure)
+            throw new RuntimeException("Simulated failure for testing.");
 
         if (queueEntity.isNew())
         {
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace("attemptToPersistItem(): item is new: " + queueEntity);
+
             requestor.saveNew(queueEntity);
         }
 
         else
         {
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace("attemptToPersistItem(): item is being updated: " + queueEntity);
+
             requestor.update(queueEntity);
         }
 
@@ -511,10 +540,192 @@ implements EvictableQueue<Long>
         {
             return this.entity.getEntityType() + File.separator + this.entity.getBundleType();
         }
+
+        @Override
+        public String toString()
+        {
+            return "QueueItem ["    +
+                   "itemId="        + itemId    + ", " +
+                   "timestamp="     + timestamp + ", " +
+                   "entity="        + entity    + ", " +
+                   "callback="      + callback  +
+                   "]";
+        }
     }
 
-    public interface QueueItemSieve
+    public static interface QueueItemSieve
     {
         public boolean matches(QueueItem<? extends Entity<?>> queueItem);
+    }
+
+    public static interface QueryableQueue
+    {
+        public abstract boolean hasItemMatchingSieve(PersistenceAgent.QueueItemSieve sieve);
+        public <T extends Entity<?>> Collection<T> getItemsMatchingSieve(Class<T> entityType,
+                                                                         PersistenceAgent.QueueItemSieve sieve);
+    }
+
+    protected static class ShadowQueue
+    implements QueryableQueue
+    {
+        private static final Logger LOGGER = LoggerFactory.getLogger(ShadowQueue.class);
+
+        private final LinkedHashSet<QueueItem<? extends Entity<?>>> queueItems;
+        private final ReadWriteLock locks;
+
+        public ShadowQueue()
+        {
+            this.queueItems = new LinkedHashSet<>();
+            this.locks      = new ReentrantReadWriteLock(true);
+        }
+
+        public void addItem(QueueItem<? extends Entity<?>> item)
+        {
+            this.locks.writeLock().lock();
+
+            try
+            {
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("addItem(): item being added to shadow copy of the queue: " + item);
+
+                this.queueItems.add(item);
+            }
+
+            finally
+            {
+                this.locks.writeLock().unlock();
+            }
+        }
+
+        public void addAllItems(Collection<QueueItem<? extends Entity<?>>> items)
+        {
+            this.locks.writeLock().lock();
+
+            try
+            {
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("addAllItems(): items being added to shadow copy of the queue: " + items);
+
+                this.queueItems.addAll(items);
+            }
+
+            finally
+            {
+                this.locks.writeLock().unlock();
+            }
+        }
+
+        public void removeItem(QueueItem<? extends Entity<?>> item)
+        {
+            this.locks.writeLock().lock();
+
+            try
+            {
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("removeItem(): item being removed from shadow copy of the queue: " + item);
+
+                this.queueItems.remove(item);
+            }
+
+            finally
+            {
+                this.locks.writeLock().unlock();
+            }
+        }
+
+        public void removeAllItems(List<QueueItem<?>> items)
+        {
+            this.locks.writeLock().lock();
+
+            try
+            {
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("removeAllItems(): items being removed from shadow copy of the queue: " + items);
+
+                this.queueItems.removeAll(items);
+            }
+
+            finally
+            {
+                this.locks.writeLock().unlock();
+            }
+        }
+
+        @Override
+        public boolean hasItemMatchingSieve(PersistenceAgent.QueueItemSieve sieve)
+        {
+            boolean result = false;
+
+            this.locks.readLock().lock();
+
+            try
+            {
+                if (LOGGER.isTraceEnabled())
+                {
+                    LOGGER.trace(
+                        "hasItemMatchingSieve(): Checking shadow queue for items matching sieve: " +
+                        sieve.getClass().getName());
+
+                    LOGGER.trace("hasItemMatchingSieve(): Shadow queue contains: " + this.queueItems);
+                }
+
+                for (QueueItem<? extends Entity<?>> queueItem : this.queueItems)
+                {
+                    if (sieve.matches(queueItem))
+                    {
+                        result = true;
+                        break;
+                    }
+                }
+
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("hasItemMatchingSieve(): Result: " + result);
+            }
+
+            finally
+            {
+                this.locks.readLock().unlock();
+            }
+
+            return result;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T extends Entity<?>> Collection<T> getItemsMatchingSieve(Class<T> entityType,
+                                                                         PersistenceAgent.QueueItemSieve sieve)
+        {
+            Collection<T> results = new LinkedList<T>();
+
+            this.locks.readLock().lock();
+
+            try
+            {
+                if (LOGGER.isTraceEnabled())
+                {
+                    LOGGER.trace(
+                        "getItemsMatchingSieve(): Selecting items from shadow queue that match sieve: " +
+                        sieve.getClass().getName());
+
+                    LOGGER.trace("getItemsMatchingSieve(): Shadow queue contains: " + this.queueItems);
+                }
+
+                for (QueueItem<? extends Entity<?>> queueItem : this.queueItems)
+                {
+                    if (sieve.matches(queueItem))
+                        results.add((T)queueItem.getEntity());
+                }
+
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("getItemsMatchingSieve(): Matching item results: " + results);
+            }
+
+            finally
+            {
+                this.locks.readLock().unlock();
+            }
+
+            return results;
+        }
     }
 }

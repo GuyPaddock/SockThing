@@ -2,6 +2,9 @@ package com.redbottledesign.bitcoin.pool.agent;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -12,7 +15,6 @@ import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Address;
 import com.redbottledesign.bitcoin.pool.Agent;
 import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItem;
-import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItemSieve;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BalancesSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
@@ -42,13 +44,23 @@ extends Agent
     protected void runPeriodicTask()
     throws IOException, DrupalHttpException
     {
-        DrupalSession               session             = this.server.getSession();
-        User.Reference              poolDaemonUser      = session.getPoolDaemonUser().asReference();
-        BalancesSummaryRequestor    balancesRequestor   = session.getBalancesRequestor();
-        BalancesSummary             allUserBalances     = balancesRequestor.requestBalancesSummary();
+        DrupalSession               session                     = this.server.getSession();
+        User.Reference              poolDaemonUser              = session.getPoolDaemonUser().asReference();
+        BalancesSummaryRequestor    balancesRequestor           = session.getBalancesRequestor();
+        BalancesSummary             allUserBalances;
+        Set<Integer>                usersWithPendingPayouts;
 
         if (LOGGER.isInfoEnabled())
             LOGGER.info("Checking for pending payouts...");
+
+        /* Check persistence queue status FIRST, then request the list of
+         * users who need payouts.
+         *
+         * This ensures that we err on the side of skipping users we may have
+         * just modified instead of paying users twice.
+         */
+        usersWithPendingPayouts = this.getUsersWithPendingPayouts();
+        allUserBalances         = balancesRequestor.requestBalancesSummary();
 
         for (BalancesSummary.UserBalanceSummary userBalance : allUserBalances.getBalances())
         {
@@ -61,7 +73,7 @@ extends Agent
                 int     userId              = userBalance.getUserId();
                 String  userPayoutAddress   = userBalance.getUserPayoutAddress();
 
-                if (this.isPayoutPendingForUser(userId))
+                if (usersWithPendingPayouts.contains(userId))
                 {
                     if (LOGGER.isInfoEnabled())
                     {
@@ -127,25 +139,31 @@ extends Agent
         }
     }
 
-    protected boolean isPayoutPendingForUser(int userId)
+    protected Set<Integer> getUsersWithPendingPayouts()
     {
-        final Integer userIdInteger = userId;
+        Set<Integer>        userIdsWithPendingPayouts = new HashSet<>();
+        Collection<Payout>  pendingPayouts;
 
-        /* Look through the persistence queue to see if we have any payouts
-         * pending for this user.
-         */
-        return this.persistenceAgent.hasQueuedItemMatchingSieve(
-            new QueueItemSieve()
-            {
-
-                @Override
-                public boolean matches(QueueItem<? extends Entity<?>> queueItem)
+        pendingPayouts =
+            this.persistenceAgent.getQueryableQueue().getItemsMatchingSieve(
+                Payout.class,
+                new PersistenceAgent.QueueItemSieve()
                 {
-                    Entity<?> entity = queueItem.getEntity();
+                    @Override
+                    public boolean matches(QueueItem<? extends Entity<?>> queueItem)
+                    {
+                        Entity<?> entity = queueItem.getEntity();
 
-                    return (Payout.class.isAssignableFrom(entity.getClass()) &&
-                            userIdInteger.equals(((Payout)entity).getRecipient().getId()));
-                }
-            });
+                        return (Payout.class.isAssignableFrom(entity.getClass()));
+                    }
+                });
+
+        // Grab block hashes for faster look-ups.
+        for (Payout payout : pendingPayouts)
+        {
+            userIdsWithPendingPayouts.add(payout.getRecipient().getId());
+        }
+
+        return userIdsWithPendingPayouts;
     }
 }

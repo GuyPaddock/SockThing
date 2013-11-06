@@ -252,7 +252,7 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
 
     protected boolean roundChangesArePending()
     {
-        return this.persistenceAgent.hasQueuedItemMatchingSieve(
+        return this.persistenceAgent.getQueryableQueue().hasItemMatchingSieve(
             new QueueItemSieve()
             {
                 @Override

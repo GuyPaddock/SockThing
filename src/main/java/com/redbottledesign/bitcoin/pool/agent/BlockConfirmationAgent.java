@@ -2,7 +2,10 @@ package com.redbottledesign.bitcoin.pool.agent;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -65,16 +68,26 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
     {
         DrupalSession           session             = this.server.getSession();
         SolvedBlockRequestor    blockRequestor      = session.getBlockRequestor();
-        List<SolvedBlock>       unconfirmedBlocks   = blockRequestor.getUnconfirmedBlocks();
+        List<SolvedBlock>       unconfirmedBlocks;
+        Set<String>             blocksPendingSave;
 
         if (LOGGER.isInfoEnabled())
             LOGGER.info("Checking for recently-confirmed blocks...");
+
+        /* Check persistence queue status FIRST, then request the list of
+         * unconfirmed blocks.
+         *
+         * This ensures that we err on the side of skipping blocks we may have
+         * just modified instead of updating the blocks twice.
+         */
+        blocksPendingSave = this.getBlockHashesWithPendingModifications();
+        unconfirmedBlocks = blockRequestor.getUnconfirmedBlocks();
 
         for (SolvedBlock block : unconfirmedBlocks)
         {
             final String blockHash = block.getHash();
 
-            if (this.blockHasPendingModifications(blockHash))
+            if (blocksPendingSave.contains(blockHash))
             {
                 if (LOGGER.isInfoEnabled())
                 {
@@ -135,20 +148,32 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
             LOGGER.info("Block confirmation check complete.");
     }
 
-    protected boolean blockHasPendingModifications(final String blockHash)
+    protected Set<String> getBlockHashesWithPendingModifications()
     {
-        return this.persistenceAgent.hasQueuedItemMatchingSieve(
-            new PersistenceAgent.QueueItemSieve()
-            {
-                @Override
-                public boolean matches(QueueItem<? extends Entity<?>> queueItem)
-                {
-                    final Entity<?> entity = queueItem.getEntity();
+        Set<String>             pendingBlockHashes = new HashSet<>();
+        Collection<SolvedBlock> pendingBlocks;
 
-                    return (entity.getClass().isAssignableFrom(SolvedBlock.class) &&
-                            ((SolvedBlock)entity).getHash().equals(blockHash));
-                }
-            });
+        pendingBlocks =
+            this.persistenceAgent.getQueryableQueue().getItemsMatchingSieve(
+                SolvedBlock.class,
+                new PersistenceAgent.QueueItemSieve()
+                {
+                    @Override
+                    public boolean matches(QueueItem<? extends Entity<?>> queueItem)
+                    {
+                        Entity<?> entity = queueItem.getEntity();
+
+                        return (SolvedBlock.class.isAssignableFrom(entity.getClass()));
+                    }
+                });
+
+        // Grab block hashes for faster look-ups.
+        for (SolvedBlock block : pendingBlocks)
+        {
+            pendingBlockHashes.add(block.getHash());
+        }
+
+        return pendingBlockHashes;
     }
 
     protected class BlockConfirmationCallback
@@ -169,7 +194,7 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
                             savedBlock.getHash()));
                 }
 
-                pplnsAgent.queueBlockForPayout(savedBlock);
+                pplnsAgent.payoutForBlock(savedBlock);
             }
 
             else

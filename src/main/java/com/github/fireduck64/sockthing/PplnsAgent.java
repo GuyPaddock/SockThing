@@ -6,5 +6,5 @@ public interface PplnsAgent
 extends Runnable
 {
   public abstract void start();
-  public abstract void queueBlockForPayout(SolvedBlock payout);
+  public abstract void payoutForBlock(SolvedBlock payout);
 }
