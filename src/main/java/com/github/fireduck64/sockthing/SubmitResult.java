@@ -15,87 +15,87 @@ public class SubmitResult
 
     public SubmitResult()
     {
-      this.ourResult = "Y";
+        this.ourResult = "Y";
     }
 
     public Sha256Hash getHash()
     {
-      return hash;
+        return hash;
     }
 
     public void setHash(Sha256Hash hash)
     {
-      this.hash = hash;
+        this.hash = hash;
     }
 
     public String getOurResult()
     {
-      return ourResult;
+        return ourResult;
     }
 
     public void setOurResult(String ourResult)
     {
-      this.ourResult = ourResult;
+        this.ourResult = ourResult;
     }
 
     public String getUpstreamResult()
     {
-      return upstreamResult;
+        return upstreamResult;
     }
 
     public void setUpstreamResult(String upstreamResult)
     {
-      this.upstreamResult = upstreamResult;
+        this.upstreamResult = upstreamResult;
     }
 
     public String getReason()
     {
-      return reason;
+        return reason;
     }
 
     public void setReason(String reason)
     {
-      this.reason = reason;
+        this.reason = reason;
     }
 
     public String getClientVersion()
     {
-      return clientVersion;
+        return clientVersion;
     }
 
     public void setClientVersion(String clientVersion)
     {
-      this.clientVersion = clientVersion;
+        this.clientVersion = clientVersion;
     }
 
     public int getHeight()
     {
-      return height;
+        return height;
     }
 
     public void setHeight(int height)
     {
-      this.height = height;
+        this.height = height;
     }
 
     public double getWorkDifficulty()
     {
-      return this.workDifficulty;
+        return this.workDifficulty;
     }
 
     public void setOurDifficulty(double ourDifficulty)
     {
-      this.workDifficulty = ourDifficulty;
+        this.workDifficulty = ourDifficulty;
     }
 
     public double getNetworkDifficulty()
     {
-      return this.networkDifficulty;
+        return this.networkDifficulty;
     }
 
     public void setNetworkDiffiult(double networkDifficulty)
     {
-      this.networkDifficulty = networkDifficulty;
+        this.networkDifficulty = networkDifficulty;
     }
 
     public static enum Status
