@@ -1,10 +1,12 @@
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.agent;
 
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.redbottledesign.bitcoin.pool.Stoppable;
 
 public abstract class Agent
 extends Thread

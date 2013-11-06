@@ -15,15 +15,16 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
-import com.redbottledesign.bitcoin.pool.Agent;
-import com.redbottledesign.bitcoin.pool.PersistenceCallback;
-import com.redbottledesign.bitcoin.pool.PersistenceCallbackFactory;
 import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent.BlockConfirmationCallback;
-import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItem;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallbackFactory;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointGsonBuilder;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.SolvedBlockRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemSieve;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
@@ -156,7 +157,7 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
         pendingBlocks =
             this.persistenceAgent.getQueryableQueue().getItemsMatchingSieve(
                 SolvedBlock.class,
-                new PersistenceAgent.QueueItemSieve()
+                new QueueItemSieve()
                 {
                     @Override
                     public boolean matches(QueueItem<? extends Entity<?>> queueItem)

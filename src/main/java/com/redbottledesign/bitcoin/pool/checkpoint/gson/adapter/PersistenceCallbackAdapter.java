@@ -17,8 +17,8 @@ import com.google.gson.internal.ConstructorConstructor;
 import com.google.gson.internal.Excluder;
 import com.google.gson.internal.bind.ReflectiveTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
-import com.redbottledesign.bitcoin.pool.PersistenceCallback;
-import com.redbottledesign.bitcoin.pool.PersistenceCallbackFactory;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallbackFactory;
 import com.redbottledesign.util.gson.PolymorphicSerializerDeserializer;
 
 public class PersistenceCallbackAdapter

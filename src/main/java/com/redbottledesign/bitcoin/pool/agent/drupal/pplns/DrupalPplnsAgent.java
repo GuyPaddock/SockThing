@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.drupal;
+package com.redbottledesign.bitcoin.pool.agent.drupal.pplns;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -21,14 +21,14 @@ import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.agent.CheckpointableAgent;
-import com.redbottledesign.bitcoin.pool.agent.EvictableQueue;
-import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
-import com.redbottledesign.bitcoin.pool.checkpoint.SimpleCheckpointItem;
+import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.PayoutsSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.BlockCredit;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.summary.PayoutsSummary;
+import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.util.QueueUtils;
 
@@ -44,7 +44,7 @@ implements PplnsAgent, EvictableQueue<String>
     private static final Logger LOGGER = LoggerFactory.getLogger(DrupalPplnsAgent.class);
 
     private final StratumServer server;
-    private final BlockingQueue<BlockQueueItem> pendingBlockQueue;
+    private final BlockingQueue<PplnsQueueItem> pendingBlockQueue;
     private final Config config;
     private double solverPercentage;
     private double normalPercentage;
@@ -68,7 +68,7 @@ implements PplnsAgent, EvictableQueue<String>
 
     public void queueBlockForPayoutForBlock(SolvedBlock block)
     {
-        BlockQueueItem queueItem = new BlockQueueItem(block);
+        PplnsQueueItem queueItem = new PplnsQueueItem(block);
 
         if (LOGGER.isInfoEnabled())
             LOGGER.info(String.format("Queuing payouts for block %d.", block.getHeight()));
@@ -88,7 +88,7 @@ implements PplnsAgent, EvictableQueue<String>
     public synchronized boolean evictQueueItems(Set<String> blockHashes)
     {
         boolean                     atLeastOneItemEvicted = false;
-        Iterator<BlockQueueItem>    queueIterator;
+        Iterator<PplnsQueueItem>    queueIterator;
 
         /* After this call, the PPLNS agent should block before the wait() in
          * Agent.run().
@@ -102,7 +102,7 @@ implements PplnsAgent, EvictableQueue<String>
 
         while (queueIterator.hasNext())
         {
-            BlockQueueItem  queueItem   = queueIterator.next();
+            PplnsQueueItem  queueItem   = queueIterator.next();
             String          blockHash   = queueItem.getValue().getHash();
 
             if (blockHashes.contains(blockHash))
@@ -161,7 +161,7 @@ implements PplnsAgent, EvictableQueue<String>
     @Override
     public Type getCheckpointItemType()
     {
-        return BlockQueueItem.class;
+        return PplnsQueueItem.class;
     }
 
     @Override
@@ -178,14 +178,14 @@ implements PplnsAgent, EvictableQueue<String>
                 String.format("Capturing checkpoint of %d queued block payouts.", this.pendingBlockQueue.size()));
         }
 
-        return new LinkedList<BlockQueueItem>(this.pendingBlockQueue);
+        return new LinkedList<PplnsQueueItem>(this.pendingBlockQueue);
     }
 
     @Override
     public void restoreFromCheckpoint(Collection<? extends CheckpointItem> checkpoint)
     {
         Set<String>          newBlockHashes = new HashSet<>();
-        List<BlockQueueItem> newQueueItems  = new ArrayList<>(checkpoint.size());
+        List<PplnsQueueItem> newQueueItems  = new ArrayList<>(checkpoint.size());
 
         if (LOGGER.isInfoEnabled())
             LOGGER.info(String.format("Restoring %d items from a checkpoint.", checkpoint.size()));
@@ -197,9 +197,9 @@ implements PplnsAgent, EvictableQueue<String>
 
         for (CheckpointItem checkpointItem : checkpoint)
         {
-            BlockQueueItem blockItem;
+            PplnsQueueItem blockItem;
 
-            if (!(checkpointItem instanceof BlockQueueItem))
+            if (!(checkpointItem instanceof PplnsQueueItem))
             {
                 if (LOGGER.isErrorEnabled())
                 {
@@ -211,7 +211,7 @@ implements PplnsAgent, EvictableQueue<String>
 
             else
             {
-                blockItem = (BlockQueueItem)checkpointItem;
+                blockItem = (PplnsQueueItem)checkpointItem;
 
                 newBlockHashes.add(blockItem.getValue().getHash());
                 newQueueItems.add(blockItem);
@@ -297,7 +297,7 @@ implements PplnsAgent, EvictableQueue<String>
         DrupalSession           session             = this.server.getSession();
         PayoutsSummaryRequestor payoutsRequestor    = session.getPayoutsSummaryRequestor();
         User.Reference          poolDaemonUser      = session.getPoolDaemonUser().asReference();
-        BlockQueueItem          currentQueueItem;
+        PplnsQueueItem          currentQueueItem;
 
         try
         {
@@ -427,14 +427,5 @@ implements PplnsAgent, EvictableQueue<String>
     protected BigDecimal calculateBlockBonus(double blockReward, PayoutsSummary.UserPayoutSummary userPayout)
     {
         return BigDecimal.valueOf(blockReward * this.solverPercentage);
-    }
-
-    protected class BlockQueueItem
-    extends SimpleCheckpointItem<SolvedBlock>
-    {
-        public BlockQueueItem(SolvedBlock block)
-        {
-            super(block.getHash(), block);
-        }
     }
 }

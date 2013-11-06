@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.agent;
+package com.redbottledesign.bitcoin.pool.util.queue;
 
 import java.util.Set;
 

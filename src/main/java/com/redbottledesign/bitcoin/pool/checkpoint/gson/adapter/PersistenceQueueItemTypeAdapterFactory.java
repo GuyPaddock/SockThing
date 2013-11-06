@@ -13,7 +13,7 @@ import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItem;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
 import com.redbottledesign.util.LateBoundParameterizedType;
 
 public class PersistenceQueueItemTypeAdapterFactory

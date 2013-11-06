@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.agent.persistence;
 
 import com.redbottledesign.drupal.Entity;
 

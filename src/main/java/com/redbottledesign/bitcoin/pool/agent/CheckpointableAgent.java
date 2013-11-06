@@ -6,7 +6,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.redbottledesign.bitcoin.pool.Agent;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointListener;
 import com.redbottledesign.bitcoin.pool.checkpoint.Checkpointable;

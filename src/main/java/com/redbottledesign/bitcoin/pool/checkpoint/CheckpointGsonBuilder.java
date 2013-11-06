@@ -5,12 +5,12 @@ import java.util.LinkedList;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.redbottledesign.bitcoin.pool.PersistenceCallback;
-import com.redbottledesign.bitcoin.pool.PersistenceCallbackFactory;
-import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallbackFactory;
 import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceCallbackAdapter;
 import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceQueueItemCreator;
 import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceQueueItemTypeAdapterFactory;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
 
 public final class CheckpointGsonBuilder
 {
@@ -55,7 +55,7 @@ public final class CheckpointGsonBuilder
                 .serializeNulls()
                 .setPrettyPrinting()
                 .registerTypeAdapterFactory(new PersistenceQueueItemTypeAdapterFactory())
-                .registerTypeAdapter(PersistenceAgent.QueueItem.class, new PersistenceQueueItemCreator())
+                .registerTypeAdapter(QueueItem.class, new PersistenceQueueItemCreator())
                 .registerTypeAdapter(PersistenceCallback.class, persistenceCallbackAdapter)
                 .create();
 

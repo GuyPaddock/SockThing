@@ -1,22 +1,16 @@
-package com.redbottledesign.bitcoin.pool.agent;
+package com.redbottledesign.bitcoin.pool.agent.persistence;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
@@ -25,9 +19,12 @@ import org.slf4j.LoggerFactory;
 import com.github.fireduck64.sockthing.Config;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.gson.reflect.TypeToken;
-import com.redbottledesign.bitcoin.pool.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.RequestorRegistry;
+import com.redbottledesign.bitcoin.pool.agent.CheckpointableAgent;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
+import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
+import com.redbottledesign.bitcoin.pool.util.queue.QueryableQueue;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.EntityRequestor;
@@ -474,258 +471,5 @@ implements EvictableQueue<Long>
          * hold the lock on this object.
          */
         this.interrupt();
-    }
-
-    public static class QueueItem<T extends Entity<?>>
-    implements CheckpointItem
-    {
-        private static volatile long itemIdCounter;
-
-        private final long itemId;
-        private final long timestamp;
-        private final T entity;
-        private final PersistenceCallback<T> callback;
-
-        protected static synchronized long getNextIndex()
-        {
-            return itemIdCounter++;
-        }
-
-        public QueueItem(T entity, PersistenceCallback<T> callback)
-        {
-            this.itemId     = getNextIndex();
-            this.timestamp  = new Date().getTime();
-            this.entity     = entity;
-            this.callback   = callback;
-        }
-
-        public long getItemId()
-        {
-            return this.itemId;
-        }
-
-        public long getTimestamp()
-        {
-            return this.timestamp;
-        }
-
-        public T getEntity()
-        {
-            return this.entity;
-        }
-
-        public PersistenceCallback<T> getCallback()
-        {
-            return this.callback;
-        }
-
-        @Override
-        public String getCheckpointId()
-        {
-            String entityIdString = "new";
-
-            if (this.entity != null)
-            {
-                Integer entityId = this.entity.getId();
-
-                if (entityId != null)
-                    entityIdString = entityId.toString();
-            }
-
-            return String.format("%d-%d-%s", this.getTimestamp(), this.getItemId(), entityIdString);
-        }
-
-        @Override
-        public String getCheckpointType()
-        {
-            return this.entity.getEntityType() + File.separator + this.entity.getBundleType();
-        }
-
-        @Override
-        public String toString()
-        {
-            return "QueueItem ["    +
-                   "itemId="        + itemId    + ", " +
-                   "timestamp="     + timestamp + ", " +
-                   "entity="        + entity    + ", " +
-                   "callback="      + callback  +
-                   "]";
-        }
-    }
-
-    public static interface QueueItemSieve
-    {
-        public boolean matches(QueueItem<? extends Entity<?>> queueItem);
-    }
-
-    public static interface QueryableQueue
-    {
-        public abstract boolean hasItemMatchingSieve(PersistenceAgent.QueueItemSieve sieve);
-        public <T extends Entity<?>> Collection<T> getItemsMatchingSieve(Class<T> entityType,
-                                                                         PersistenceAgent.QueueItemSieve sieve);
-    }
-
-    protected static class ShadowQueue
-    implements QueryableQueue
-    {
-        private static final Logger LOGGER = LoggerFactory.getLogger(ShadowQueue.class);
-
-        private final LinkedHashSet<QueueItem<? extends Entity<?>>> queueItems;
-        private final ReadWriteLock locks;
-
-        public ShadowQueue()
-        {
-            this.queueItems = new LinkedHashSet<>();
-            this.locks      = new ReentrantReadWriteLock(true);
-        }
-
-        public void addItem(QueueItem<? extends Entity<?>> item)
-        {
-            this.locks.writeLock().lock();
-
-            try
-            {
-                if (LOGGER.isTraceEnabled())
-                    LOGGER.trace("addItem(): item being added to shadow copy of the queue: " + item);
-
-                this.queueItems.add(item);
-            }
-
-            finally
-            {
-                this.locks.writeLock().unlock();
-            }
-        }
-
-        public void addAllItems(Collection<QueueItem<? extends Entity<?>>> items)
-        {
-            this.locks.writeLock().lock();
-
-            try
-            {
-                if (LOGGER.isTraceEnabled())
-                    LOGGER.trace("addAllItems(): items being added to shadow copy of the queue: " + items);
-
-                this.queueItems.addAll(items);
-            }
-
-            finally
-            {
-                this.locks.writeLock().unlock();
-            }
-        }
-
-        public void removeItem(QueueItem<? extends Entity<?>> item)
-        {
-            this.locks.writeLock().lock();
-
-            try
-            {
-                if (LOGGER.isTraceEnabled())
-                    LOGGER.trace("removeItem(): item being removed from shadow copy of the queue: " + item);
-
-                this.queueItems.remove(item);
-            }
-
-            finally
-            {
-                this.locks.writeLock().unlock();
-            }
-        }
-
-        public void removeAllItems(List<QueueItem<?>> items)
-        {
-            this.locks.writeLock().lock();
-
-            try
-            {
-                if (LOGGER.isTraceEnabled())
-                    LOGGER.trace("removeAllItems(): items being removed from shadow copy of the queue: " + items);
-
-                this.queueItems.removeAll(items);
-            }
-
-            finally
-            {
-                this.locks.writeLock().unlock();
-            }
-        }
-
-        @Override
-        public boolean hasItemMatchingSieve(PersistenceAgent.QueueItemSieve sieve)
-        {
-            boolean result = false;
-
-            this.locks.readLock().lock();
-
-            try
-            {
-                if (LOGGER.isTraceEnabled())
-                {
-                    LOGGER.trace(
-                        "hasItemMatchingSieve(): Checking shadow queue for items matching sieve: " +
-                        sieve.getClass().getName());
-
-                    LOGGER.trace("hasItemMatchingSieve(): Shadow queue contains: " + this.queueItems);
-                }
-
-                for (QueueItem<? extends Entity<?>> queueItem : this.queueItems)
-                {
-                    if (sieve.matches(queueItem))
-                    {
-                        result = true;
-                        break;
-                    }
-                }
-
-                if (LOGGER.isTraceEnabled())
-                    LOGGER.trace("hasItemMatchingSieve(): Result: " + result);
-            }
-
-            finally
-            {
-                this.locks.readLock().unlock();
-            }
-
-            return result;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T extends Entity<?>> Collection<T> getItemsMatchingSieve(Class<T> entityType,
-                                                                         PersistenceAgent.QueueItemSieve sieve)
-        {
-            Collection<T> results = new LinkedList<T>();
-
-            this.locks.readLock().lock();
-
-            try
-            {
-                if (LOGGER.isTraceEnabled())
-                {
-                    LOGGER.trace(
-                        "getItemsMatchingSieve(): Selecting items from shadow queue that match sieve: " +
-                        sieve.getClass().getName());
-
-                    LOGGER.trace("getItemsMatchingSieve(): Shadow queue contains: " + this.queueItems);
-                }
-
-                for (QueueItem<? extends Entity<?>> queueItem : this.queueItems)
-                {
-                    if (sieve.matches(queueItem))
-                        results.add((T)queueItem.getEntity());
-                }
-
-                if (LOGGER.isTraceEnabled())
-                    LOGGER.trace("getItemsMatchingSieve(): Matching item results: " + results);
-            }
-
-            finally
-            {
-                this.locks.readLock().unlock();
-            }
-
-            return results;
-        }
     }
 }

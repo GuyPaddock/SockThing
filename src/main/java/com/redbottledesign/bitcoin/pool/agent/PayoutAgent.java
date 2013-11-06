@@ -13,12 +13,13 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.Address;
-import com.redbottledesign.bitcoin.pool.Agent;
-import com.redbottledesign.bitcoin.pool.agent.PersistenceAgent.QueueItem;
+import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.BalancesSummaryRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
 import com.redbottledesign.bitcoin.pool.drupal.summary.BalancesSummary;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemSieve;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.User;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
@@ -147,7 +148,7 @@ extends Agent
         pendingPayouts =
             this.persistenceAgent.getQueryableQueue().getItemsMatchingSieve(
                 Payout.class,
-                new PersistenceAgent.QueueItemSieve()
+                new QueueItemSieve()
                 {
                     @Override
                     public boolean matches(QueueItem<? extends Entity<?>> queueItem)

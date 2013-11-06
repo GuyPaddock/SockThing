@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.util;
+package com.redbottledesign.bitcoin.pool.tool;
 
 import java.io.BufferedWriter;
 import java.io.IOException;

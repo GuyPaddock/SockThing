@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.persistence.db.DB;
-import com.redbottledesign.bitcoin.pool.Agent;
+import com.redbottledesign.bitcoin.pool.agent.Agent;
 
 /**
  * Optional database of witty remarks to be injected into Coinbase transactions
