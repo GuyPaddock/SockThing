@@ -401,8 +401,8 @@ public class StratumServer
 
         for (int i = 0; i < 10; i++)
         {
-            if (LOGGER.isInfoEnabled())
-                LOGGER.info("Attempting block submit: " + blk);
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug("Attempting block submit: " + blk);
 
             result = submitBlockAttempt(blk);
 
@@ -523,8 +523,8 @@ public class StratumServer
     private void triggerUpdate(boolean clean)
     throws Exception
     {
-        if (LOGGER.isInfoEnabled())
-            LOGGER.info("Update triggered. Clean: " + clean);
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Update triggered. Clean: " + clean);
 
         this.cachedBlockTemplate = null;
 
@@ -572,8 +572,8 @@ public class StratumServer
       {
         JSONObject result = this.bitcoinRpc.submitBlock(blk);
 
-        if (LOGGER.isInfoEnabled())
-            LOGGER.info("Block result: " + result.toString(2));
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Block result: " + result.toString(2));
 
         if (result.isNull("error") && result.isNull("result"))
         {

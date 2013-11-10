@@ -168,8 +168,8 @@ public class StratumConnection
                         out.println(msg_str);
                         out.flush();
 
-                        if (LOGGER.isDebugEnabled())
-                            LOGGER.debug("Stratum [out]: " + msg.toString());
+                        if (LOGGER.isTraceEnabled())
+                            LOGGER.trace("Stratum [out]: " + msg.toString());
 
                         updateLastNetworkAction();
                     }
@@ -224,8 +224,8 @@ public class StratumConnection
                     {
                         JSONObject msg = new JSONObject(line);
 
-                        if (LOGGER.isDebugEnabled())
-                            LOGGER.debug("Stratum [in]: " + msg.toString());
+                        if (LOGGER.isTraceEnabled())
+                            LOGGER.trace("Stratum [in]: " + msg.toString());
 
                         processInMessage(msg);
                     }
