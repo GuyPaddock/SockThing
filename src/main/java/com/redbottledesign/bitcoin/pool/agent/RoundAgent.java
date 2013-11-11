@@ -12,13 +12,13 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallbackFactory;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointGsonBuilder;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.RoundRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.Round;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallbackFactory;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItemSieve;
 import com.redbottledesign.drupal.DateRange;
 import com.redbottledesign.drupal.Entity;
@@ -27,7 +27,7 @@ import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 public class RoundAgent
 extends Agent
-implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
+implements QueueItemCallbackFactory<RoundAgent.RoundPersistenceCallback>
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(RoundAgent.class);
 
@@ -275,7 +275,7 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
     }
 
     protected static class RoundPersistenceCallback
-    implements PersistenceCallback<Round>
+    implements QueueItemCallback<Round>
     {
         private transient RoundAgent agent;
 
@@ -290,7 +290,7 @@ implements PersistenceCallbackFactory<RoundAgent.RoundPersistenceCallback>
         }
 
         @Override
-        public void onEntitySaved(Round newRound)
+        public void onEntityProcessed(Round newRound)
         {
             synchronized (this.agent)
             {

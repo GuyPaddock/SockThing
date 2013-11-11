@@ -14,18 +14,18 @@ import com.github.fireduck64.sockthing.SubmitResult;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallbackFactory;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointGsonBuilder;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver.BlockPersistenceCallback;
 import com.redbottledesign.bitcoin.pool.drupal.authentication.DrupalPoolUser;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallbackFactory;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
 
 public class DrupalShareSaver
-implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
+implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
 {
     private static final boolean DEBUG_EVERY_SHARE_AS_BLOCK = false;
 
@@ -167,7 +167,7 @@ implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
     }
 
     protected static class BlockPersistenceCallback
-    implements PersistenceCallback<SolvedBlock>
+    implements QueueItemCallback<SolvedBlock>
     {
         private static final Logger LOGGER = LoggerFactory.getLogger(BlockPersistenceCallback.class);
 
@@ -191,7 +191,7 @@ implements ShareSaver, PersistenceCallbackFactory<BlockPersistenceCallback>
         }
 
         @Override
-        public void onEntitySaved(SolvedBlock newBlock)
+        public void onEntityProcessed(SolvedBlock newBlock)
         {
             if (LOGGER.isInfoEnabled())
                 LOGGER.info(String.format("New block %d saved successfully.", newBlock.getHeight()));

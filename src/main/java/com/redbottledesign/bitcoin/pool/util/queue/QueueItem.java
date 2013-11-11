@@ -3,7 +3,6 @@ package com.redbottledesign.bitcoin.pool.util.queue;
 import java.io.File;
 import java.util.Date;
 
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.drupal.Entity;
 
@@ -15,19 +14,21 @@ implements CheckpointItem
     private final long itemId;
     private final long timestamp;
     private final T entity;
-    private final PersistenceCallback<T> callback;
+    private final QueueItemCallback<T> callback;
+    private int failCount;
 
     protected static synchronized long getNextIndex()
     {
         return itemIdCounter++;
     }
 
-    public QueueItem(T entity, PersistenceCallback<T> callback)
+    public QueueItem(T entity, QueueItemCallback<T> callback)
     {
         this.itemId     = getNextIndex();
         this.timestamp  = new Date().getTime();
         this.entity     = entity;
         this.callback   = callback;
+        this.failCount  = 0;
     }
 
     public long getItemId()
@@ -45,9 +46,19 @@ implements CheckpointItem
         return this.entity;
     }
 
-    public PersistenceCallback<T> getCallback()
+    public QueueItemCallback<T> getCallback()
     {
         return this.callback;
+    }
+
+    public int getFailCount()
+    {
+        return this.failCount;
+    }
+
+    public void incrementFailCount()
+    {
+        ++this.failCount;
     }
 
     @Override
@@ -76,10 +87,11 @@ implements CheckpointItem
     public String toString()
     {
         return "QueueItem ["    +
-               "itemId="        + itemId    + ", " +
-               "timestamp="     + timestamp + ", " +
-               "entity="        + entity    + ", " +
-               "callback="      + callback  +
+               "itemId="        + this.itemId    + ", " +
+               "timestamp="     + this.timestamp + ", " +
+               "entity="        + this.entity    + ", " +
+               "callback="      + this.callback  + ", " +
+               "failCount="     + this.failCount +
                "]";
     }
 }

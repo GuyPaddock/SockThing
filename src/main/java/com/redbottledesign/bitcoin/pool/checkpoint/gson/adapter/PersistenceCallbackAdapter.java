@@ -17,20 +17,20 @@ import com.google.gson.internal.ConstructorConstructor;
 import com.google.gson.internal.Excluder;
 import com.google.gson.internal.bind.ReflectiveTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallbackFactory;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallbackFactory;
 import com.redbottledesign.util.gson.PolymorphicSerializerDeserializer;
 
 public class PersistenceCallbackAdapter
-extends PolymorphicSerializerDeserializer<PersistenceCallback<?>>
-implements InstanceCreator<PersistenceCallback<?>>
+extends PolymorphicSerializerDeserializer<QueueItemCallback<?>>
+implements InstanceCreator<QueueItemCallback<?>>
 {
-    private final Collection<PersistenceCallbackFactory<?>> factories;
+    private final Collection<QueueItemCallbackFactory<?>> factories;
     private Gson gson;
 
-    public PersistenceCallbackAdapter(Collection<PersistenceCallbackFactory<?>> factories)
+    public PersistenceCallbackAdapter(Collection<QueueItemCallbackFactory<?>> factories)
     {
-        super(PersistenceCallback.class);
+        super(QueueItemCallback.class);
 
         this.factories  = factories;
     }
@@ -41,10 +41,10 @@ implements InstanceCreator<PersistenceCallback<?>>
     }
 
     @Override
-    public PersistenceCallback<?> deserialize(JsonElement json, Type typeOfObject, JsonDeserializationContext context)
+    public QueueItemCallback<?> deserialize(JsonElement json, Type typeOfObject, JsonDeserializationContext context)
     throws JsonParseException
     {
-        PersistenceCallback<?> result = null;
+        QueueItemCallback<?> result = null;
 
         this.assertInitialized();
 
@@ -81,11 +81,11 @@ implements InstanceCreator<PersistenceCallback<?>>
     }
 
     @Override
-    public PersistenceCallback<?> createInstance(Type type)
+    public QueueItemCallback<?> createInstance(Type type)
     {
-        PersistenceCallback<?> result = null;
+        QueueItemCallback<?> result = null;
 
-        for (PersistenceCallbackFactory<?> factory : this.factories)
+        for (QueueItemCallbackFactory<?> factory : this.factories)
         {
             result = factory.createCallback(type);
 
@@ -96,9 +96,9 @@ implements InstanceCreator<PersistenceCallback<?>>
         return result;
     }
 
-    protected PersistenceCallback<?> createAndPopulate(JsonElement json, Type type)
+    protected QueueItemCallback<?> createAndPopulate(JsonElement json, Type type)
     {
-        PersistenceCallback<?>          result              = null;
+        QueueItemCallback<?>          result              = null;
         TypeAdapter<?>                  typeAdapter;
         Map<Type, InstanceCreator<?>>   instanceCreators    = new HashMap<>();
         ConstructorConstructor          constructor         = new ConstructorConstructor(instanceCreators);
@@ -109,7 +109,7 @@ implements InstanceCreator<PersistenceCallback<?>>
         instanceCreators.put(type, this);
 
         typeAdapter = typeAdapterFactory.create(this.gson, TypeToken.get(type));
-        result      = (PersistenceCallback<?>)typeAdapter.fromJsonTree(json);
+        result      = (QueueItemCallback<?>)typeAdapter.fromJsonTree(json);
 
         return result;
     }

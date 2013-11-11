@@ -18,20 +18,20 @@ import com.github.fireduck64.sockthing.PplnsAgent;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent.BlockConfirmationCallback;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallback;
-import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceCallbackFactory;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointGsonBuilder;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.SolvedBlockRequestor;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallbackFactory;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItemSieve;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 public class BlockConfirmationAgent
 extends Agent
-implements PersistenceCallbackFactory<BlockConfirmationCallback>
+implements QueueItemCallbackFactory<BlockConfirmationCallback>
 {
     private static final int MAX_BLOCK_ORPHAN_DISTANCE = 10;
     private static final int MIN_REQUIRED_BLOCK_CONFIRMATIONS = 120;
@@ -214,10 +214,10 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
     }
 
     protected class BlockConfirmationCallback
-    implements PersistenceCallback<SolvedBlock>
+    implements QueueItemCallback<SolvedBlock>
     {
         @Override
-        public void onEntitySaved(SolvedBlock savedBlock)
+        public void onEntityProcessed(SolvedBlock savedBlock)
         {
             final PplnsAgent pplnsAgent = BlockConfirmationAgent.this.pplnsAgent;
 

@@ -25,6 +25,7 @@ import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
 import com.redbottledesign.bitcoin.pool.util.queue.QueryableQueue;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
+import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
 import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.EntityRequestor;
@@ -93,7 +94,7 @@ implements EvictableQueue<Long>
         this.queueForSave(entity, null);
     }
 
-    public <T extends Entity<?>> void queueForSave(T entity, PersistenceCallback<T> callback)
+    public <T extends Entity<?>> void queueForSave(T entity, QueueItemCallback<T> callback)
     {
         QueueItem<T> queueItem = new QueueItem<T>(entity, callback);
 
@@ -132,7 +133,7 @@ implements EvictableQueue<Long>
             QueueItem           queueItem       = queueIterator.next();
             long                itemId          = queueItem.getItemId();
             Entity              itemEntity      = queueItem.getEntity();
-            PersistenceCallback itemCallback    = queueItem.getCallback();
+            QueueItemCallback itemCallback    = queueItem.getCallback();
 
             if (itemIds.contains(itemId))
             {
@@ -192,7 +193,7 @@ implements EvictableQueue<Long>
             while (queueIterator.hasNext())
             {
                 QueueItem           queueItem       = queueIterator.next();
-                PersistenceCallback itemCallback    = queueItem.getCallback();
+                QueueItemCallback itemCallback    = queueItem.getCallback();
 
                 queueIterator.remove();
 
@@ -429,7 +430,7 @@ implements EvictableQueue<Long>
     throws IOException, DrupalHttpException
     {
         T                       queueEntity = queueItem.getEntity();
-        PersistenceCallback<T>  callback    = queueItem.getCallback();
+        QueueItemCallback<T>  callback    = queueItem.getCallback();
         EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
 
         if (this.testingSimulateFailure)
@@ -452,7 +453,7 @@ implements EvictableQueue<Long>
         }
 
         if (callback != null)
-            callback.onEntitySaved(queueEntity);
+            callback.onEntityProcessed(queueEntity);
 
         /* BUG BUG: If the entity saved but the callback failed, we're going to
          *          end up trying to save the entity all over again...
