@@ -27,7 +27,17 @@ public class QueueManagementTool
     {
         if (args.length < 5)
         {
-            printUsage();
+            if ((args.length == 4) && args[3].equals("pool-stop"))
+            {
+                String  hostName    = args[0];
+                int     port        = Integer.valueOf(args[1]);
+                String  password    = args[2];
+
+                stopQueue(hostName, port, password);
+            }
+
+            else
+                printUsage();
         }
 
         else
@@ -45,52 +55,76 @@ public class QueueManagementTool
             }
 
             else if (action.equals(ACTION_QUEUE_EVICT))
-            {
-                if (args.length != 6)
-                {
-                    printUsage();
-                }
-
-                else
-                {
-                    Long        queueItemId = Long.valueOf(args[4]);
-                    JSONObject  message     = new JSONObject();
-                    JSONArray   params      = new JSONArray();
-
-                    message.put("id",     JSONObject.NULL);
-                    message.put("method", String.format("mining.pool.queue.%s.evict", queueName));
-
-                    params.put(password);
-                    params.put(queueItemId);
-
-                    message.put("params", params);
-
-                    runRequest(hostName, port, message);
-                }
-            }
+                evictQueueItem(args, hostName, port, password, queueName);
 
             else if (action.equals(ACTION_QUEUE_EVICT_ALL))
-            {
-                if (args.length != 5)
-                {
-                    printUsage();
-                }
+                evictAllQueueItems(args, hostName, port, password, queueName);
+        }
+    }
 
-                else
-                {
-                    JSONObject  message = new JSONObject();
-                    JSONArray   params  = new JSONArray();
+    private static void stopQueue(String hostName, int port, String password)
+    throws JSONException, IOException
+    {
+        JSONObject  message = new JSONObject();
+        JSONArray   params  = new JSONArray();
 
-                    message.put("id",     JSONObject.NULL);
-                    message.put("method", String.format("mining.pool.queue.%s.evict-all", queueName));
+        message.put("id",     JSONObject.NULL);
+        message.put("method", String.format("mining.pool.stop"));
 
-                    params.put(password);
+        params.put(password);
 
-                    message.put("params", params);
+        message.put("params", params);
 
-                    runRequest(hostName, port, message);
-                }
-            }
+        runRequest(hostName, port, message);
+    }
+
+    private static void evictAllQueueItems(String[] args, String hostName, int port, String password, String queueName)
+    throws JSONException, IOException
+    {
+        if (args.length != 5)
+        {
+            printUsage();
+        }
+
+        else
+        {
+            JSONObject  message = new JSONObject();
+            JSONArray   params  = new JSONArray();
+
+            message.put("id",     JSONObject.NULL);
+            message.put("method", String.format("mining.pool.queue.%s.evict-all", queueName));
+
+            params.put(password);
+
+            message.put("params", params);
+
+            runRequest(hostName, port, message);
+        }
+    }
+
+    private static void evictQueueItem(String[] args, String hostName, int port, String password, String queueName)
+    throws JSONException, IOException
+    {
+        if (args.length != 6)
+        {
+            printUsage();
+        }
+
+        else
+        {
+            Long        queueItemId = Long.valueOf(args[4]);
+            JSONObject  message     = new JSONObject();
+            JSONArray   params      = new JSONArray();
+
+            message.put("id",     JSONObject.NULL);
+            message.put("method", String.format("mining.pool.queue.%s.evict", queueName));
+
+            params.put(password);
+            params.put(queueItemId);
+
+            message.put("params", params);
+
+            runRequest(hostName, port, message);
         }
     }
 
@@ -98,6 +132,7 @@ public class QueueManagementTool
     {
         System.err.println("Usage: hostname port-number pool-control-password (persistence|pplns) queue-evict queue-item-id");
         System.err.println("       hostname port-number pool-control-password (persistence|pplns) queue-evict-all");
+        System.err.println("       hostname port-number pool-control-password pool-stop");
         System.err.println("");
     }
 
@@ -109,17 +144,9 @@ public class QueueManagementTool
              Reader         responseReader  = new InputStreamReader(clientSocket.getInputStream());
              PrintWriter    standardOut     = new PrintWriter(System.out))
         {
-            int     bytesRead;
-            char[]  buffer  = new char[4096];
-
             requestWriter.write(message.toString());
             requestWriter.newLine();
             requestWriter.flush();
-
-//          while ((bytesRead = responseReader.read(buffer)) > -1)
-//          {
-//              standardOut.write(buffer, 0, bytesRead);
-//          }
         }
     }
 }

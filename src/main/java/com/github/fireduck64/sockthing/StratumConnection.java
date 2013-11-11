@@ -411,6 +411,30 @@ public class StratumConnection
                 }
             }
         }
+        else if (method.equals("mining.pool.stop"))
+        {
+            JSONArray   params          = msg.getJSONArray("params");
+            JSONObject  reply           = new JSONObject();
+            String      passwordParam   = params.get(0).toString();
+
+            reply.put("id", id);
+
+            if (!passwordParam.equals(this.server.getConfig().get(CONFIG_VALUE_POOL_CONTROL_PASSWORD)))
+            {
+                reply.put("error", "incorrect password");
+                reply.put("result", false);
+            }
+
+            else
+            {
+                reply.put("result", "true");
+                reply.put("error", JSONObject.NULL);
+
+                this.server.stop();
+            }
+
+            this.sendMessage(reply);
+        }
         else if (method.equals("mining.pool.queue.persistence.evict"))
         {
             JSONArray   params            = msg.getJSONArray("params");

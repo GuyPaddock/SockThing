@@ -896,4 +896,23 @@ public class StratumServer
             }
         }
     }
+
+    public void stop()
+    {
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("Stopping mining pool upon request.");
+
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("  Stopping all agents...");
+
+        for (Agent agent : this.agents.values())
+        {
+            agent.stopProcessing();
+        }
+
+        if (LOGGER.isInfoEnabled())
+            LOGGER.info("  Exiting...");
+
+        System.exit(0);
+    }
 }
