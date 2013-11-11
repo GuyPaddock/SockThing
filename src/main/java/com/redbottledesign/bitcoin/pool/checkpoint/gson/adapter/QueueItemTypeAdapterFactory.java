@@ -16,7 +16,7 @@ import com.google.gson.stream.JsonWriter;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
 import com.redbottledesign.util.LateBoundParameterizedType;
 
-public class PersistenceQueueItemTypeAdapterFactory
+public class QueueItemTypeAdapterFactory
 implements TypeAdapterFactory
 {
     private static final String JSON_FIELD_ENTITY_TYPE = "entityType";
@@ -55,7 +55,7 @@ implements TypeAdapterFactory
         public void write(JsonWriter jsonWriter, T value)
         throws IOException
         {
-            TypeAdapter<T>  delegatingAdapter   = this.gson.getDelegateAdapter(PersistenceQueueItemTypeAdapterFactory.this, this.elementType);
+            TypeAdapter<T>  delegatingAdapter   = this.gson.getDelegateAdapter(QueueItemTypeAdapterFactory.this, this.elementType);
             JsonElement     targetElement       = delegatingAdapter.toJsonTree(value);
             JsonObject      targetJsonObj       = targetElement.getAsJsonObject();
 
@@ -101,7 +101,7 @@ implements TypeAdapterFactory
              */
             delegatingAdapter =
                 (TypeAdapter<T>)this.gson.getDelegateAdapter(
-                    PersistenceQueueItemTypeAdapterFactory.this,
+                    QueueItemTypeAdapterFactory.this,
                     TypeToken.get(
                         new LateBoundParameterizedType(
                             (ParameterizedType)(new TypeToken<QueueItem<?>>(){}.getType()),

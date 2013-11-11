@@ -5,9 +5,9 @@ import java.util.LinkedList;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceCallbackAdapter;
-import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceQueueItemCreator;
-import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.PersistenceQueueItemTypeAdapterFactory;
+import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.QueueItemCallbackAdapter;
+import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.QueueItemCreator;
+import com.redbottledesign.bitcoin.pool.checkpoint.gson.adapter.QueueItemTypeAdapterFactory;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallbackFactory;
@@ -35,12 +35,12 @@ public final class CheckpointGsonBuilder
         return this.gson;
     }
 
-    public void registerPersistenceCallbackFactory(QueueItemCallbackFactory<?> callbackFactory)
+    public void registerQueueItemCallbackFactory(QueueItemCallbackFactory<?> callbackFactory)
     {
         this.factories.add(callbackFactory);
     }
 
-    public void unregisterPersistenceCallbackFactory(QueueItemCallbackFactory<?> callbackFactory)
+    public void unregisterQueueItemCallbackFactory(QueueItemCallbackFactory<?> callbackFactory)
     {
         this.factories.remove(callbackFactory);
     }
@@ -48,14 +48,14 @@ public final class CheckpointGsonBuilder
     private Gson createGson()
     {
         Gson                        gson;
-        PersistenceCallbackAdapter  persistenceCallbackAdapter = new PersistenceCallbackAdapter(this.factories);
+        QueueItemCallbackAdapter    persistenceCallbackAdapter = new QueueItemCallbackAdapter(this.factories);
 
         gson =
             new GsonBuilder()
                 .serializeNulls()
                 .setPrettyPrinting()
-                .registerTypeAdapterFactory(new PersistenceQueueItemTypeAdapterFactory())
-                .registerTypeAdapter(QueueItem.class, new PersistenceQueueItemCreator())
+                .registerTypeAdapterFactory(new QueueItemTypeAdapterFactory())
+                .registerTypeAdapter(QueueItem.class, new QueueItemCreator())
                 .registerTypeAdapter(QueueItemCallback.class, persistenceCallbackAdapter)
                 .create();
 

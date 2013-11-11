@@ -51,7 +51,7 @@ implements QueueItemCallbackFactory<BlockConfirmationCallback>
         this.persistenceAgent   = server.getAgent(PersistenceAgent.class);
         this.pplnsAgent         = server.getAgent(PplnsAgent.class);
 
-        CheckpointGsonBuilder.getInstance().registerPersistenceCallbackFactory(this);
+        CheckpointGsonBuilder.getInstance().registerQueueItemCallbackFactory(this);
     }
 
     @Override

@@ -21,14 +21,14 @@ import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallbackFactory;
 import com.redbottledesign.util.gson.PolymorphicSerializerDeserializer;
 
-public class PersistenceCallbackAdapter
+public class QueueItemCallbackAdapter
 extends PolymorphicSerializerDeserializer<QueueItemCallback<?>>
 implements InstanceCreator<QueueItemCallback<?>>
 {
     private final Collection<QueueItemCallbackFactory<?>> factories;
     private Gson gson;
 
-    public PersistenceCallbackAdapter(Collection<QueueItemCallbackFactory<?>> factories)
+    public QueueItemCallbackAdapter(Collection<QueueItemCallbackFactory<?>> factories)
     {
         super(QueueItemCallback.class);
 
@@ -98,7 +98,7 @@ implements InstanceCreator<QueueItemCallback<?>>
 
     protected QueueItemCallback<?> createAndPopulate(JsonElement json, Type type)
     {
-        QueueItemCallback<?>          result              = null;
+        QueueItemCallback<?>            result              = null;
         TypeAdapter<?>                  typeAdapter;
         Map<Type, InstanceCreator<?>>   instanceCreators    = new HashMap<>();
         ConstructorConstructor          constructor         = new ConstructorConstructor(instanceCreators);

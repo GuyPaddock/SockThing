@@ -50,7 +50,7 @@ implements QueueItemCallbackFactory<RoundAgent.RoundPersistenceCallback>
         this.roundRequestor     = session.getRoundRequestor();
         this.poolDaemonUser     = session.getPoolDaemonUser().asReference();
 
-        CheckpointGsonBuilder.getInstance().registerPersistenceCallbackFactory(this);
+        CheckpointGsonBuilder.getInstance().registerQueueItemCallbackFactory(this);
     }
 
     public Round getCurrentRoundSynchronized()

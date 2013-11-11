@@ -6,7 +6,7 @@ import com.google.gson.InstanceCreator;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItem;
 import com.redbottledesign.drupal.Entity;
 
-public class PersistenceQueueItemCreator
+public class QueueItemCreator
 implements InstanceCreator<QueueItem<Entity<?>>>
 {
     @Override
