@@ -385,20 +385,22 @@ implements EvictableQueue<Long>
                 {
                     String error;
 
-                    // Re-queue entity for persistence
+                    // Note failure and re-queue entity for persistence
+                    queueItem.incrementFailCount();
                     QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
 
                     error =
                         String.format(
-                            "Failed to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s; " +
-                            "has been re-queued): %s",
+                            "Failed to persist entity (queue item ID #: %d, entity type: %s, bundle type: %s, " +
+                            "fail count: %d; has been re-queued): %s",
                             queueItemId,
                             queueItemEntity.getEntityType(),
                             queueItemEntity.getBundleType(),
+                            queueItem.getFailCount(),
                             ex.getMessage());
 
                     if (LOGGER.isErrorEnabled())
-                        LOGGER.error(error);
+                        LOGGER.error(error, ex);
 
                     if (LOGGER.isDebugEnabled())
                     {
@@ -430,26 +432,43 @@ implements EvictableQueue<Long>
     throws IOException, DrupalHttpException
     {
         T                       queueEntity = queueItem.getEntity();
-        QueueItemCallback<T>  callback    = queueItem.getCallback();
-        EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
+        QueueItemCallback<T>    callback    = queueItem.getCallback();
 
         if (this.testingSimulateFailure)
             throw new RuntimeException("Simulated failure for testing.");
 
-        if (queueEntity.isNew())
+        // If this isn't the first attempt to save this item, check if we might have actually saved it previously.
+        if ((queueItem.getFailCount() != 0) &&
+            DuplicateChecker.wasEntityAlreadySaved(this.server.getSession(), queueEntity))
         {
-            if (LOGGER.isTraceEnabled())
-                LOGGER.trace("attemptToPersistItem(): item is new: " + queueEntity);
-
-            requestor.saveNew(queueEntity);
+            LOGGER.info(
+                String.format(
+                    "Queue item was already saved on a previous attempt; no need to re-save (queue item ID #: %d, " +
+                    "entity type: %s, bundle type: %s).",
+                    queueItem.getItemId(),
+                    queueEntity.getEntityType(),
+                    queueEntity.getBundleType()));
         }
 
         else
         {
-            if (LOGGER.isTraceEnabled())
-                LOGGER.trace("attemptToPersistItem(): item is being updated: " + queueEntity);
+            EntityRequestor<T> requestor = requestorRegistry.getRequestorForEntity(queueEntity);
 
-            requestor.update(queueEntity);
+            if (queueEntity.isNew())
+            {
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("attemptToPersistItem(): item is new: " + queueEntity);
+
+                requestor.saveNew(queueEntity);
+            }
+
+            else
+            {
+                if (LOGGER.isTraceEnabled())
+                    LOGGER.trace("attemptToPersistItem(): item is being updated: " + queueEntity);
+
+                requestor.update(queueEntity);
+            }
         }
 
         if (callback != null)
