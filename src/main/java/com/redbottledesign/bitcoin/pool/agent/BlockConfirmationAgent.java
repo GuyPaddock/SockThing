@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.json.JSONException;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,7 @@ public class BlockConfirmationAgent
 extends Agent
 implements PersistenceCallbackFactory<BlockConfirmationCallback>
 {
+    private static final int MAX_BLOCK_ORPHAN_DISTANCE = 10;
     private static final int MIN_REQUIRED_BLOCK_CONFIRMATIONS = 120;
     private static final long CONFIRMATION_FREQUENCY_MS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
 
@@ -65,12 +67,13 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
 
     @Override
     protected void runPeriodicTask()
-    throws IOException, DrupalHttpException
+    throws IOException, JSONException, DrupalHttpException
     {
         DrupalSession           session             = this.server.getSession();
         SolvedBlockRequestor    blockRequestor      = session.getBlockRequestor();
         List<SolvedBlock>       unconfirmedBlocks;
         Set<String>             blocksPendingSave;
+        long                    currentBlockHeight;
 
         if (LOGGER.isInfoEnabled())
             LOGGER.info("Checking for recently-confirmed blocks...");
@@ -81,8 +84,9 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
          * This ensures that we err on the side of skipping blocks we may have
          * just modified instead of updating the blocks twice.
          */
-        blocksPendingSave = this.getBlockHashesWithPendingModifications();
-        unconfirmedBlocks = blockRequestor.getUnconfirmedBlocks();
+        blocksPendingSave   = this.getBlockHashesWithPendingModifications();
+        unconfirmedBlocks   = blockRequestor.getUnconfirmedBlocks();
+        currentBlockHeight  = this.getCurrentBlockHeight();
 
         for (SolvedBlock block : unconfirmedBlocks)
         {
@@ -104,13 +108,31 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
             {
                 try
                 {
-                    int confirmationCount = this.server.getBlockConfirmationCount(blockHash);
+                    long confirmationCount   = this.server.getBlockConfirmationCount(blockHash);
+                    long blockHeightDistance = (currentBlockHeight - block.getHeight());
 
-                    if (confirmationCount < MIN_REQUIRED_BLOCK_CONFIRMATIONS)
+                    if ((confirmationCount == 0) && (blockHeightDistance > MAX_BLOCK_ORPHAN_DISTANCE))
+                    {
+                        if (LOGGER.isInfoEnabled())
+                        {
+                            LOGGER.info(
+                                String.format(
+                                    "  Block '%s' has been orphaned (was %d blocks behind current block without any " +
+                                    "confirmations).",
+                                    blockHash,
+                                    blockHeightDistance));
+                        }
+
+                        block.setStatus(SolvedBlock.Status.ORPHANED);
+
+                        this.persistenceAgent.queueForSave(block);
+                    }
+
+                    else if (confirmationCount < MIN_REQUIRED_BLOCK_CONFIRMATIONS)
                     {
                         if (LOGGER.isDebugEnabled())
                         {
-                            LOGGER.info(
+                            LOGGER.debug(
                                 String.format(
                                     "  Block '%s' is not yet mature (only %d confirmations but need %d).",
                                     blockHash,
@@ -175,6 +197,20 @@ implements PersistenceCallbackFactory<BlockConfirmationCallback>
         }
 
         return pendingBlockHashes;
+    }
+
+    protected long getCurrentBlockHeight()
+    throws IOException, JSONException
+    {
+        long        result;
+        JSONObject  currentBlockTemplate = this.server.getCurrentBlockTemplate();
+
+        result = currentBlockTemplate.getLong("height");
+
+        if (result <= 0)
+            throw new IllegalStateException("Unexpected block height: " + result);
+
+        return result;
     }
 
     protected class BlockConfirmationCallback

@@ -427,7 +427,7 @@ public class StratumServer
       return paymentHash;
     }
 
-    public int getBlockConfirmationCount(String blockHash)
+    public long getBlockConfirmationCount(String blockHash)
     throws IOException, JSONException
     {
         JSONObject  responseResult       = this.bitcoinRpc.getBlockInfo(blockHash),
@@ -438,7 +438,7 @@ public class StratumServer
 
         responseResultObject = responseResult.getJSONObject("result");
 
-        return responseResultObject.getInt("confirmations");
+        return responseResultObject.getLong("confirmations");
     }
 
     public Block getBlock(String blockHash)

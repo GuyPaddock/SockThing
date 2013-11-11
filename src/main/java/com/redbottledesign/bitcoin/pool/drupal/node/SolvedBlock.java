@@ -188,6 +188,9 @@ extends Node
     UNCONFIRMED,
 
     @SerializedName("1")
-    CONFIRMED
+    CONFIRMED,
+
+    @SerializedName("2")
+    ORPHANED
   }
 }
