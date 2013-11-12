@@ -81,10 +81,10 @@ extends Node
 
   public static enum Status
   {
-    @SerializedName("0")
+    @SerializedName("open")
     OPEN,
 
-    @SerializedName("1")
+    @SerializedName("closed")
     CLOSED
   }
 }

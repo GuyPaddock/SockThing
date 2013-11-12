@@ -184,13 +184,13 @@ extends Node
 
   public static enum Status
   {
-    @SerializedName("0")
+    @SerializedName("unconfirmed")
     UNCONFIRMED,
 
-    @SerializedName("1")
+    @SerializedName("confirmed")
     CONFIRMED,
 
-    @SerializedName("2")
+    @SerializedName("orphaned")
     ORPHANED
   }
 }
