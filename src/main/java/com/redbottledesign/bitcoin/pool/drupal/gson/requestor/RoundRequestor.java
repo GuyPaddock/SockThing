@@ -27,15 +27,18 @@ extends NodeRequestor<Round>
     super(sessionManager);
   }
 
+  @SuppressWarnings("serial")
   public Round requestCurrentRound()
   throws IOException, DrupalHttpException
   {
     Round               currentRound  = null;
-    Map<String, Object> criteriaMap   = new HashMap<>();
+    Map<String, Object> criteriaMap   = new HashMap<String, Object>()
+        {{
+            put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, Round.CONTENT_TYPE);
+            put(Node.DRUPAL_PUBLISHED_FIELD_NAME,   1);
+            put(JSON_PARAM_LIMIT,                   1);
+        }};
 
-    criteriaMap.put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, Round.CONTENT_TYPE);
-    criteriaMap.put(Node.DRUPAL_PUBLISHED_FIELD_NAME, 1);
-    criteriaMap.put(JSON_PARAM_LIMIT, 1);
 
     try
     {
@@ -55,15 +58,17 @@ extends NodeRequestor<Round>
     return currentRound;
   }
 
+  @SuppressWarnings("serial")
   public List<Round> requestAllOpenRounds()
   throws IOException, DrupalHttpException
   {
     List<Round>         openRounds  = Collections.emptyList();
-    Map<String, Object> criteriaMap = new HashMap<>();
-
-    criteriaMap.put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, Round.CONTENT_TYPE);
-    criteriaMap.put(Node.DRUPAL_PUBLISHED_FIELD_NAME, true);
-    criteriaMap.put(Round.DRUPAL_FIELD_ROUND_STATUS, Round.Status.OPEN.ordinal());
+    Map<String, Object> criteriaMap = new HashMap<String, Object>()
+        {{
+            put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, Round.CONTENT_TYPE);
+            put(Node.DRUPAL_PUBLISHED_FIELD_NAME,   1);
+            put(Round.DRUPAL_FIELD_ROUND_STATUS,    Round.Status.OPEN.ordinal());
+        }};
 
     try
     {
