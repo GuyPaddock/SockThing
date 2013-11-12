@@ -3,12 +3,17 @@ package com.redbottledesign.bitcoin.pool.util.queue;
 import java.io.File;
 import java.util.Date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.drupal.Entity;
 
 public class QueueItem<T extends Entity<?>>
 implements CheckpointItem
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(QueueItem.class);
+
     private static volatile long itemIdCounter;
 
     private final long itemId;
@@ -58,7 +63,12 @@ implements CheckpointItem
 
     public boolean hasPreviouslyFailed()
     {
-        return (this.failCount != 0);
+        boolean result = (this.failCount != 0);
+
+        if (LOGGER.isTraceEnabled())
+            LOGGER.trace(String.format("hasPreviouslyFailed(): %s for queue item: %s", result, this));
+
+        return result;
     }
 
     public void incrementFailCount()

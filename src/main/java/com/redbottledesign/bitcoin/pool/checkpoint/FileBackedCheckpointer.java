@@ -142,11 +142,46 @@ implements Checkpointer, CheckpointListener
     }
 
     @Override
+    public void onCheckpointItemUpdated(Checkpointable checkpointable, CheckpointItem checkpointItem)
+    {
+        File checkpointFile = this.getCheckpointFile(checkpointItem);
+
+        if (checkpointFile != null)
+        {
+            try
+            {
+                if (LOGGER.isInfoEnabled())
+                    LOGGER.info(String.format("Updating checkpoint item '%s'.", checkpointFile.getPath()));
+
+                this.writeOutCheckpointItem(checkpointItem, checkpointFile);
+            }
+
+            catch (IOException ex)
+            {
+                String error =
+                    String.format(
+                        "Failed to update checkpoint item to '%s': %s\n\n%s\n%s",
+                        checkpointFile.toString(),
+                        checkpointItem,
+                        ex.getMessage(),
+                        ExceptionUtils.getStackTrace(ex));
+
+                if (LOGGER.isErrorEnabled())
+                    LOGGER.error(error);
+
+                // This is pretty serious.
+                System.err.printf(error);
+                System.exit(-1);
+            }
+        }
+    }
+
+    @Override
     public void onCheckpointItemExpired(Checkpointable checkpointable, CheckpointItem checkpointItem)
     {
-        File checkpointFile = this.knownCheckpointItems.get(checkpointItem);
+        File checkpointFile = this.getCheckpointFile(checkpointItem);
 
-        if ((checkpointFile != null) && checkpointFile.exists())
+        if (checkpointFile != null)
         {
             File processedCheckpointFile =
                 this.generateCheckpointItemFile(FileStoreType.PROCESSED, checkpointable, checkpointItem);
@@ -266,6 +301,37 @@ implements Checkpointer, CheckpointListener
             this.fileStorePath                      + File.separator +
             storeType.getRelativePath()             + File.separator +
             checkpointable.getCheckpointableName()  + File.separator);
+    }
+
+    protected File getCheckpointFile(CheckpointItem checkpointItem)
+    {
+        File checkpointFile = this.knownCheckpointItems.get(checkpointItem);
+
+        if (checkpointFile == null)
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    String.format(
+                        "Notification received about checkpoint item '%s', but there is no such checkpoint item " +
+                        "being tracked by this checkpointer.",
+                        checkpointItem));
+            }
+        }
+
+        else if (!checkpointFile.exists())
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    String.format(
+                        "Notification received about checkpoint item '%s', but checkpoint file (%s) is missing!",
+                        checkpointItem,
+                        checkpointFile.getAbsolutePath()));
+            }
+        }
+
+        return checkpointFile;
     }
 
     protected File generateCheckpointItemFile(FileStoreType storeType, Checkpointable checkpointable,

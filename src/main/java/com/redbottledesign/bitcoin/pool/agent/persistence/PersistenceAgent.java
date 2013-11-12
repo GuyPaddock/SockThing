@@ -38,7 +38,8 @@ extends CheckpointableAgent
 implements EvictableQueue<Long>
 {
     private static final String CONFIG_VALUE_PERSISTENCE_THREAD_COUNT = "persistence_threads";
-    private static final String CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE = "testing.agents.persistence.simulate_persistence_failure";
+    private static final String CONFIG_VALUE_TEST_MODE_SIMULATE_PRE_FAILURE = "testing.agents.persistence.simulate_pre_persistence_failure";
+    private static final String CONFIG_VALUE_TEST_MODE_SIMULATE_POST_FAILURE = "testing.agents.persistence.simulate_post_persistence_failure";
 
     private static final int MAX_EXTRA_HTTP_CONNECTIONS = 5;
     private static final int DEFAULT_PERSISTENCE_THREAD_COUNT = 1;
@@ -51,7 +52,8 @@ implements EvictableQueue<Long>
     private final ShadowQueue shadowQueueCopy;
 
     private int numPersistenceThreads;
-    private boolean testingSimulateFailure;
+    private boolean testingSimulatePreSaveFailure;
+    private boolean testingSimulatePostSaveFailure;
 
     public PersistenceAgent(StratumServer server)
     {
@@ -134,7 +136,7 @@ implements EvictableQueue<Long>
             QueueItem           queueItem       = queueIterator.next();
             long                itemId          = queueItem.getItemId();
             Entity              itemEntity      = queueItem.getEntity();
-            QueueItemCallback itemCallback    = queueItem.getCallback();
+            QueueItemCallback   itemCallback    = queueItem.getCallback();
 
             if (itemIds.contains(itemId))
             {
@@ -194,7 +196,7 @@ implements EvictableQueue<Long>
             while (queueIterator.hasNext())
             {
                 QueueItem           queueItem       = queueIterator.next();
-                QueueItemCallback itemCallback    = queueItem.getCallback();
+                QueueItemCallback   itemCallback    = queueItem.getCallback();
 
                 queueIterator.remove();
 
@@ -283,9 +285,13 @@ implements EvictableQueue<Long>
     {
         Config config = this.server.getConfig();
 
-        this.testingSimulateFailure =
-            config.isSet(CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE) &&
-            config.getBoolean(CONFIG_VALUE_TEST_MODE_SIMULATE_FAILURE);
+        this.testingSimulatePreSaveFailure =
+            config.isSet(CONFIG_VALUE_TEST_MODE_SIMULATE_PRE_FAILURE) &&
+            config.getBoolean(CONFIG_VALUE_TEST_MODE_SIMULATE_PRE_FAILURE);
+
+        this.testingSimulatePostSaveFailure =
+            config.isSet(CONFIG_VALUE_TEST_MODE_SIMULATE_POST_FAILURE) &&
+            config.getBoolean(CONFIG_VALUE_TEST_MODE_SIMULATE_POST_FAILURE);
 
         if (config.isSet(CONFIG_VALUE_PERSISTENCE_THREAD_COUNT))
         {
@@ -388,6 +394,7 @@ implements EvictableQueue<Long>
 
                     // Note failure and re-queue entity for persistence
                     queueItem.incrementFailCount();
+                    this.notifyCheckpointListenersOnItemUpdated(queueItem);
                     QueueUtils.ensureQueued(this.persistenceQueue, queueItem);
 
                     error =
@@ -435,8 +442,8 @@ implements EvictableQueue<Long>
         T                       queueEntity = queueItem.getEntity();
         QueueItemCallback<T>    callback    = queueItem.getCallback();
 
-        if (this.testingSimulateFailure)
-            throw new RuntimeException("Simulated failure for testing.");
+        if (this.testingSimulatePreSaveFailure)
+            throw new RuntimeException("Simulated pre-save failure for testing.");
 
         // If this isn't the first attempt to save this item, check if we might have actually saved it previously.
         if (queueItem.hasPreviouslyFailed() &&
@@ -471,6 +478,9 @@ implements EvictableQueue<Long>
                 requestor.update(queueEntity);
             }
         }
+
+        if (this.testingSimulatePostSaveFailure)
+            throw new RuntimeException("Simulated post-save failure for testing.");
 
         if (callback != null)
             callback.onEntityProcessed(queueEntity);

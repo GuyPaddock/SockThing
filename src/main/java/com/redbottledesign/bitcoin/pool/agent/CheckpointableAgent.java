@@ -77,6 +77,23 @@ implements Checkpointable
         }
     }
 
+    protected void notifyCheckpointListenersOnItemUpdated(CheckpointItem checkpoint)
+    {
+        if (LOGGER.isTraceEnabled())
+        {
+            LOGGER.trace(
+                String.format(
+                    "%s.notifyCheckpointListenersOnItemUpdated(%s)",
+                    this.getClass().getSimpleName(),
+                    checkpoint));
+        }
+
+        for (CheckpointListener listener : this.checkpointListeners)
+        {
+            listener.onCheckpointItemUpdated(this, checkpoint);
+        }
+    }
+
     protected void notifyCheckpointListenersOnItemExpired(CheckpointItem checkpoint)
     {
         if (LOGGER.isTraceEnabled())
