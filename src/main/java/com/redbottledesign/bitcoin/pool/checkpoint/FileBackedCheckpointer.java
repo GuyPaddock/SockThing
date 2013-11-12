@@ -26,7 +26,7 @@ import com.google.gson.Gson;
 public class FileBackedCheckpointer
 implements Checkpointer, CheckpointListener
 {
-    private static final String CONFIG_PATH_FILE_STORE                  = "fileStorePath";
+    private static final String CONFIG_PATH_FILE_STORE                  = "file_store_path";
     private static final String FILE_STORE_UNPROCESSED_DIRECTORY_PATH   = "unprocessed";
     private static final String FILE_STORE_PROCESSED_DIRECTORY_PATH     = "processed";
     private static final String FILENAME_SUFFIX_JSON = ".json";
