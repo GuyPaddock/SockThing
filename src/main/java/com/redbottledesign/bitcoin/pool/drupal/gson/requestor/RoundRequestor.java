@@ -21,6 +21,7 @@ import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.NodeRequestor;
 import com.redbottledesign.drupal.gson.requestor.SortOrder;
+import com.redbottledesign.gson.GsonUtils;
 
 public class RoundRequestor
 extends NodeRequestor<Round>
@@ -83,7 +84,7 @@ extends NodeRequestor<Round>
         {{
             put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, Round.CONTENT_TYPE);
             put(Node.DRUPAL_PUBLISHED_FIELD_NAME,   1);
-            put(Round.DRUPAL_FIELD_ROUND_STATUS,    Round.Status.OPEN.ordinal());
+            put(Round.DRUPAL_FIELD_ROUND_STATUS,    GsonUtils.getSerializedName(Round.Status.class, Round.Status.OPEN));
         }};
 
         // Find the oldest round.

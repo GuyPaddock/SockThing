@@ -11,6 +11,7 @@ import com.redbottledesign.drupal.gson.JsonEntityResultList;
 import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.NodeRequestor;
+import com.redbottledesign.gson.GsonUtils;
 
 public class BlockCreditRequestor
 extends NodeRequestor<BlockCredit>
@@ -34,7 +35,7 @@ extends NodeRequestor<BlockCredit>
                     put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, BlockCredit.CONTENT_TYPE);
                     put(BlockCredit.DRUPAL_FIELD_BLOCK,     blockId);
                     put(BlockCredit.DRUPAL_FIELD_RECIPIENT, recipientUserId);
-                    put(BlockCredit.DRUPAL_FIELD_TYPE,      creditType.ordinal());
+                    put(BlockCredit.DRUPAL_FIELD_TYPE,      GsonUtils.getSerializedName(BlockCredit.Type.class, creditType));
                 }});
 
         return result;

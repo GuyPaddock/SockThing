@@ -14,6 +14,7 @@ import com.redbottledesign.drupal.gson.JsonEntityResultList;
 import com.redbottledesign.drupal.gson.SessionManager;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.NodeRequestor;
+import com.redbottledesign.gson.GsonUtils;
 
 public class SolvedBlockRequestor
 extends NodeRequestor<SolvedBlock>
@@ -32,7 +33,7 @@ extends NodeRequestor<SolvedBlock>
             {{
                 put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, SolvedBlock.CONTENT_TYPE);
                 put(Node.DRUPAL_PUBLISHED_FIELD_NAME,   1);
-                put(SolvedBlock.DRUPAL_FIELD_STATUS,    SolvedBlock.Status.UNCONFIRMED.ordinal());
+                put(SolvedBlock.DRUPAL_FIELD_STATUS,    GsonUtils.getSerializedName(SolvedBlock.Status.class, SolvedBlock.Status.UNCONFIRMED));
             }};
 
         unconfirmedBlocks = this.requestEntitiesByCriteria(SolvedBlock.ENTITY_TYPE, criteriaMap);
