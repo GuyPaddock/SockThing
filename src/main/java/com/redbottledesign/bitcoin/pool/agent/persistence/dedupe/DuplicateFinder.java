@@ -20,7 +20,7 @@ abstract class DuplicateFinder<T extends Entity<?>>
 
     protected boolean wasAlreadySaved(Node existingEntity, Node updatedEntity)
     {
-        boolean result;
+        boolean result = false;
 
         if (updatedEntity.isNew())
         {
@@ -30,7 +30,7 @@ abstract class DuplicateFinder<T extends Entity<?>>
                 LOGGER.trace("wasAlreadySaved(): entity is new. Have existing entity: " + result);
         }
 
-        else
+        else if (existingEntity != null)
         {
             Date      existingDate      = existingEntity.getDateChanged();
             Date      updatedDate       = updatedEntity.getDateChanged();
