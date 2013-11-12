@@ -16,9 +16,9 @@ import com.redbottledesign.drupal.Entity;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 @SuppressWarnings("serial")
-public class PersistenceDeduper
+public class DuplicateDetector
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PersistenceDeduper.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DuplicateDetector.class);
 
     protected static Map<Class<? extends Entity<?>>, DuplicateFinder<?>> DISPATCHER_REGISTRY =
         new HashMap<Class<? extends Entity<?>>, DuplicateFinder<?>>()
@@ -40,8 +40,27 @@ public class PersistenceDeduper
         if (LOGGER.isTraceEnabled())
             LOGGER.trace("wasEntityAlreadySaved(): Looking for existing, already-saved duplicate of entity: " + entity);
 
-        if (duplicateFinder != null)
+        if (duplicateFinder == null)
+        {
+            if (LOGGER.isTraceEnabled())
+            {
+                LOGGER.trace(
+                    "wasEntityAlreadySaved(): No duplicate finder for entity type: " +
+                    entity.getClass().getSimpleName());
+            }
+        }
+
+        else
+        {
+            if (LOGGER.isTraceEnabled())
+            {
+                LOGGER.trace(
+                    "wasEntityAlreadySaved(): Using duplicate finder - " + duplicateFinder.getClass().getName());
+            }
+
             result = duplicateFinder.wasAlreadySaved(session, entity);
+        }
+
 
         if (LOGGER.isTraceEnabled())
             LOGGER.trace("wasEntityAlreadySaved(): Result - " + result);

@@ -8,7 +8,7 @@ import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 class DuplicateWorkShareFinder
-implements DuplicateFinder<WorkShare>
+extends DuplicateFinder<WorkShare>
 {
     @Override
     public boolean wasAlreadySaved(DrupalSession session, final WorkShare entity)
@@ -20,6 +20,6 @@ implements DuplicateFinder<WorkShare>
         existingEntity =
             requestor.getShare(entity.getJobHash(), entity.getSubmitter().getId(), entity.getRound().getId());
 
-        return (existingEntity == null);
+        return this.wasAlreadySaved(existingEntity, entity);
     }
 }

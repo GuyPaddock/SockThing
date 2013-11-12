@@ -21,7 +21,7 @@ import com.github.fireduck64.sockthing.StratumServer;
 import com.google.gson.reflect.TypeToken;
 import com.redbottledesign.bitcoin.pool.RequestorRegistry;
 import com.redbottledesign.bitcoin.pool.agent.CheckpointableAgent;
-import com.redbottledesign.bitcoin.pool.agent.persistence.dedupe.PersistenceDeduper;
+import com.redbottledesign.bitcoin.pool.agent.persistence.dedupe.DuplicateDetector;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
 import com.redbottledesign.bitcoin.pool.util.queue.QueryableQueue;
@@ -441,18 +441,19 @@ implements EvictableQueue<Long>
     {
         T                       queueEntity = queueItem.getEntity();
         QueueItemCallback<T>    callback    = queueItem.getCallback();
+        EntityRequestor<T>      requestor   = requestorRegistry.getRequestorForEntity(queueEntity);
 
         if (this.testingSimulatePreSaveFailure)
             throw new RuntimeException("Simulated pre-save failure for testing.");
 
         // If this isn't the first attempt to save this item, check if we might have actually saved it previously.
         if (queueItem.hasPreviouslyFailed() &&
-            PersistenceDeduper.wasEntityAlreadySaved(this.server.getSession(), queueEntity))
+            DuplicateDetector.wasEntityAlreadySaved(this.server.getSession(), queueEntity))
         {
             LOGGER.info(
                 String.format(
-                    "Queue item was already saved on a previous attempt; no need to re-save (queue item ID #: %d, " +
-                    "entity type: %s, bundle type: %s).",
+                    "Queue item was already saved on a previous attempt; no need to re-save (queue item " +
+                    "ID #: %d, entity type: %s, bundle type: %s).",
                     queueItem.getItemId(),
                     queueEntity.getEntityType(),
                     queueEntity.getBundleType()));
@@ -460,8 +461,6 @@ implements EvictableQueue<Long>
 
         else
         {
-            EntityRequestor<T> requestor = requestorRegistry.getRequestorForEntity(queueEntity);
-
             if (queueEntity.isNew())
             {
                 if (LOGGER.isTraceEnabled())
@@ -483,7 +482,12 @@ implements EvictableQueue<Long>
             throw new RuntimeException("Simulated post-save failure for testing.");
 
         if (callback != null)
+        {
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace("attemptToPersistItem(): invoking callback: " + callback.getClass().getName());
+
             callback.onEntityProcessed(queueEntity);
+        }
 
         /* BUG BUG: If the entity saved but the callback failed, we're going to
          *          end up trying to save the entity all over again...

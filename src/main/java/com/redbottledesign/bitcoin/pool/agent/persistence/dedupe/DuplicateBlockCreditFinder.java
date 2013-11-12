@@ -8,14 +8,14 @@ import com.redbottledesign.bitcoin.pool.drupal.node.BlockCredit;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 class DuplicateBlockCreditFinder
-implements DuplicateFinder<BlockCredit>
+extends DuplicateFinder<BlockCredit>
 {
     @Override
     public boolean wasAlreadySaved(DrupalSession session, final BlockCredit entity)
     throws IOException, DrupalHttpException
     {
-        BlockCreditRequestor requestor       = session.getCreditRequestor();
-        BlockCredit          existingEntity;
+        BlockCreditRequestor    requestor       = session.getCreditRequestor();
+        BlockCredit             existingEntity;
 
         existingEntity =
             requestor.getCredit(
@@ -23,6 +23,6 @@ implements DuplicateFinder<BlockCredit>
                 entity.getRecipient().getId(),
                 entity.getCreditType());
 
-        return (existingEntity == null);
+        return this.wasAlreadySaved(existingEntity, entity);
     }
 }

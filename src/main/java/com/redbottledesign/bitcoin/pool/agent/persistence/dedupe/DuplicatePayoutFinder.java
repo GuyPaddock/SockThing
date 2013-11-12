@@ -8,7 +8,7 @@ import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 class DuplicatePayoutFinder
-implements DuplicateFinder<Payout>
+extends DuplicateFinder<Payout>
 {
     @Override
     public boolean wasAlreadySaved(DrupalSession session, final Payout entity)
@@ -17,6 +17,6 @@ implements DuplicateFinder<Payout>
         PayoutRequestor requestor       = session.getPayoutRequestor();
         Payout          existingEntity  = requestor.getPayout(entity.getPaymentHash(), entity.getPaymentAddress());
 
-        return (existingEntity == null);
+        return this.wasAlreadySaved(existingEntity, entity);
     }
 }

@@ -8,7 +8,7 @@ import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 
 class DuplicateSolvedBlockFinder
-implements DuplicateFinder<SolvedBlock>
+extends DuplicateFinder<SolvedBlock>
 {
     @Override
     public boolean wasAlreadySaved(DrupalSession session, final SolvedBlock entity)
@@ -17,6 +17,6 @@ implements DuplicateFinder<SolvedBlock>
         SolvedBlockRequestor    requestor       = session.getBlockRequestor();
         SolvedBlock             existingEntity  = requestor.getBlock(entity.getHash(), entity.getHeight());
 
-        return (existingEntity == null);
+        return this.wasAlreadySaved(existingEntity, entity);
     }
 }
