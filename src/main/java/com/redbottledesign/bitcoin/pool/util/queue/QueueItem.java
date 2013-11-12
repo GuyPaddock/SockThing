@@ -56,6 +56,11 @@ implements CheckpointItem
         return this.failCount;
     }
 
+    public boolean hasPreviouslyFailed()
+    {
+        return (this.failCount != 0);
+    }
+
     public void incrementFailCount()
     {
         ++this.failCount;

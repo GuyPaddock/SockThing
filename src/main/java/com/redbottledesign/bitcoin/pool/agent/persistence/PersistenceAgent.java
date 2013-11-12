@@ -21,6 +21,7 @@ import com.github.fireduck64.sockthing.StratumServer;
 import com.google.gson.reflect.TypeToken;
 import com.redbottledesign.bitcoin.pool.RequestorRegistry;
 import com.redbottledesign.bitcoin.pool.agent.CheckpointableAgent;
+import com.redbottledesign.bitcoin.pool.agent.persistence.dedupe.PersistenceDeduper;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointItem;
 import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
 import com.redbottledesign.bitcoin.pool.util.queue.QueryableQueue;
@@ -438,8 +439,8 @@ implements EvictableQueue<Long>
             throw new RuntimeException("Simulated failure for testing.");
 
         // If this isn't the first attempt to save this item, check if we might have actually saved it previously.
-        if ((queueItem.getFailCount() != 0) &&
-            DuplicateChecker.wasEntityAlreadySaved(this.server.getSession(), queueEntity))
+        if (queueItem.hasPreviouslyFailed() &&
+            PersistenceDeduper.wasEntityAlreadySaved(this.server.getSession(), queueEntity))
         {
             LOGGER.info(
                 String.format(

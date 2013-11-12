@@ -19,43 +19,64 @@ import com.redbottledesign.drupal.gson.requestor.NodeRequestor;
 public class SolvedBlockRequestor
 extends NodeRequestor<SolvedBlock>
 {
-  public SolvedBlockRequestor(SessionManager sessionManager)
-  {
-    super(sessionManager);
-  }
+    public SolvedBlockRequestor(SessionManager sessionManager)
+    {
+        super(sessionManager);
+    }
 
-  public List<SolvedBlock> getUnconfirmedBlocks()
-  throws IOException, DrupalHttpException
-  {
-      List<SolvedBlock>   unconfirmedBlocks = Collections.emptyList();
-      Map<String, Object> criteriaMap       = new HashMap<>();
+    @SuppressWarnings("serial")
+    public List<SolvedBlock> getUnconfirmedBlocks()
+    throws IOException, DrupalHttpException
+    {
+        List<SolvedBlock>   unconfirmedBlocks   = Collections.emptyList();
+        Map<String, Object> criteriaMap         = new HashMap<String, Object>()
+            {{
+                put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, SolvedBlock.CONTENT_TYPE);
+                put(Node.DRUPAL_PUBLISHED_FIELD_NAME,   1);
+                put(SolvedBlock.DRUPAL_FIELD_STATUS,    SolvedBlock.Status.UNCONFIRMED.ordinal());
+            }};
 
-      criteriaMap.put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME,   SolvedBlock.CONTENT_TYPE);
-      criteriaMap.put(Node.DRUPAL_PUBLISHED_FIELD_NAME,     1);
-      criteriaMap.put(SolvedBlock.DRUPAL_FIELD_STATUS,      SolvedBlock.Status.UNCONFIRMED.ordinal());
+        try
+        {
+            unconfirmedBlocks = this.requestEntitiesByCriteria(SolvedBlock.ENTITY_TYPE, criteriaMap);
+        }
 
-      try
-      {
-          unconfirmedBlocks = this.requestEntitiesByCriteria(SolvedBlock.ENTITY_TYPE, criteriaMap);
-      }
+        catch (DrupalEndpointMissingException ex)
+        {
+            // Suppress -- this is expected if there is no current round.
+        }
 
-      catch (DrupalEndpointMissingException ex)
-      {
-          // Suppress -- this is expected if there is no current round.
-      }
+        return unconfirmedBlocks;
+    }
 
-      return unconfirmedBlocks;
-  }
+    @SuppressWarnings("serial")
+    public SolvedBlock getBlock(final String blockHash, final long blockHeight)
+    throws IOException, DrupalHttpException
+    {
+        SolvedBlock result;
 
-  @Override
-  protected Type getListResultType()
-  {
-    return new TypeToken<JsonEntityResultList<SolvedBlock>>(){}.getType();
-  }
+        result =
+            this.requestEntityByCriteria(
+                SolvedBlock.ENTITY_TYPE,
+                new HashMap<String, Object>()
+                {{
+                    put(Node.DRUPAL_BUNDLE_TYPE_FIELD_NAME, SolvedBlock.CONTENT_TYPE);
+                    put(SolvedBlock.DRUPAL_FIELD_HASH,      blockHash);
+                    put(SolvedBlock.DRUPAL_FIELD_HEIGHT,    blockHeight);
+                }});
 
-  @Override
-  protected Class<SolvedBlock> getNodeType()
-  {
-    return SolvedBlock.class;
-  }
+        return result;
+    }
+
+    @Override
+    protected Type getListResultType()
+    {
+        return new TypeToken<JsonEntityResultList<SolvedBlock>>(){}.getType();
+    }
+
+    @Override
+    protected Class<SolvedBlock> getNodeType()
+    {
+        return SolvedBlock.class;
+    }
 }
