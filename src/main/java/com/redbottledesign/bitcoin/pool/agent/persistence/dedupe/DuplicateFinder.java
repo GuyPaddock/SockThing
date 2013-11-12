@@ -32,10 +32,16 @@ abstract class DuplicateFinder<T extends Entity<?>>
 
         else
         {
-            final Date  existingDate        = existingEntity.getDateChanged();
-            final Date  updatedDate         = updatedEntity.getDateChanged();
-            final int   existingRevision    = existingEntity.getRevisionId();
-            final int   updatedRevision     = updatedEntity.getRevisionId();
+            Date      existingDate      = existingEntity.getDateChanged();
+            Date      updatedDate       = updatedEntity.getDateChanged();
+            Integer   existingRevision  = existingEntity.getRevisionId();
+            Integer   updatedRevision   = updatedEntity.getRevisionId();
+
+            if (updatedRevision == null)
+                updatedRevision = 0;
+
+            if (updatedDate == null)
+                updatedDate = new Date();
 
             result = ((existingDate.after(updatedDate)) || (existingRevision > updatedRevision));
 

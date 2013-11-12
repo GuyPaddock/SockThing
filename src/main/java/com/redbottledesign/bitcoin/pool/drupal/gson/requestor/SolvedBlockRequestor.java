@@ -12,7 +12,6 @@ import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.gson.JsonEntityResultList;
 import com.redbottledesign.drupal.gson.SessionManager;
-import com.redbottledesign.drupal.gson.exception.DrupalEndpointMissingException;
 import com.redbottledesign.drupal.gson.exception.DrupalHttpException;
 import com.redbottledesign.drupal.gson.requestor.NodeRequestor;
 
@@ -36,15 +35,7 @@ extends NodeRequestor<SolvedBlock>
                 put(SolvedBlock.DRUPAL_FIELD_STATUS,    SolvedBlock.Status.UNCONFIRMED.ordinal());
             }};
 
-        try
-        {
-            unconfirmedBlocks = this.requestEntitiesByCriteria(SolvedBlock.ENTITY_TYPE, criteriaMap);
-        }
-
-        catch (DrupalEndpointMissingException ex)
-        {
-            // Suppress -- this is expected if there is no current round.
-        }
+        unconfirmedBlocks = this.requestEntitiesByCriteria(SolvedBlock.ENTITY_TYPE, criteriaMap);
 
         return unconfirmedBlocks;
     }

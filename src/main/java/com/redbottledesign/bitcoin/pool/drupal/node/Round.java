@@ -15,7 +15,10 @@ extends Node
   public static final String DRUPAL_FIELD_ROUND_STATUS = "field_round_status";
   public static final String JAVA_FIELD_ROUND_STATUS = "roundStatus";
 
-  public static final String DRUPAL_FIELD_ROUND_DATES = "field_round_start_end";
+  public static final String DRUPAL_FIELD_ROUND_DATES       = "field_round_start_end";
+  public static final String DRUPAL_FIELD_ROUND_DATES_START = DRUPAL_FIELD_ROUND_DATES + "[value]";
+  public static final String DRUPAL_FIELD_ROUND_DATES_END   = DRUPAL_FIELD_ROUND_DATES + "[value2]";
+
   public static final String JAVA_FIELD_ROUND_DATES = "roundDates";
 
   // FIXME: Move these to config

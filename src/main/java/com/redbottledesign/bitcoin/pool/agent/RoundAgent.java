@@ -95,6 +95,9 @@ implements QueueItemCallbackFactory<RoundAgent.RoundPersistenceCallback>
 
     protected synchronized void setCurrentRound(Round currentRound)
     {
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("New round started: " + currentRound);
+
         this.currentRound = currentRound;
 
         this.notifyAll();

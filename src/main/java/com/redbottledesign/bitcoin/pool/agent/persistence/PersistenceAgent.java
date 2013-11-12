@@ -476,10 +476,10 @@ implements EvictableQueue<Long>
 
                 requestor.update(queueEntity);
             }
-        }
 
-        if (this.testingSimulatePostSaveFailure)
-            throw new RuntimeException("Simulated post-save failure for testing.");
+            if (this.testingSimulatePostSaveFailure)
+                throw new RuntimeException("Simulated post-save failure for testing.");
+        }
 
         if (callback != null)
         {

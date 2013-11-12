@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.node.BlockCredit;
 import com.redbottledesign.bitcoin.pool.drupal.node.Payout;
+import com.redbottledesign.bitcoin.pool.drupal.node.Round;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.drupal.Entity;
@@ -25,7 +26,7 @@ public class DuplicateDetector
         {{
             put(BlockCredit.class,  new DuplicateBlockCreditFinder());
             put(Payout.class,       new DuplicatePayoutFinder());
-//            put(Round.class,        new DuplicateRoundFinder());
+            put(Round.class,        new DuplicateRoundFinder());
             put(SolvedBlock.class,  new DuplicateSolvedBlockFinder());
             put(WorkShare.class,    new DuplicateWorkShareFinder());
         }};
