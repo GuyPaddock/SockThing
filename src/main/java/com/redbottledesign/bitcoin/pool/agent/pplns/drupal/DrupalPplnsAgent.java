@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.agent.drupal.pplns;
+package com.redbottledesign.bitcoin.pool.agent.pplns.drupal;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
