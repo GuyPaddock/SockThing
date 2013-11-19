@@ -2,6 +2,9 @@ package com.redbottledesign.bitcoin.pool.drupal.authentication;
 
 import java.util.StringTokenizer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.fireduck64.sockthing.PoolUser;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
@@ -14,56 +17,96 @@ import com.redbottledesign.drupal.gson.requestor.UserRequestor;
 public class DrupalAuthHandler
 implements AuthHandler
 {
-  private final WorkersSummaryRequestor workerRequestor;
-  private final UserRequestor userRequestor;
+    private static final Logger LOGGER = LoggerFactory.getLogger(DrupalAuthHandler.class);
 
-  public DrupalAuthHandler(StratumServer server)
-  {
-    DrupalSession drupalSession = server.getSession();
+    private final WorkersSummaryRequestor workerRequestor;
+    private final UserRequestor userRequestor;
 
-    this.workerRequestor  = drupalSession.getWorkersRequestor();
-    this.userRequestor    = drupalSession.getUserRequestor();
-  }
-
-  /**
-   * Return PoolUser object if the user is legit.
-   * Return null if the user is unknown/not allowed/incorrect
-   */
-  @Override
-  public PoolUser authenticate(String userName, String password)
-  {
-    PoolUser result = null;
-
-    try
+    public DrupalAuthHandler(StratumServer server)
     {
-      StringTokenizer userNameTokenizer = new StringTokenizer(userName, ".");
+        DrupalSession drupalSession = server.getSession();
 
-      if (userNameTokenizer.countTokens() == 2)
-      {
-        String            drupalUserName    = userNameTokenizer.nextToken().toLowerCase(),
-                          workerName        = userNameTokenizer.nextToken();
-        UserWorkerSummary drupalWorkerInfo  = this.workerRequestor.getUserWorkerSummary(drupalUserName, workerName);
+        this.workerRequestor = drupalSession.getWorkersRequestor();
+        this.userRequestor = drupalSession.getUserRequestor();
+    }
 
-        if (drupalWorkerInfo != null)
+    /**
+     * Return PoolUser object if the user is legit. Return null if the user is
+     * unknown/not allowed/incorrect
+     */
+    @Override
+    public PoolUser authenticate(String userName, String password)
+    {
+        PoolUser result = null;
+
+        try
         {
-          String  drupalWorkerPassword    = drupalWorkerInfo.getWorkerPassword();
-          int     drupalWorkerDifficulty  = drupalWorkerInfo.getWorkerMinimumDifficulty();
+            StringTokenizer userNameTokenizer = new StringTokenizer(userName, ".");
 
-          if (((password == null) && (drupalWorkerPassword == null)) || password.equals(drupalWorkerPassword))
-          {
-            User drupalUser = this.userRequestor.requestUserByUid(drupalWorkerInfo.getUserId());
+            if (userNameTokenizer.countTokens() != 2)
+            {
+                if (LOGGER.isErrorEnabled())
+                {
+                    LOGGER.error(
+                        String.format("Authentication failure - could not parse worker user name '%s'", userName));
+                }
+            }
+            else
+            {
+                String              drupalUserName      = userNameTokenizer.nextToken().toLowerCase(),
+                                    workerName          = userNameTokenizer.nextToken();
+                UserWorkerSummary   drupalWorkerInfo    = this.workerRequestor.getUserWorkerSummary(drupalUserName, workerName);
 
-            result = new DrupalPoolUser(drupalUser, workerName, drupalWorkerDifficulty);
-          }
+                if (LOGGER.isDebugEnabled())
+                    LOGGER.debug("Authenticating worker: " + drupalWorkerInfo);
+
+                if (drupalWorkerInfo == null)
+                {
+                    LOGGER.error(
+                        String.format(
+                            "Authentication failure - worker not found for username '%s' and worker name '%s'",
+                            drupalUserName,
+                            workerName));
+                }
+
+                else
+                {
+                    String  drupalWorkerPassword    = drupalWorkerInfo.getWorkerPassword();
+                    int     drupalWorkerDifficulty  = drupalWorkerInfo.getWorkerMinimumDifficulty();
+
+                    if (((password == null) && (drupalWorkerPassword == null)) || password.equals(drupalWorkerPassword))
+                    {
+                        User drupalUser = this.userRequestor.requestUserByUid(drupalWorkerInfo.getUserId());
+
+                        result = new DrupalPoolUser(drupalUser, workerName, drupalWorkerDifficulty);
+                    }
+
+                    else
+                    {
+                        LOGGER.error(
+                            String.format(
+                                "Authentication failure - bad worker password for username '%s' and worker name '%s'",
+                                drupalUserName,
+                                workerName));
+                    }
+                }
+            }
         }
-      }
-    }
 
-    catch (Exception ex)
-    {
-      ex.printStackTrace();
-    }
+        catch (Exception ex)
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    String.format(
+                        "Failed to authenticate user '%s' with password '%s': %s",
+                        userName,
+                        password,
+                        ex.getMessage()),
+                    ex);
+            }
+        }
 
-    return result;
-  }
+        return result;
+    }
 }
