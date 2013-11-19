@@ -12,6 +12,7 @@ extends PoolUser
   {
     super(workerName);
 
+    this.setName(drupalUser.getName());
     this.setDifficulty(difficulty);
 
     this.drupalUser = drupalUser;
