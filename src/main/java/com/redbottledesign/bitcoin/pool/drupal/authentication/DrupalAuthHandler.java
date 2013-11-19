@@ -36,7 +36,7 @@ implements AuthHandler
 
     try
     {
-      StringTokenizer userNameTokenizer = new StringTokenizer(userName, "_");
+      StringTokenizer userNameTokenizer = new StringTokenizer(userName, ".");
 
       if (userNameTokenizer.countTokens() == 2)
       {
