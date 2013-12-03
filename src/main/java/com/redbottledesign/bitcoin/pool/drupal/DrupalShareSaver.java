@@ -16,7 +16,7 @@ import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.checkpoint.CheckpointGsonBuilder;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver.BlockPersistenceCallback;
-import com.redbottledesign.bitcoin.pool.drupal.authentication.DrupalPoolUser;
+import com.redbottledesign.bitcoin.pool.drupal.authentication.DrupalUserExtension;
 import com.redbottledesign.bitcoin.pool.drupal.node.SolvedBlock;
 import com.redbottledesign.bitcoin.pool.drupal.node.WorkShare;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
@@ -53,14 +53,16 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
     public void saveShare(PoolUser submitter, SubmitResult submitResult, String source, String uniqueJobString,
                           long blockReward, long feeTotal)
     {
-        RoundAgent      roundAgent              = this.server.getAgent(RoundAgent.class);
-        Node.Reference  currentRoundReference   = roundAgent.getCurrentRoundSynchronized().asReference();
-        User.Reference  daemonUserReference     = this.poolDaemonUser.asReference();
-        User.Reference  drupalSubmitter         = ((DrupalPoolUser) submitter).getDrupalUser().asReference();
-        WorkShare       newShare;
+        RoundAgent          roundAgent              = this.server.getAgent(RoundAgent.class);
+        Node.Reference      currentRoundReference   = roundAgent.getCurrentRoundSynchronized().asReference();
+        User.Reference      daemonUserReference     = this.poolDaemonUser.asReference();
+        DrupalUserExtension drupalUserExtension     = submitter.getExtension(DrupalUserExtension.class);
+        User.Reference      drupalSubmitter         = drupalUserExtension.getDrupalUser().asReference();
+        WorkShare           newShare;
 
         newShare =
             createNewShare(
+                submitter,
                 drupalSubmitter,
                 submitResult,
                 source,
@@ -99,8 +101,8 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
         return this.persistenceAgent;
     }
 
-    protected WorkShare createNewShare(User.Reference drupalSubmitter, SubmitResult submitResult, String source,
-                                       String uniqueJobString, Node.Reference currentRoundReference,
+    protected WorkShare createNewShare(PoolUser poolUser, User.Reference drupalSubmitter, SubmitResult submitResult,
+                                       String source, String uniqueJobString, Node.Reference currentRoundReference,
                                        User.Reference daemonUserReference)
     {
         WorkShare   newShare        = new WorkShare();
@@ -123,6 +125,8 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
         newShare.setDateSubmitted(new Date());
         newShare.setClientSoftwareVersion(submitResult.getClientVersion());
         newShare.setPoolHost(source);
+        newShare.setWorkerName(poolUser.getWorkerName());
+        newShare.setWorkerDifficulty(poolUser.getDifficulty());
         newShare.setVerifiedByPool(CONFIRM_YES.equals(submitResult.getOurResult()));
         newShare.setVerifiedByNetwork(CONFIRM_YES.equals(submitResult.getUpstreamResult()));
         newShare.setStatus(statusString);

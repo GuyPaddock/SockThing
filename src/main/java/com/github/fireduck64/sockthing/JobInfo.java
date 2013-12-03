@@ -25,6 +25,7 @@ import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.VerificationException;
+import com.redbottledesign.bitcoin.pool.VardiffCalculator;
 
 public class JobInfo
 {
@@ -145,6 +146,9 @@ public class JobInfo
         {
             submitResult.setOurResult("N");
             submitResult.setReason("Exception: " + t);
+
+            if (LOGGER.isErrorEnabled())
+                LOGGER.error("Error validating share: " + t.getMessage(), t);
         }
 
         finally
@@ -164,6 +168,9 @@ public class JobInfo
             {
                 submitResult.setOurResult("N");
                 submitResult.setReason("Exception: " + e);
+
+                if (LOGGER.isErrorEnabled())
+                    LOGGER.error("Error saving share: " + e.getMessage(), e);
             }
         }
     }
@@ -281,9 +288,11 @@ public class JobInfo
                   HexUtil.swapEndianHexString(
                     new Sha256Hash(md.digest()).toString()));
 
+                double shareDifficulty = DiffMath.getDifficultyForHash(blockhash);
+
                 submitResult.setHash(blockhash);
                 submitResult.setNetworkDiffiult(this.difficulty);
-                submitResult.setOurDifficulty(DiffMath.getDifficultyForTarget(blockhash));
+                submitResult.setOurDifficulty(shareDifficulty);
 
                 if (blockhash.toString().compareTo(this.shareTarget.toString()) < 0)
                 {
@@ -330,6 +339,10 @@ public class JobInfo
                               blockhash));
                     }
                 }
+
+                // Re-compute user's difficulty
+                if (VardiffCalculator.getInstance().computeDifficultyAdjustment(this.poolUser, shareDifficulty))
+                    submitResult.setShouldSendDifficulty(true);
             }
 
             catch (NoSuchAlgorithmException e)

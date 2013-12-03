@@ -6,20 +6,18 @@ import com.redbottledesign.drupal.User;
 public class DrupalPoolUser
 extends PoolUser
 {
-  private final User drupalUser;
+    public DrupalPoolUser(User drupalUser, String workerName, int difficulty)
+    {
+        super(workerName);
 
-  public DrupalPoolUser(User drupalUser, String workerName, int difficulty)
-  {
-    super(workerName);
+        this.setName(drupalUser.getName());
+        this.setDifficulty(difficulty);
 
-    this.setName(drupalUser.getName());
-    this.setDifficulty(difficulty);
+        this.putExtension(new DrupalUserExtension(drupalUser));
+    }
 
-    this.drupalUser = drupalUser;
-  }
-
-  public User getDrupalUser()
-  {
-    return this.drupalUser;
-  }
+    public User getDrupalUser()
+    {
+        return this.getExtension(DrupalUserExtension.class).getDrupalUser();
+    }
 }

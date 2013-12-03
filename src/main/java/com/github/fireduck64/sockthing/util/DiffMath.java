@@ -24,7 +24,7 @@ public class DiffMath
         return new Sha256Hash(target);
     }
 
-    public static double getDifficultyForTarget(Sha256Hash blockHash)
+    public static double getDifficultyForHash(Sha256Hash blockHash)
     {
         String hashString = blockHash.toString();
         BigInteger diffTarget;
@@ -44,7 +44,7 @@ public class DiffMath
         System.out.println(" " + diffStr + " - " + getTargetForDifficulty(diff));
     }
 
-    private static void printDiff(String stringHash)
+    private static void printHashDifficulty(String stringHash)
     {
         Sha256Hash hash = new Sha256Hash(stringHash);
         String diffStr = "" + stringHash;
@@ -52,7 +52,7 @@ public class DiffMath
         while (diffStr.length() < 10)
             diffStr += " ";
 
-        System.out.println(" " + diffStr + " - " + getDifficultyForTarget(hash));
+        System.out.println(" " + diffStr + " - " + getDifficultyForHash(hash));
     }
 
     public static void main(String args[])
@@ -85,7 +85,7 @@ public class DiffMath
 
         for (String diff : diffs)
         {
-            printDiff(diff);
+            printHashDifficulty(diff);
         }
     }
 }

@@ -404,9 +404,11 @@ public class StratumConnection
 
                 sendMessage(reply);
 
-                if ((res !=null) && (res.getReason() != null) && (res.getReason().equals("H-not-zero")))
+                if ((res !=null) &&
+                    (((res.getReason() != null) && (res.getReason().equals("H-not-zero"))) ||
+                     (res.shouldSendDifficulty())))
                 {
-                    //User is not respecting difficulty, remind them
+                    // Time to remind user about their minimum difficulty
                     sendDifficulty();
                 }
             }

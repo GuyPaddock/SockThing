@@ -12,10 +12,12 @@ public class SubmitResult
     private int height;
     private double workDifficulty;
     private double networkDifficulty;
+    private boolean shouldSendDifficulty;
 
     public SubmitResult()
     {
-        this.ourResult = "Y";
+        this.ourResult            = "Y";
+        this.shouldSendDifficulty = false;
     }
 
     public Sha256Hash getHash()
@@ -96,6 +98,16 @@ public class SubmitResult
     public void setNetworkDiffiult(double networkDifficulty)
     {
         this.networkDifficulty = networkDifficulty;
+    }
+
+    public boolean shouldSendDifficulty()
+    {
+        return this.shouldSendDifficulty;
+    }
+
+    public void setShouldSendDifficulty(boolean shouldSendDifficulty)
+    {
+        this.shouldSendDifficulty = shouldSendDifficulty;
     }
 
     public static enum Status
