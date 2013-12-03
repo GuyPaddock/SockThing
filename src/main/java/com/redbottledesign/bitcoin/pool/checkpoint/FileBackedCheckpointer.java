@@ -115,8 +115,8 @@ implements Checkpointer, CheckpointListener
 
         try
         {
-            if (LOGGER.isInfoEnabled())
-                LOGGER.info(String.format("Writing out pre-save checkpoint item to '%s'.", checkpointFile.getPath()));
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug(String.format("Writing out pre-save checkpoint item to '%s'.", checkpointFile.getPath()));
 
             this.writeOutCheckpointItem(checkpointItem, checkpointFile);
             this.knownCheckpointItems.put(checkpointItem, checkpointFile);
@@ -150,8 +150,8 @@ implements Checkpointer, CheckpointListener
         {
             try
             {
-                if (LOGGER.isInfoEnabled())
-                    LOGGER.info(String.format("Updating checkpoint item '%s'.", checkpointFile.getPath()));
+                if (LOGGER.isDebugEnabled())
+                    LOGGER.debug(String.format("Updating checkpoint item '%s'.", checkpointFile.getPath()));
 
                 this.writeOutCheckpointItem(checkpointItem, checkpointFile);
             }
@@ -191,9 +191,9 @@ implements Checkpointer, CheckpointListener
 
             try
             {
-                if (LOGGER.isInfoEnabled())
+                if (LOGGER.isDebugEnabled())
                 {
-                    LOGGER.info(
+                    LOGGER.debug(
                         String.format(
                             "Updating and moving processed checkpoint item to '%s'.",
                             processedCheckpointFile.getPath()));
