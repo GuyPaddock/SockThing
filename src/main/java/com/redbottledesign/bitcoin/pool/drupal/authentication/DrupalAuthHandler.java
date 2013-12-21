@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.PoolUser;
-import com.github.fireduck64.sockthing.StratumServer;
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.gson.requestor.WorkersSummaryRequestor;
@@ -22,12 +21,10 @@ implements AuthHandler
     private final WorkersSummaryRequestor workerRequestor;
     private final UserRequestor userRequestor;
 
-    public DrupalAuthHandler(StratumServer server)
+    public DrupalAuthHandler(DrupalSession drupalSession)
     {
-        DrupalSession drupalSession = server.getSession();
-
         this.workerRequestor = drupalSession.getWorkersRequestor();
-        this.userRequestor = drupalSession.getUserRequestor();
+        this.userRequestor   = drupalSession.getUserRequestor();
     }
 
     /**

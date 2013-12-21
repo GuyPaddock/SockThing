@@ -273,12 +273,13 @@ public class StratumServer
         FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer(server);
         DrupalPplnsAgent        pplnsAgent          = new DrupalPplnsAgent(server);
         PersistenceAgent        persistenceAgent;
+        DrupalSession           session             = new DrupalSession(conf);
 
         server.setInstanceId(conf.get("instance_id"));
         server.setMetricsReporter(new MetricsReporter(server));
 
-        server.setSession(new DrupalSession(conf));
-        server.setAuthHandler(new DrupalAuthHandler(server));
+        server.setSession(session);
+        server.setAuthHandler(new DrupalAuthHandler(session));
 
         persistenceAgent = new PersistenceAgent(server);
 
