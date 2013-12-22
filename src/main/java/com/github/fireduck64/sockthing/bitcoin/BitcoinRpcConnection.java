@@ -25,9 +25,9 @@ public interface BitcoinRpcConnection
     public abstract JSONObject getBlockInfo(String blockHash)
     throws IOException, JSONException;
 
-    public abstract JSONObject submitBlock(Block block)
+    public abstract boolean submitBlock(Block block)
     throws IOException, JSONException;
 
-    public abstract JSONObject sendPayment(double amount, Address payFromAddress, Address payToAddress)
+    public abstract String sendPayment(double amount, Address payFromAddress, Address payToAddress)
     throws IOException, JSONException;
 }

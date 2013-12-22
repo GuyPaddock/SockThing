@@ -121,12 +121,13 @@ implements BitcoinRpcConnection
     }
 
     @Override
-    public JSONObject submitBlock(Block block)
+    public boolean submitBlock(Block block)
     throws IOException, JSONException
     {
-        Random      rnd     = new Random();
-        JSONArray   params  = new JSONArray();
-        JSONObject  msg     = new JSONObject(),
+        boolean     wasSuccessful;
+        Random      rnd             = new Random();
+        JSONArray   params          = new JSONArray();
+        JSONObject  msg             = new JSONObject(),
                     result;
 
         msg.put("method", "submitblock");
@@ -138,7 +139,15 @@ implements BitcoinRpcConnection
 
         result = sendPost(msg);
 
-        return result;
+        wasSuccessful = (result.isNull("error") && result.isNull("result"));
+
+        if (!wasSuccessful)
+        {
+            if (LOGGER.isErrorEnabled())
+                LOGGER.error("Block submit error:  "+ result.get("error"));
+        }
+
+        return wasSuccessful;
     }
 
     @Override
@@ -217,12 +226,13 @@ implements BitcoinRpcConnection
     }
 
     @Override
-    public JSONObject sendPayment(double amount, Address payFromAddress, Address payToAddress)
+    public String sendPayment(double amount, Address payFromAddress, Address payToAddress)
     throws IOException, JSONException
     {
-        Random      rnd     = new Random();
-        JSONArray   params  = new JSONArray();
-        JSONObject  msg     = new JSONObject(),
+        String      paymentHash;
+        Random      rnd         = new Random();
+        JSONArray   params      = new JSONArray();
+        JSONObject  msg         = new JSONObject(),
                     result;
 
         msg.put("method", "sendtoaddress");
@@ -235,7 +245,12 @@ implements BitcoinRpcConnection
 
         result = sendPost(msg);
 
-        return result;
+        if (!result.isNull("error"))
+            throw new RuntimeException("Payment failed: " + result.get("error"));
+
+        paymentHash = result.getString("result");
+
+        return paymentHash;
     }
 
 //    public Block getBlock(String blockHash)

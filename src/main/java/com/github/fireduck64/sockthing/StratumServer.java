@@ -406,13 +406,7 @@ public class StratumServer
     public String sendPayment(BigDecimal amount, Address payee)
     throws IOException, JSONException
     {
-      JSONObject  resultObject = this.bitcoinConnection.sendPayment(amount.doubleValue(), this.poolAddress, payee);
-      String      paymentHash;
-
-      if (!resultObject.isNull("error"))
-          throw new RuntimeException("Payment failed: " + resultObject.get("error"));
-
-      paymentHash = resultObject.getString("result");
+      String paymentHash = this.bitcoinConnection.sendPayment(amount.doubleValue(), this.poolAddress, payee);
 
       return paymentHash;
     }
@@ -497,23 +491,11 @@ public class StratumServer
 
       try
       {
-        JSONObject result = this.bitcoinConnection.submitBlock(blk);
-
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Block result: " + result.toString(2));
-
-        if (result.isNull("error") && result.isNull("result"))
-        {
+        if (this.bitcoinConnection.submitBlock(blk))
             returnCode = "Y";
-        }
 
         else
-        {
-            if (LOGGER.isErrorEnabled())
-                LOGGER.error("Block submit error:  "+ result.get("error"));
-
             returnCode = "N";
-        }
       }
 
       catch (Throwable ex)
