@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,9 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.codec.DecoderException;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -24,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.SubmitResult.Status;
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
+import com.github.fireduck64.sockthing.bitcoin.BitcoinRpcConnection;
 import com.github.fireduck64.sockthing.output.OutputMonster;
 import com.github.fireduck64.sockthing.output.OutputMonsterSimple;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
@@ -32,7 +30,6 @@ import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
-import com.google.bitcoin.core.Transaction;
 import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
 import com.redbottledesign.bitcoin.pool.agent.Agent;
 import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent;
@@ -53,8 +50,6 @@ public class StratumServer
 
     private static final long MAX_IDLE_TIME = TimeUnit.NANOSECONDS.convert(5, TimeUnit.MINUTES);
 
-    private final BitcoinRPC bitcoinRpc;
-
     private final Map<String, StratumConnection> conn_map = new HashMap<String, StratumConnection>(1024, 0.5f);
 
     private final Config config;
@@ -65,6 +60,7 @@ public class StratumServer
     private OutputMonster outputMonster;
     private MetricsReporter metricsReporter;
     private DrupalSession session;
+    private BitcoinRpcConnection bitcoinConnection;
 
     private final Map<Class<?>, Agent> agents;
 
@@ -96,7 +92,6 @@ public class StratumServer
 
         config.require("port");
 
-        this.bitcoinRpc = new BitcoinRPC(config);
         this.server = this;
 
         this.agents = new HashMap<>();
@@ -141,6 +136,11 @@ public class StratumServer
         {
             agent.start();
         }
+    }
+
+    public BitcoinRpcConnection getBitcoinConnection()
+    {
+        return this.bitcoinConnection;
     }
 
     public void setAuthHandler(AuthHandler authHandler)
@@ -367,15 +367,12 @@ public class StratumServer
 
         synchronized (this.blockTemplateLock)
         {
-          JSONObject post;
-
           c = this.cachedBlockTemplate;
 
           if (c != null)
               return c;
 
-          post  = new JSONObject(BitcoinRPC.getSimplePostRequest("getblocktemplate"));
-          c     = this.bitcoinRpc.sendPost(post).getJSONObject("result");
+          c = this.bitcoinConnection.getCurrentBlockTemplate();
 
           this.cachedBlockTemplate = c;
 
@@ -386,14 +383,6 @@ public class StratumServer
 
           return c;
         }
-    }
-
-    public double getDifficulty()
-    throws IOException, JSONException
-    {
-        JSONObject post = new JSONObject(BitcoinRPC.getSimplePostRequest("getdifficulty"));
-
-        return this.bitcoinRpc.sendPost(post).getDouble("result");
     }
 
     public String submitBlock(Block blk)
@@ -417,7 +406,7 @@ public class StratumServer
     public String sendPayment(BigDecimal amount, Address payee)
     throws IOException, JSONException
     {
-      JSONObject  resultObject = this.bitcoinRpc.sendPayment(amount.doubleValue(), this.poolAddress, payee);
+      JSONObject  resultObject = this.bitcoinConnection.sendPayment(amount.doubleValue(), this.poolAddress, payee);
       String      paymentHash;
 
       if (!resultObject.isNull("error"))
@@ -426,69 +415,6 @@ public class StratumServer
       paymentHash = resultObject.getString("result");
 
       return paymentHash;
-    }
-
-    public long getBlockConfirmationCount(String blockHash)
-    throws IOException, JSONException
-    {
-        JSONObject  responseResult       = this.bitcoinRpc.getBlockInfo(blockHash),
-                    responseResultObject;
-
-        if (!responseResult.isNull("error"))
-            throw new RuntimeException("Block retrieval failed: " + responseResult.get("error"));
-
-        responseResultObject = responseResult.getJSONObject("result");
-
-        return responseResultObject.getLong("confirmations");
-    }
-
-    public Block getBlock(String blockHash)
-    throws IOException, JSONException
-    {
-        Block               blockResult;
-        JSONObject          responseResult       = this.bitcoinRpc.getBlockInfo(blockHash),
-                            responseResultObject;
-        JSONArray           responseTransactions;
-        int                 responseVersion;
-        List<Transaction>   transactions;
-
-        if (!responseResult.isNull("error"))
-            throw new RuntimeException("Block retrieval failed: " + responseResult.get("error"));
-
-        responseResultObject = responseResult.getJSONObject("result");
-        responseTransactions = responseResultObject.getJSONArray("tx");
-        responseVersion      = responseResultObject.getInt("version");
-
-        transactions = new ArrayList<>(responseTransactions.length());
-
-        try
-        {
-            for (int resultIndex = 0; resultIndex < responseTransactions.length(); ++resultIndex)
-            {
-                transactions.add(
-                    new Transaction(
-                        this.networkParams,
-                        responseVersion,
-                        HexUtil.hexToHash(responseTransactions.getString(resultIndex))));
-            }
-
-            blockResult = new Block(
-                this.networkParams,
-                responseVersion,
-                HexUtil.hexToHash(responseResultObject.getString("hash")),
-                HexUtil.hexToHash(responseResultObject.getString("merkleroot")),
-                responseResultObject.getLong("time"),
-                responseResultObject.getLong("difficulty"),
-                responseResultObject.getLong("nonce"),
-                transactions);
-        }
-
-        catch (DecoderException ex)
-        {
-            throw new JSONException(ex);
-        }
-
-        return blockResult;
     }
 
     public UserSessionData getUserSessionData(PoolUser pu)
@@ -571,7 +497,7 @@ public class StratumServer
 
       try
       {
-        JSONObject result = this.bitcoinRpc.submitBlock(blk);
+        JSONObject result = this.bitcoinConnection.submitBlock(blk);
 
         if (LOGGER.isDebugEnabled())
             LOGGER.debug("Block result: " + result.toString(2));
@@ -860,32 +786,28 @@ public class StratumServer
         private void doRun()
         throws Exception
         {
-            JSONObject  reply           = StratumServer.this.bitcoinRpc.doSimplePostRequest("getblockcount");
-            int         block_height    = reply.getInt("result");
+            int blockCount = StratumServer.this.bitcoinConnection.getBlockCount();
 
-            if (block_height != this.last_block)
+            if (blockCount != this.last_block)
             {
                 /*
                  * Using target high (next block height) for logging because
                  * that is what the block template, submitted shares and next
                  * found blocks all use.
                  */
-                int target_height = block_height + 1;
+                int target_height = blockCount + 1;
 
                 if (LOGGER.isInfoEnabled())
                     LOGGER.info("New target height: " + target_height);
 
-                if (LOGGER.isDebugEnabled())
-                    LOGGER.debug("getblockcount reply: " + reply);
-
                 StratumServer.this.triggerUpdate(true);
 
-                this.last_block = block_height;
+                this.last_block = blockCount;
                 this.last_update_time = System.currentTimeMillis();
                 this.last_success_time = System.currentTimeMillis();
 
                 StratumServer.this.currentBlockUpdateTime = System.currentTimeMillis();
-                StratumServer.this.currentBlock = block_height;
+                StratumServer.this.currentBlock = blockCount;
             }
 
             if (this.last_update_time + TEMPLATE_REFRESH_TIME < System.currentTimeMillis())

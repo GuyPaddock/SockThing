@@ -108,7 +108,7 @@ implements QueueItemCallbackFactory<BlockConfirmationCallback>
             {
                 try
                 {
-                    long confirmationCount   = this.server.getBlockConfirmationCount(blockHash);
+                    long confirmationCount   = this.server.getBitcoinConnection().getBlockConfirmationCount(blockHash);
                     long blockHeightDistance = (currentBlockHeight - block.getHeight());
 
                     if ((confirmationCount == 0) && (blockHeightDistance > MAX_BLOCK_ORPHAN_DISTANCE))
