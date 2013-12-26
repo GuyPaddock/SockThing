@@ -24,7 +24,7 @@ abstract class DuplicateFinder<T extends Entity<?>>
 
         if (updatedEntity.isNew())
         {
-            result = (existingEntity == null);
+            result = (existingEntity != null);
 
             if (LOGGER.isTraceEnabled())
                 LOGGER.trace("wasAlreadySaved(): entity is new. Have existing entity: " + result);
