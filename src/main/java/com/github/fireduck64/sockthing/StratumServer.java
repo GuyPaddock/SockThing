@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.SubmitResult.Status;
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
+import com.github.fireduck64.sockthing.bitcoin.BitcoinDaemonConnection;
 import com.github.fireduck64.sockthing.bitcoin.BitcoinRpcConnection;
 import com.github.fireduck64.sockthing.output.OutputMonster;
 import com.github.fireduck64.sockthing.output.OutputMonsterSimple;
@@ -31,6 +32,7 @@ import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
 import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
+import com.redbottledesign.bitcoin.pool.PiggyBackedBitcoinDaemonConnection;
 import com.redbottledesign.bitcoin.pool.agent.Agent;
 import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent;
 import com.redbottledesign.bitcoin.pool.agent.PayoutAgent;
@@ -141,6 +143,11 @@ public class StratumServer
     public BitcoinRpcConnection getBitcoinConnection()
     {
         return this.bitcoinConnection;
+    }
+
+    public void setBitcoinConnection(BitcoinRpcConnection connection)
+    {
+        this.bitcoinConnection = connection;
     }
 
     public void setAuthHandler(AuthHandler authHandler)
@@ -268,6 +275,7 @@ public class StratumServer
         conf.require("coinbase_text");
         conf.require("saver_messaging_enabled");
         conf.require("witty_remarks_enabled");
+        conf.require("piggy_back_pool");
 
         StratumServer           server              = new StratumServer(conf);
         FileBackedCheckpointer  checkpointer        = new FileBackedCheckpointer(server);
@@ -284,15 +292,6 @@ public class StratumServer
         persistenceAgent = new PersistenceAgent(server);
 
         server.registerAgent(persistenceAgent);
-
-//        if (conf.getBoolean("saver_messaging_enabled"))
-//        {
-//            server.setShareSaver(new ShareSaverMessaging(server, new DBShareSaver(conf)));
-//        }
-//        else
-//        {
-//            server.setShareSaver(new DBShareSaver(conf));
-//        }
 
         server.setShareSaver(
             new FallbackShareSaver(
@@ -328,6 +327,12 @@ public class StratumServer
 
         checkpointer.setupCheckpointing(persistenceAgent, pplnsAgent);
         checkpointer.restoreCheckpointsFromDisk();
+
+        if (conf.getBoolean("piggy_back_pool"))
+            server.setBitcoinConnection(new PiggyBackedBitcoinDaemonConnection(conf));
+
+        else
+            server.setBitcoinConnection(new BitcoinDaemonConnection(conf));
 
         server.start();
     }

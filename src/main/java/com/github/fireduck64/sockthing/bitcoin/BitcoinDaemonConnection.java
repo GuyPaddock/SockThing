@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Random;
 import java.util.Scanner;
 
 import org.apache.commons.codec.binary.Base64;
@@ -24,27 +23,17 @@ implements BitcoinRpcConnection
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BitcoinDaemonConnection.class);
 
-    private final String username;
-    private final String password;
-    private final String host;
-    private final int port;
+    private String username;
+    private String password;
+    private String host;
+    private int port;
+    private int requestNumber;
 
     public BitcoinDaemonConnection(Config config)
     {
-        config.require("bitcoind_username");
-        config.require("bitcoind_password");
-        config.require("bitcoind_host");
-        config.require("bitcoind_port");
+        this.validateAndLoadConfig(config);
 
-        username=config.get("bitcoind_username");
-        password=config.get("bitcoind_password");
-        host=config.get("bitcoind_host");
-        port=config.getInt("bitcoind_port");
-    }
-
-    private String getUrl()
-    {
-        return "http://" + host + ":" + port + "/";
+        this.requestNumber = 1;
     }
 
     public JSONObject sendPost(JSONObject post)
@@ -55,12 +44,50 @@ implements BitcoinRpcConnection
         if (LOGGER.isDebugEnabled())
             LOGGER.debug("Bitcoin RPC POST: " + post.toString(2));
 
-        response = sendPost(getUrl(), post.toString());
+        response = this.sendPost(this.getUrl(), post.toString());
 
         if (LOGGER.isDebugEnabled())
             LOGGER.debug("Bitcoin RPC response: " + response);
 
         return new JSONObject(response);
+    }
+
+    protected String getUsername()
+    {
+        return this.username;
+    }
+
+    protected String getPassword()
+    {
+        return this.password;
+    }
+
+    protected String getHost()
+    {
+        return this.host;
+    }
+
+    protected int getPort()
+    {
+        return this.port;
+    }
+
+    protected String getUrl()
+    {
+        return "http://" + host + ":" + port + "/";
+    }
+
+    protected void validateAndLoadConfig(Config config)
+    {
+        config.require("bitcoind_username");
+        config.require("bitcoind_password");
+        config.require("bitcoind_host");
+        config.require("bitcoind_port");
+
+        this.username = config.get("bitcoind_username");
+        this.password = config.get("bitcoind_password");
+        this.host     = config.get("bitcoind_host");
+        this.port     = config.getInt("bitcoind_port");
     }
 
     protected String sendPost(String url, String postdata)
@@ -89,11 +116,9 @@ implements BitcoinRpcConnection
         Scanner scan;
 
         if (connection.getResponseCode() != 500)
-        {
             scan = new Scanner(connection.getInputStream());
-        } else {
+        else
             scan = new Scanner(connection.getErrorStream());
-        }
 
         StringBuilder sb = new StringBuilder();
 
@@ -109,15 +134,15 @@ implements BitcoinRpcConnection
 
     }
 
-    public static String getSimplePostRequest(String cmd)
+    public String getSimplePostRequest(String cmd)
     {
-        return "{\"method\":\""+cmd+"\",\"params\":[],\"id\":1}\n";
+        return "{\"method\":\"" + cmd + "\",\"params\":[],\"id\":" + this.getRequestId() + "}\n";
     }
 
     public JSONObject doSimplePostRequest(String cmd)
     throws IOException, JSONException
     {
-        return sendPost(new JSONObject(getSimplePostRequest(cmd)));
+        return this.sendPost(new JSONObject(this.getSimplePostRequest(cmd)));
     }
 
     @Override
@@ -125,19 +150,18 @@ implements BitcoinRpcConnection
     throws IOException, JSONException
     {
         boolean     wasSuccessful;
-        Random      rnd             = new Random();
         JSONArray   params          = new JSONArray();
         JSONObject  msg             = new JSONObject(),
                     result;
 
         msg.put("method", "submitblock");
-        msg.put("id",     Integer.toString(rnd.nextInt()));
+        msg.put("id",     Integer.toString(this.getRequestId()));
 
         params.put(Hex.encodeHexString(block.bitcoinSerialize()));
 
         msg.put("params", params);
 
-        result = sendPost(msg);
+        result = this.sendPost(msg);
 
         wasSuccessful = (result.isNull("error") && result.isNull("result"));
 
@@ -154,7 +178,7 @@ implements BitcoinRpcConnection
     public JSONObject getCurrentBlockTemplate()
     throws IOException, JSONException
     {
-        JSONObject  post    = new JSONObject(BitcoinDaemonConnection.getSimplePostRequest("getblocktemplate")),
+        JSONObject  post    = new JSONObject(this.getSimplePostRequest("getblocktemplate")),
                     result;
 
         result = this.sendPost(post).getJSONObject("result");
@@ -166,7 +190,7 @@ implements BitcoinRpcConnection
     public double getDifficulty()
     throws IOException, JSONException
     {
-        JSONObject  post    = new JSONObject(BitcoinDaemonConnection.getSimplePostRequest("getdifficulty"));
+        JSONObject  post    = new JSONObject(this.getSimplePostRequest("getdifficulty"));
         double      result  = this.sendPost(post).getDouble("result");
 
         result = this.sendPost(post).getDouble("result");
@@ -178,7 +202,7 @@ implements BitcoinRpcConnection
     public int getBlockCount()
     throws IOException, JSONException
     {
-        JSONObject  post    = new JSONObject(BitcoinDaemonConnection.getSimplePostRequest("getblockcount"));
+        JSONObject  post    = new JSONObject(this.getSimplePostRequest("getblockcount"));
         int         result  = this.sendPost(post).getInt("result");
 
         result = this.sendPost(post).getInt("result");
@@ -202,20 +226,19 @@ implements BitcoinRpcConnection
     public JSONObject getBlockInfo(String blockHash)
     throws IOException, JSONException
     {
-        Random      rnd             = new Random();
         JSONArray   params          = new JSONArray();
         JSONObject  msg             = new JSONObject(),
                     requestResult,
                     result;
 
         msg.put("method", "getblock");
-        msg.put("id",     Integer.toString(rnd.nextInt()));
+        msg.put("id",     Integer.toString(this.getRequestId()));
 
         params.put(blockHash);
 
         msg.put("params", params);
 
-        requestResult = sendPost(msg);
+        requestResult = this.sendPost(msg);
 
         if (!requestResult.isNull("error"))
             throw new RuntimeException("Block retrieval failed: " + requestResult.get("error"));
@@ -230,20 +253,19 @@ implements BitcoinRpcConnection
     throws IOException, JSONException
     {
         String      paymentHash;
-        Random      rnd         = new Random();
         JSONArray   params      = new JSONArray();
         JSONObject  msg         = new JSONObject(),
                     result;
 
         msg.put("method", "sendtoaddress");
-        msg.put("id",     Integer.toString(rnd.nextInt()));
+        msg.put("id",     Integer.toString(this.getRequestId()));
 
         params.put(payToAddress.toString()); // <bitcoinaddress>
         params.put(amount);                  // <amount>
 
         msg.put("params", params);
 
-        result = sendPost(msg);
+        result = this.sendPost(msg);
 
         if (!result.isNull("error"))
             throw new RuntimeException("Payment failed: " + result.get("error"));
@@ -301,4 +323,9 @@ implements BitcoinRpcConnection
 //
 //        return blockResult;
 //    }
+
+    protected int getRequestId()
+    {
+        return (this.requestNumber++);
+    }
 }
