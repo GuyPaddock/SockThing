@@ -80,7 +80,8 @@ public class DiffMath
             "00000000001d0ee8fa3e564930d12b45c6b6d9266ec2ec7bf75c6def9d8249fb",
             "00000000067dafa73f09c60ac024d268e6ab7e5ca7b0a011e2818f2d476ff65e",
             "0000000000ca6056f3d2eed8d248d97cf9347490830d2598acc0333bdfc492a8",
-            "000000000066f7680a954a76014f38d06be8ab69d2e945227faf3495c7dfd7f0"
+            "000000000066f7680a954a76014f38d06be8ab69d2e945227faf3495c7dfd7f0",
+            "000000003fffffffffffffffffffffffffffffffffffffffffffffffffffffff"
         };
 
         for (String diff : diffs)
