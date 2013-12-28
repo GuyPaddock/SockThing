@@ -17,23 +17,30 @@ import org.slf4j.LoggerFactory;
 import com.github.fireduck64.sockthing.Config;
 import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.Block;
+import com.google.bitcoin.core.NetworkParameters;
 
 public class BitcoinDaemonConnection
 implements BitcoinRpcConnection
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BitcoinDaemonConnection.class);
 
+    private NetworkParameters networkParams;
     private String username;
     private String password;
     private String host;
     private int port;
     private int requestNumber;
 
-    public BitcoinDaemonConnection(Config config)
+    public BitcoinDaemonConnection(NetworkParameters params, Config config)
     {
         this.validateAndLoadConfig(config);
 
         this.requestNumber = 1;
+    }
+
+    public NetworkParameters getNetworkParams()
+    {
+        return this.networkParams;
     }
 
     public JSONObject sendPost(JSONObject post)
@@ -97,7 +104,7 @@ implements BitcoinRpcConnection
 
         HttpURLConnection connection = (HttpURLConnection) u.openConnection();
 
-        String basic = username+":"+password;
+        String basic = this.username + ":" + this.password;
         String encoded = Base64.encodeBase64String(basic.getBytes());
         connection.setRequestProperty("Authorization", "Basic "+encoded);
         connection.setDoOutput(true);
@@ -175,7 +182,7 @@ implements BitcoinRpcConnection
     }
 
     @Override
-    public JSONObject getCurrentBlockTemplate()
+    public BlockTemplate getCurrentBlockTemplate()
     throws IOException, JSONException
     {
         JSONObject  post    = new JSONObject(this.getSimplePostRequest("getblocktemplate")),
@@ -183,7 +190,7 @@ implements BitcoinRpcConnection
 
         result = this.sendPost(post).getJSONObject("result");
 
-        return result;
+        return new BitcoinDaemonBlockTemplate(this.networkParams, result);
     }
 
     @Override

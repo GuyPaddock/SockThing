@@ -15,8 +15,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.Config;
-import com.github.fireduck64.sockthing.bitcoin.BitcoinDaemonConnection;
+import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonBlockTemplate;
+import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonConnection;
+import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.google.bitcoin.core.Block;
+import com.google.bitcoin.core.NetworkParameters;
 
 public class PiggyBackedBitcoinDaemonConnection
 extends BitcoinDaemonConnection
@@ -28,13 +31,13 @@ extends BitcoinDaemonConnection
     protected String secondUsername;
     protected String secondPassword;
 
-    public PiggyBackedBitcoinDaemonConnection(Config config)
+    public PiggyBackedBitcoinDaemonConnection(NetworkParameters networkParams, Config config)
     {
-        super(config);
+        super(networkParams, config);
     }
 
     @Override
-    public JSONObject getCurrentBlockTemplate()
+    public BlockTemplate getCurrentBlockTemplate()
     throws IOException, JSONException
     {
         JSONArray   params          = new JSONArray();
@@ -58,7 +61,8 @@ extends BitcoinDaemonConnection
 
         result = requestResult.getJSONObject("result");
 
-        return result;
+        // FIXME: Need a custom block template for piggy-backed connections
+        return new BitcoinDaemonBlockTemplate(this.getNetworkParams(), result);
     }
 
     @Override

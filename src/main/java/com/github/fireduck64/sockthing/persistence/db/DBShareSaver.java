@@ -1,4 +1,5 @@
 package com.github.fireduck64.sockthing.persistence.db;
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -40,7 +41,7 @@ implements ShareSaver
 
     @Override
     public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString,
-                          long blockReward, long feeTotal)
+                          BigInteger blockReward, BigInteger feeTotal)
     throws ShareSaveException
     {
 
@@ -96,7 +97,7 @@ implements ShareSaver
 
             ps.setString(9, uniqueJobString);
             ps.setDouble(10, block_difficulty);
-            ps.setLong(11, blockReward);
+            ps.setLong(11, blockReward.longValue());
 
             ps.execute();
             ps.close();
@@ -108,8 +109,8 @@ implements ShareSaver
                 PreparedStatement blockps = conn.prepareStatement("insert into blocks (hash, difficulty, reward, height) values (?,?,?,?)");
                 blockps.setString(1, submitResult.getHash().toString());
                 blockps.setDouble(2, block_difficulty);
-                blockps.setLong(3, blockReward);
-                blockps.setInt(4, submitResult.getHeight());
+                blockps.setLong(3, blockReward.longValue());
+                blockps.setLong(4, submitResult.getHeight());
 
                 blockps.execute();
                 blockps.close();

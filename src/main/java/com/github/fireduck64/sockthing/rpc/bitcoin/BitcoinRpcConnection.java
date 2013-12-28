@@ -16,7 +16,7 @@ public interface BitcoinRpcConnection
     public abstract int getBlockCount()
     throws IOException, JSONException;
 
-    public abstract JSONObject getCurrentBlockTemplate()
+    public abstract BlockTemplate getCurrentBlockTemplate()
     throws IOException, JSONException;
 
     public abstract long getBlockConfirmationCount(String blockHash)

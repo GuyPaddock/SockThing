@@ -40,10 +40,10 @@ public class Coinbase
 
     private boolean first_gen = true;
 
-    public Coinbase(StratumServer server, PoolUser pool_user, int block_height, BigInteger value, BigInteger fee_total, byte[] extranonce1)
+    public Coinbase(StratumServer server, PoolUser pool_user, long block_height, BigInteger value, BigInteger fee_total,
+                    byte[] extranonce1)
     {
         server.getConfig().require("coinbase_text");
-
 
         this.server = server;
         this.pool_user = pool_user;
@@ -52,10 +52,9 @@ public class Coinbase
         this.extranonce1 = extranonce1;
         extranonce2 = new byte[4];
 
-
         byte[] height_array = new byte[4];
         ByteBuffer bb = ByteBuffer.wrap(height_array);
-        bb.putInt(block_height);
+        bb.putLong(block_height);
         height_array[0]=3;
 
         //The first entries here get replaced with data.

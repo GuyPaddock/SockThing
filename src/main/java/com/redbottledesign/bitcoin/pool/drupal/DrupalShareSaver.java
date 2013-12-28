@@ -2,6 +2,7 @@ package com.redbottledesign.bitcoin.pool.drupal;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Date;
 
 import org.slf4j.Logger;
@@ -51,7 +52,7 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
 
     @Override
     public void saveShare(PoolUser submitter, SubmitResult submitResult, String source, String uniqueJobString,
-                          long blockReward, long feeTotal)
+                          BigInteger blockReward, BigInteger feeTotal)
     {
         RoundAgent          roundAgent              = this.server.getAgent(RoundAgent.class);
         Node.Reference      currentRoundReference   = roundAgent.getCurrentRoundSynchronized().asReference();
@@ -134,13 +135,13 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
         return newShare;
     }
 
-    protected SolvedBlock createNewBlock(User.Reference drupalSubmitter, SubmitResult submitResult, long blockReward,
-                                         long feeTotal, Node.Reference currentRoundReference,
+    protected SolvedBlock createNewBlock(User.Reference drupalSubmitter, SubmitResult submitResult,
+                                         BigInteger blockReward, BigInteger feeTotal, Node.Reference currentRoundReference,
                                          User.Reference daemonUserReference)
     {
         SolvedBlock newBlock        = new SolvedBlock();
         double      blockDifficulty = submitResult.getNetworkDifficulty();
-        BigDecimal  totalReward     = BigDecimal.valueOf(blockReward).add(BigDecimal.valueOf(feeTotal));
+        BigInteger  totalReward     = blockReward.add(feeTotal);
 
         newBlock.setAuthor(daemonUserReference);
         newBlock.setHash(submitResult.getHash().toString());
@@ -151,7 +152,7 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
         newBlock.setRound(currentRoundReference);
 
         // TODO: Separate fees out from reward later?
-        newBlock.setReward(totalReward.divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN)));
+        newBlock.setReward(new BigDecimal(totalReward).divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN)));
 
         newBlock.setSolvingMember(drupalSubmitter);
         newBlock.setWittyRemark(TEST_REMARK);

@@ -5,7 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.util.DiffMath;
 import com.github.fireduck64.sockthing.util.HexUtil;
@@ -34,18 +35,19 @@ public class JobInfo
     private NetworkParameters network_params;
     private final StratumServer server;
     private final String jobId;
-    private final JSONObject blockTemplate;
+    private final BlockTemplate blockTemplate;
+    private final long blockHeight;
     private final byte[] extranonce1;
     private final PoolUser poolUser;
     private final HashSet<String> submits;
     private final Sha256Hash shareTarget;
     private final double difficulty;
-    private final long value;
+    private final BigInteger blockReward;
     private final BigInteger feeTotal;
 
     private final Coinbase coinbase;
 
-    public JobInfo(StratumServer server, PoolUser poolUser, String jobId, JSONObject blockTemplate,
+    public JobInfo(StratumServer server, PoolUser poolUser, String jobId, BlockTemplate blockTemplate,
                    byte[] extranonce1)
     throws org.json.JSONException
     {
@@ -55,41 +57,21 @@ public class JobInfo
         this.blockTemplate = blockTemplate;
         this.extranonce1 = extranonce1;
 
-        this.value = blockTemplate.getLong("coinbasevalue");
-        this.feeTotal = this.calculateFeeTotal();
+        this.blockHeight = blockTemplate.getHeight();
+        this.blockReward = blockTemplate.getBlockReward();
+        this.feeTotal = blockTemplate.getTotalFees();
         this.difficulty = server.getBlockDifficulty();
 
-        int height = blockTemplate.getInt("height");
-
         this.submits = new HashSet<String>();
-        this.coinbase =
-          new Coinbase(server, poolUser, height, BigInteger.valueOf(this.value), this.feeTotal, extranonce1);
+        this.coinbase = new Coinbase(server, poolUser, this.blockHeight, this.blockReward, this.feeTotal, extranonce1);
 
         this.shareTarget = DiffMath.getTargetForDifficulty(poolUser.getDifficulty());
 
     }
 
-    public int getHeight()
-        throws org.json.JSONException
+    public long getBlockHeight()
     {
-        return this.blockTemplate.getInt("height");
-    }
-
-    private BigInteger calculateFeeTotal()
-        throws org.json.JSONException
-    {
-        long fee_total = 0;
-        JSONArray transactions = this.blockTemplate.getJSONArray("transactions");
-
-        for (int i = 0; i < transactions.length(); i++)
-        {
-            JSONObject  tx  = transactions.getJSONObject(i);
-            long        fee = tx.getLong("fee");
-
-            fee_total += fee;
-        }
-
-        return BigInteger.valueOf(fee_total);
+        return this.blockHeight;
     }
 
     public JSONObject getMiningNotifyMessage(boolean clean)
@@ -100,32 +82,21 @@ public class JobInfo
         msg.put("id", JSONObject.NULL);
         msg.put("method", "mining.notify");
 
-        JSONArray roots = new JSONArray();
-        /*for(int i=0; i<5; i++)
-        {
-            byte[] root = new byte[32];
-            rnd.nextBytes(root);
-            roots.put(Hex.encodeHexString(root));
-        }*/
-
-
         String  protocol  = "00000002";
-        String  diffBits  = this.blockTemplate.getString("bits");
-        int     ntime     = (int)System.currentTimeMillis()/1000;
-        String  ntimeStr  = HexUtil.getIntAsHex(ntime);
+        String  diffBits  = this.blockTemplate.getDifficultyBits();
 
         JSONArray params = new JSONArray();
 
         params.put(this.jobId);
         params.put(HexUtil.swapBytesInsideWord(HexUtil.swapEndianHexString(
-          this.blockTemplate.getString("previousblockhash")))); //correct
+          this.blockTemplate.getPreviousBlockHash()))); //correct
 
         params.put(Hex.encodeHexString(this.coinbase.getCoinbase1()));
         params.put(Hex.encodeHexString(this.coinbase.getCoinbase2()));
         params.put(getMerkleRoots());
         params.put(protocol); //correct
-        params.put(this.blockTemplate.getString("bits")); //correct
-        params.put(HexUtil.getIntAsHex(this.blockTemplate.getInt("curtime"))); //correct
+        params.put(diffBits); //correct
+        params.put(HexUtil.getIntAsHex(this.blockTemplate.getCurrentTime())); //correct
         params.put(clean);
 
         msg.put("params", params);
@@ -160,8 +131,8 @@ public class JobInfo
                 submitResult,
                 "sockthing/" + this.server.getInstanceId(),
                 uniqueId,
-                this.value,
-                this.feeTotal.longValue());
+                this.blockReward,
+                this.feeTotal);
             }
 
             catch (ShareSaveException e)
@@ -197,7 +168,7 @@ public class JobInfo
             this.submits.add(submitCannonicalString);
         }
 
-        SubmitResult.Status stale = this.server.checkStale(getHeight());
+        SubmitResult.Status stale = this.server.checkStale(this.blockHeight);
 
         if (stale == SubmitResult.Status.REALLY_STALE)
         {
@@ -255,11 +226,11 @@ public class JobInfo
                 header.append("00000002");
 
                 header.append(HexUtil.swapBytesInsideWord(
-                  HexUtil.swapEndianHexString(this.blockTemplate.getString("previousblockhash"))));
+                  HexUtil.swapEndianHexString(this.blockTemplate.getPreviousBlockHash())));
 
                 header.append(HexUtil.swapBytesInsideWord(merkle_root.toString()));
                 header.append(ntime);
-                header.append(this.blockTemplate.getString("bits"));
+                header.append(this.blockTemplate.getDifficultyBits());
                 header.append(nonce);
                 //header.append("000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000");
 
@@ -301,7 +272,7 @@ public class JobInfo
                     if (LOGGER.isInfoEnabled())
                     {
                       LOGGER.info(
-                          String.format("Share submitted: %s %d %s", poolUser.getName(), getHeight(), blockhash));
+                          String.format("Share submitted: %s %d %s", poolUser.getName(), this.blockHeight, blockhash));
                     }
                 }
                 else
@@ -316,17 +287,17 @@ public class JobInfo
                               "Share rejected (%s): %s %d %s",
                               submitResult.getReason(),
                               poolUser.getName(),
-                              getHeight(),
+                              this.blockHeight,
                               blockhash));
                     }
 
                     return;
                 }
 
-                if (blockhash.toString().compareTo(this.blockTemplate.getString("target")) < 0)
+                if (blockhash.toString().compareTo(this.blockTemplate.getTarget()) < 0)
                 {
                     submitResult.setUpstreamResult(this.buildAndSubmitBlock(params, merkle_root));
-                    submitResult.setHeight(getHeight());
+                    submitResult.setHeight(this.blockHeight);
 
                     if (LOGGER.isInfoEnabled())
                     {
@@ -335,7 +306,7 @@ public class JobInfo
                               "Block submitted upstream (result: %s): %s %d %s",
                               submitResult.getUpstreamResult(),
                               poolUser.getName(),
-                              getHeight(),
+                              this.blockHeight,
                               blockhash));
                     }
                 }
@@ -365,32 +336,15 @@ public class JobInfo
         String nonce = params.getString(4);
 
         long time = Long.parseLong(ntime,16);
-        long target = Long.parseLong(blockTemplate.getString("bits"),16);
+        long target = Long.parseLong(blockTemplate.getDifficultyBits(), 16);
         long nonce_l = Long.parseLong(nonce,16);
 
-        LinkedList<Transaction> lst = new LinkedList<Transaction>();
-
-        lst.add(coinbase.genTx());
-        JSONArray transactions = blockTemplate.getJSONArray("transactions");
-
-        for(int i=0; i<transactions.length(); i++)
-        {
-            JSONObject tx = transactions.getJSONObject(i);
-            try
-            {
-                Transaction tx_obj = new Transaction(network_params, Hex.decodeHex(tx.getString("data").toCharArray()));
-                lst.add(tx_obj);
-            }
-            catch(com.google.bitcoin.core.ProtocolException e)
-            {
-                throw new RuntimeException(e);
-            }
-        }
+        List<Transaction> lst = this.blockTemplate.getTransactions(this.coinbase);
 
         Block block = new Block(
             network_params,
             2,
-            new Sha256Hash(blockTemplate.getString("previousblockhash")),
+            new Sha256Hash(blockTemplate.getPreviousBlockHash()),
             new Sha256Hash(HexUtil.swapEndianHexString(merkleRoot.toString())),
             time,
             target,
@@ -419,7 +373,7 @@ public class JobInfo
                 coinbase.markRemark();
 
                 if (LOGGER.isInfoEnabled())
-                    LOGGER.info("Block VERIFIED: "+ getHeight() + " " + block.getHash());
+                    LOGGER.info("Block VERIFIED: "+ this.blockHeight + " " + block.getHash());
             }
 
             return ret;
@@ -445,14 +399,9 @@ public class JobInfo
     {
         ArrayList<Sha256Hash> hashes = new ArrayList<Sha256Hash>();
 
-        JSONArray transactions = blockTemplate.getJSONArray("transactions");
-
-        for (int i = 0; i < transactions.length(); i++)
+        for (Transaction transaction : this.blockTemplate.getTransactions())
         {
-            JSONObject tx   = transactions.getJSONObject(i);
-            Sha256Hash hash = new Sha256Hash(HexUtil.swapEndianHexString(tx.getString("hash")));
-
-            hashes.add(hash);
+            hashes.add(transaction.getHash());
         }
 
         JSONArray roots = new JSONArray();

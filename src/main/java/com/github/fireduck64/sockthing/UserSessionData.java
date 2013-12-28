@@ -1,22 +1,21 @@
 package com.github.fireduck64.sockthing;
-import java.util.concurrent.atomic.AtomicLong;
-
+import java.util.Map;
 import java.util.Random;
 import java.util.TreeSet;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class UserSessionData
 {
-    
+
     /**
-     * Hopefully the user is submitting shares and this keeping the interesting 
+     * Hopefully the user is submitting shares and this keeping the interesting
      * jobs in memory.
      */
-    private LRUCache<String, JobInfo> open_jobs = new LRUCache<String, JobInfo>(25);
+    private final LRUCache<String, JobInfo> open_jobs = new LRUCache<String, JobInfo>(25);
 
-    private AtomicLong next_job_id = new AtomicLong(0);
-    private String job_session_str;
-    private StratumServer server;
+    private final AtomicLong next_job_id = new AtomicLong(0);
+    private final String job_session_str;
+    private final StratumServer server;
 
     public UserSessionData(StratumServer server)
     {
@@ -68,7 +67,7 @@ public class UserSessionData
         throws org.json.JSONException, java.io.IOException
     {
         TreeSet<String> to_delete =new TreeSet<String>();
-        int current_block_height = server.getCurrentBlockTemplate().getInt("height");
+        long current_block_height = server.getCurrentBlockTemplate().getHeight();
 
         synchronized(open_jobs)
         {
@@ -77,11 +76,12 @@ public class UserSessionData
             for(Map.Entry<String, JobInfo> me : open_jobs.entrySet())
             {
                 JobInfo ji = me.getValue();
-                if (ji.getHeight() + 1 < current_block_height)
+
+                if ((ji.getBlockHeight() + 1) < current_block_height)
                 {
                     to_delete.add(me.getKey());
                 }
-            }   
+            }
             for(String job_id : to_delete)
             {
                 open_jobs.remove(job_id);

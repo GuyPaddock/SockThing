@@ -1,5 +1,7 @@
 package com.github.fireduck64.sockthing.sharesaver;
 
+import java.math.BigInteger;
+
 import org.json.JSONObject;
 
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -72,8 +74,8 @@ public class ShareSaverMessaging implements ShareSaver
 
 
     @Override
-    public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueId, long blockReward,
-                          long feeTotal)
+    public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueId,
+                          BigInteger blockReward, BigInteger feeTotal)
     throws ShareSaveException
     {
         try
@@ -157,8 +159,8 @@ public class ShareSaverMessaging implements ShareSaver
                 String uniqueId = saveMsg.getString("unique_id");
 
                 double block_difficulty = -1.0; //Meaning unknown
-                long blockReward = -1; //Meaning unknown
-                long feeTotal = -1; //Meaning unknown
+                BigInteger blockReward = BigInteger.valueOf(-1); //Meaning unknown
+                BigInteger feeTotal = BigInteger.valueOf(-1); //Meaning unknown
 
                 if (saveMsg.has("block_difficulty"))
                 {
@@ -167,12 +169,12 @@ public class ShareSaverMessaging implements ShareSaver
 
                 if (saveMsg.has("block_reward"))
                 {
-                    blockReward = saveMsg.getLong("block_reward");
+                    blockReward = new BigInteger(saveMsg.getString("block_reward"));
                 }
 
                 if (saveMsg.has("fee_total"))
                 {
-                    feeTotal = saveMsg.getLong("fee_total");
+                    feeTotal = new BigInteger(saveMsg.getString("fee_total"));
                 }
 
                 PoolUser pu = new PoolUser(worker);

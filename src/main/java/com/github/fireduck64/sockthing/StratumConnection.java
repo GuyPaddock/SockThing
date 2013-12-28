@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
@@ -116,7 +117,7 @@ public class StratumConnection
     }
 
 
-    public void sendRealJob(JSONObject block_template, boolean clean)
+    public void sendRealJob(BlockTemplate blockTemplate, boolean clean)
         throws Exception
     {
         if (user_session_data == null)
@@ -127,7 +128,7 @@ public class StratumConnection
 
         String job_id = user_session_data.getNextJobId();
 
-        JobInfo ji = new JobInfo(server, user, job_id, block_template, extranonce1);
+        JobInfo ji = new JobInfo(server, user, job_id, blockTemplate, extranonce1);
 
         user_session_data.saveJobInfo(job_id, ji);
 

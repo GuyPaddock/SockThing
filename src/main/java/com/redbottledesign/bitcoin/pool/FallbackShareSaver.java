@@ -3,6 +3,7 @@ package com.redbottledesign.bitcoin.pool;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Date;
 
@@ -77,8 +78,8 @@ implements ShareSaver
   }
 
   @Override
-  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString, long blockReward,
-                        long feeTotal)
+  public void saveShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString,
+                        BigInteger blockReward, BigInteger feeTotal)
   throws ShareSaveException
   {
     boolean   wasSaved          = false;
@@ -154,7 +155,8 @@ implements ShareSaver
   }
 
   protected void writeFallbackShare(PoolUser pu, SubmitResult submitResult, String source, String uniqueJobString,
-                                    long blockReward, long feeTotal, boolean wasSaved, Throwable pendingException)
+                                    BigInteger blockReward, BigInteger feeTotal, boolean wasSaved,
+                                    Throwable pendingException)
   throws IOException
   {
     String[] shareInfo = null;
@@ -190,9 +192,9 @@ implements ShareSaver
           Boolean.toString(CONFIRM_YES.equals(submitResult.getUpstreamResult())),
           statusString,
           String.valueOf(submitResult.getHash()),
-          Integer.toString(submitResult.getHeight()),
-          Long.valueOf(blockReward).toString(),
-          Long.valueOf(feeTotal).toString(),
+          Long.toString(submitResult.getHeight()),
+          blockReward.toString(),
+          feeTotal.toString(),
           Boolean.toString(wasSaved),
           ((pendingException == null) ?
            "" :

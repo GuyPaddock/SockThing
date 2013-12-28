@@ -42,10 +42,10 @@ public class OutputMonsterShareFees implements OutputMonster
     }
 
     @Override
-    public void addOutputs(PoolUser pu, Transaction tx, BigInteger total_value, BigInteger fee_value)
+    public void addOutputs(PoolUser pu, Transaction tx, BigInteger rewardValue, BigInteger feeValue)
     {
-        fee_value = fee_value.divide(BigInteger.valueOf(2));
-        BigInteger remaining = total_value.subtract(fee_value);
+        feeValue = feeValue.divide(BigInteger.valueOf(2));
+        BigInteger remaining = rewardValue.subtract(feeValue);
 
         BigInteger[] divmod = remaining.divideAndRemainder(BigInteger.valueOf(pay_to.size()));
         BigInteger per_output = divmod[0];
@@ -68,9 +68,9 @@ public class OutputMonsterShareFees implements OutputMonster
         try
         {
             Address user_addr = new Address(params, pu.getName());
-            if (fee_value.compareTo(BigInteger.ZERO) > 0)
+            if (feeValue.compareTo(BigInteger.ZERO) > 0)
             {
-                tx.addOutput(fee_value, user_addr);
+                tx.addOutput(feeValue, user_addr);
 
 
             }

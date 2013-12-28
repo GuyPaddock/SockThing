@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +85,7 @@ implements QueueItemCallbackFactory<BlockConfirmationCallback>
          */
         blocksPendingSave   = this.getBlockHashesWithPendingModifications();
         unconfirmedBlocks   = blockRequestor.getUnconfirmedBlocks();
-        currentBlockHeight  = this.getCurrentBlockHeight();
+        currentBlockHeight  = this.server.getCurrentBlockTemplate().getHeight();
 
         for (SolvedBlock block : unconfirmedBlocks)
         {
@@ -197,20 +196,6 @@ implements QueueItemCallbackFactory<BlockConfirmationCallback>
         }
 
         return pendingBlockHashes;
-    }
-
-    protected long getCurrentBlockHeight()
-    throws IOException, JSONException
-    {
-        long        result;
-        JSONObject  currentBlockTemplate = this.server.getCurrentBlockTemplate();
-
-        result = currentBlockTemplate.getLong("height");
-
-        if (result <= 0)
-            throw new IllegalStateException("Unexpected block height: " + result);
-
-        return result;
     }
 
     protected class BlockConfirmationCallback

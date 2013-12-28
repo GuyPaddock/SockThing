@@ -9,7 +9,7 @@ public class SubmitResult
     private String upstreamResult;
     private String reason;
     private String clientVersion;
-    private int height;
+    private long height;
     private double workDifficulty;
     private double networkDifficulty;
     private boolean shouldSendDifficulty;
@@ -22,7 +22,7 @@ public class SubmitResult
 
     public Sha256Hash getHash()
     {
-        return hash;
+        return this.hash;
     }
 
     public void setHash(Sha256Hash hash)
@@ -32,7 +32,7 @@ public class SubmitResult
 
     public String getOurResult()
     {
-        return ourResult;
+        return this.ourResult;
     }
 
     public void setOurResult(String ourResult)
@@ -42,7 +42,7 @@ public class SubmitResult
 
     public String getUpstreamResult()
     {
-        return upstreamResult;
+        return this.upstreamResult;
     }
 
     public void setUpstreamResult(String upstreamResult)
@@ -52,7 +52,7 @@ public class SubmitResult
 
     public String getReason()
     {
-        return reason;
+        return this.reason;
     }
 
     public void setReason(String reason)
@@ -62,7 +62,7 @@ public class SubmitResult
 
     public String getClientVersion()
     {
-        return clientVersion;
+        return this.clientVersion;
     }
 
     public void setClientVersion(String clientVersion)
@@ -70,12 +70,12 @@ public class SubmitResult
         this.clientVersion = clientVersion;
     }
 
-    public int getHeight()
+    public long getHeight()
     {
-        return height;
+        return this.height;
     }
 
-    public void setHeight(int height)
+    public void setHeight(long height)
     {
         this.height = height;
     }

@@ -2,6 +2,7 @@ package com.github.fireduck64.sockthing;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
@@ -15,16 +16,16 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.SubmitResult.Status;
 import com.github.fireduck64.sockthing.authentication.AuthHandler;
-import com.github.fireduck64.sockthing.bitcoin.BitcoinDaemonConnection;
-import com.github.fireduck64.sockthing.bitcoin.BitcoinRpcConnection;
 import com.github.fireduck64.sockthing.output.OutputMonster;
 import com.github.fireduck64.sockthing.output.OutputMonsterSimple;
+import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonConnection;
+import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinRpcConnection;
+import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Address;
@@ -71,7 +72,7 @@ public class StratumServer
     /**
      * Nothing should read this, anything interested should call getCurrentBlockTemplate() instead.
      */
-    private JSONObject cachedBlockTemplate;
+    private BlockTemplate cachedBlockTemplate;
 
     private final Map<String, UserSessionData> userSessionDataMap = new HashMap<String, UserSessionData>(1024, 0.5f);
 
@@ -82,7 +83,7 @@ public class StratumServer
 
     private volatile double blockDifficulty;
 
-    private volatile long blockReward;
+    private volatile BigInteger blockReward;
     private final StratumServer server;
     private final Object blockTemplateLock;
 
@@ -180,7 +181,7 @@ public class StratumServer
         return this.blockDifficulty;
     }
 
-    public Long getBlockReward()
+    public BigInteger getBlockReward()
     {
         return this.blockReward;
     }
@@ -300,19 +301,22 @@ public class StratumServer
                 new DrupalShareSaver(conf, server)));
 
         String network = conf.get("network");
+        NetworkParameters networkParams;
 
         if (network.equals("prodnet"))
-        {
-            server.setNetworkParameters(NetworkParameters.prodNet());
-        }
+            networkParams = NetworkParameters.prodNet();
+
         else if (network.equals("testnet"))
-        {
-            server.setNetworkParameters(NetworkParameters.testNet3());
-        }
+            networkParams = NetworkParameters.testNet3();
+
+        else
+            throw new IllegalArgumentException(String.format("'network' cannot be '%s'", network));
+
+        server.setNetworkParameters(networkParams);
 
         // Fee sharing is done elsewhere.
-//        server.setOutputMonster(new OutputMonsterShareFees(conf, server.getNetworkParameters()));
-        server.setOutputMonster(new OutputMonsterSimple(conf, server.getNetworkParameters()));
+//        server.setOutputMonster(new OutputMonsterShareFees(conf, networkParams));
+        server.setOutputMonster(new OutputMonsterSimple(conf, networkParams));
 
         server.registerAgent(new PayoutAgent(server));
 
@@ -329,10 +333,10 @@ public class StratumServer
         checkpointer.restoreCheckpointsFromDisk();
 
         if (conf.getBoolean("piggy_back_pool"))
-            server.setBitcoinConnection(new PiggyBackedBitcoinDaemonConnection(conf));
+            server.setBitcoinConnection(new PiggyBackedBitcoinDaemonConnection(networkParams, conf));
 
         else
-            server.setBitcoinConnection(new BitcoinDaemonConnection(conf));
+            server.setBitcoinConnection(new BitcoinDaemonConnection(networkParams, conf));
 
         server.start();
     }
@@ -341,7 +345,7 @@ public class StratumServer
      * 1 - slightly stale
      * 2 - really stale
      */
-    public SubmitResult.Status checkStale(int nextBlock)
+    public SubmitResult.Status checkStale(long nextBlock)
     {
         if (nextBlock == this.currentBlock + 1)
         {
@@ -362,10 +366,10 @@ public class StratumServer
         this.newBlockNotifyObject.release(1);
     }
 
-    public JSONObject getCurrentBlockTemplate()
+    public BlockTemplate getCurrentBlockTemplate()
     throws IOException, JSONException
     {
-        JSONObject c = this.cachedBlockTemplate;
+        BlockTemplate c = this.cachedBlockTemplate;
 
         if (c != null)
           return c;
@@ -382,7 +386,7 @@ public class StratumServer
           this.cachedBlockTemplate = c;
 
           if (LOGGER.isInfoEnabled())
-              LOGGER.info("new block template: " + c.getLong("height"));
+              LOGGER.info("new block template: " + c.getHeight());
 
           getMetricsReporter().metricCount("getblocktemplate", 1.0);
 
@@ -434,13 +438,13 @@ public class StratumServer
     private void updateBlockReward()
     throws Exception
     {
-        this.blockReward = this.getCurrentBlockTemplate().getLong("coinbasevalue");
+        this.blockReward = this.getCurrentBlockTemplate().getBlockReward();
     }
 
     private void updateBlockDifficulty()
     throws Exception
     {
-        String hexString = "0x" + getCurrentBlockTemplate().getString("bits");
+        String hexString = "0x" + getCurrentBlockTemplate().getDifficultyBits();
         Long hexInt = Long.decode(hexString).longValue();
 
         this.blockDifficulty = HexUtil.difficultyFromHex(hexInt);
@@ -454,11 +458,11 @@ public class StratumServer
 
         this.cachedBlockTemplate = null;
 
-        long t1_get_block = System.currentTimeMillis();
-        JSONObject block_template = getCurrentBlockTemplate();
-        long t2_get_block = System.currentTimeMillis();
+        long t1GetBlock = System.currentTimeMillis();
+        BlockTemplate blockTemplate = getCurrentBlockTemplate();
+        long t2GetBlock = System.currentTimeMillis();
 
-        getMetricsReporter().metricTime("GetBlockTemplateTime", t2_get_block - t1_get_block);
+        this.getMetricsReporter().metricTime("GetBlockTemplateTime", t2GetBlock - t1GetBlock);
 
         if (clean)
         {
@@ -478,7 +482,7 @@ public class StratumServer
 
         for (Map.Entry<String, StratumConnection> me : lst)
         {
-            me.getValue().sendRealJob(block_template, clean);
+            me.getValue().sendRealJob(blockTemplate, clean);
         }
 
         long t2_update_connection = System.currentTimeMillis();
