@@ -10,6 +10,8 @@ public interface BlockTemplate
 {
     public long getHeight();
 
+    public double getDifficulty();
+
     public String getDifficultyBits();
 
     public String getPreviousBlockHash();
@@ -18,7 +20,9 @@ public interface BlockTemplate
 
     public String getTarget();
 
-    public BigInteger getBlockReward();
+    public boolean hasBlockReward();
+
+    public BigInteger getReward();
 
     public BigInteger getTotalFees();
 

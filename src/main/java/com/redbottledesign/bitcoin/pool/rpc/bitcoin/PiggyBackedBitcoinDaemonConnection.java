@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 
 import java.io.IOException;
 import java.io.OutputStream;

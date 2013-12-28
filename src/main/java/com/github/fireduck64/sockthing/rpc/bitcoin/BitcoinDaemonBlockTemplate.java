@@ -10,6 +10,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Coinbase;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.ProtocolException;
@@ -47,6 +48,12 @@ implements BlockTemplate
                 "Block height is missing or unable to be parsed: " + ex.getMessage(),
                 ex);
         }
+    }
+
+    @Override
+    public double getDifficulty()
+    {
+        return HexUtil.difficultyFromHex(this.getDifficultyBits());
     }
 
     @Override
@@ -118,7 +125,13 @@ implements BlockTemplate
     }
 
     @Override
-    public BigInteger getBlockReward()
+    public boolean hasBlockReward()
+    {
+        return true;
+    }
+
+    @Override
+    public BigInteger getReward()
     throws MalformedBlockTemplateException
     {
         try

@@ -58,7 +58,7 @@ public class JobInfo
         this.extranonce1 = extranonce1;
 
         this.blockHeight = blockTemplate.getHeight();
-        this.blockReward = blockTemplate.getBlockReward();
+        this.blockReward = blockTemplate.getReward();
         this.feeTotal = blockTemplate.getTotalFees();
         this.difficulty = server.getBlockDifficulty();
 

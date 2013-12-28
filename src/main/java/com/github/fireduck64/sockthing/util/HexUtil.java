@@ -115,10 +115,27 @@ public class HexUtil
 
     }
 
+    public static double difficultyFromHex(String hex)
+    {
+        String  hexString;
+        Long    hexInt;
+
+        if (!hex.startsWith("0x"))
+            hexString = "0x" + hex;
+        else
+            hexString = hex;
+
+        hexInt = Long.decode(hexString).longValue();
+
+        return difficultyFromHex(hexInt);
+    }
+
     public static double difficultyFromHex(Long bits)
     {
-        double max_body = Math.log(0x00ffff), scaland = Math.log(256);
-        return Math.exp(max_body - Math.log(bits & 0x00ffffff) + scaland * (0x1d - ((bits & 0xff000000) >> 24)));
+        double maxBody  = Math.log(0x00ffff),
+               scaland  = Math.log(256);
+
+        return Math.exp(maxBody - Math.log(bits & 0x00ffffff) + scaland * (0x1d - ((bits & 0xff000000) >> 24)));
     }
 
     public static Sha256Hash hexToHash(String hexString)

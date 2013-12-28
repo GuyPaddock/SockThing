@@ -27,13 +27,11 @@ import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonConnection;
 import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinRpcConnection;
 import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaver;
-import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
 import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
-import com.redbottledesign.bitcoin.pool.PiggyBackedBitcoinDaemonConnection;
 import com.redbottledesign.bitcoin.pool.agent.Agent;
 import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent;
 import com.redbottledesign.bitcoin.pool.agent.PayoutAgent;
@@ -44,6 +42,7 @@ import com.redbottledesign.bitcoin.pool.checkpoint.FileBackedCheckpointer;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalSession;
 import com.redbottledesign.bitcoin.pool.drupal.DrupalShareSaver;
 import com.redbottledesign.bitcoin.pool.drupal.authentication.DrupalAuthHandler;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.PiggyBackedBitcoinDaemonConnection;
 
 public class StratumServer
 {
@@ -438,16 +437,13 @@ public class StratumServer
     private void updateBlockReward()
     throws Exception
     {
-        this.blockReward = this.getCurrentBlockTemplate().getBlockReward();
+        this.blockReward = this.getCurrentBlockTemplate().getReward();
     }
 
     private void updateBlockDifficulty()
     throws Exception
     {
-        String hexString = "0x" + getCurrentBlockTemplate().getDifficultyBits();
-        Long hexInt = Long.decode(hexString).longValue();
-
-        this.blockDifficulty = HexUtil.difficultyFromHex(hexInt);
+        this.blockDifficulty = this.getCurrentBlockTemplate().getDifficulty();
     }
 
     private void triggerUpdate(boolean clean)

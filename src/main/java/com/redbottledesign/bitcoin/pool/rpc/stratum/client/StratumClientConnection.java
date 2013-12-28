@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.rpc.stratum.client;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.util.NoSuchElementException;

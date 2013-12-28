@@ -24,6 +24,7 @@ import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallback;
 import com.redbottledesign.bitcoin.pool.util.queue.QueueItemCallbackFactory;
 import com.redbottledesign.drupal.Node;
 import com.redbottledesign.drupal.User;
+import com.redbottledesign.util.BitcoinUnit;
 
 public class DrupalShareSaver
 implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
@@ -33,7 +34,6 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
     private static final String SHARE_STATUS_ACCEPTED = "accepted";
     private static final String CONFIRM_YES = "Y";
     private static final Node.Reference TEST_REMARK = new Node.Reference(11);
-    private static final int SATOSHIS_PER_BITCOIN = 100000000;
 
     final StratumServer server;
     private final DrupalSession session;
@@ -152,7 +152,7 @@ implements ShareSaver, QueueItemCallbackFactory<BlockPersistenceCallback>
         newBlock.setRound(currentRoundReference);
 
         // TODO: Separate fees out from reward later?
-        newBlock.setReward(new BigDecimal(totalReward).divide(BigDecimal.valueOf(SATOSHIS_PER_BITCOIN)));
+        newBlock.setReward(BitcoinUnit.BITCOINS.convert(new BigDecimal(totalReward), BitcoinUnit.SATOSHIS));
 
         newBlock.setSolvingMember(drupalSubmitter);
         newBlock.setWittyRemark(TEST_REMARK);

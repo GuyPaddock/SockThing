@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool;
+package com.redbottledesign.bitcoin.pool.rpc.stratum.client;
 
 import org.json.JSONObject;
 
