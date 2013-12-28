@@ -6,8 +6,6 @@ import java.math.BigInteger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonBlockTemplate;
-import com.github.fireduck64.sockthing.rpc.bitcoin.MalformedBlockTemplateException;
 import com.google.bitcoin.core.NetworkParameters;
 import com.redbottledesign.util.BitcoinUnit;
 

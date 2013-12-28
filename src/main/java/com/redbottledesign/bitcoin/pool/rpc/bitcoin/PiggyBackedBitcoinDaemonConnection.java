@@ -11,8 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.Config;
-import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonConnection;
-import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
 

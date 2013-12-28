@@ -18,7 +18,6 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.util.DiffMath;
 import com.github.fireduck64.sockthing.util.HexUtil;
@@ -29,6 +28,7 @@ import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.VerificationException;
 import com.redbottledesign.bitcoin.pool.VardiffCalculator;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BlockTemplate;
 
 public class JobInfo
 {

@@ -16,9 +16,9 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BlockTemplate;
 import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
 
 public class StratumConnection

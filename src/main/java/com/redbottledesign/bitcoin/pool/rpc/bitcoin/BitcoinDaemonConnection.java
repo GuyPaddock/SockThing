@@ -1,4 +1,4 @@
-package com.github.fireduck64.sockthing.rpc.bitcoin;
+package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 
 import java.io.IOException;
 import java.io.InputStream;

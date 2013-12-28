@@ -1,4 +1,4 @@
-package com.github.fireduck64.sockthing.rpc.bitcoin;
+package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 
 public class MalformedBlockTemplateException
 extends RuntimeException
