@@ -9,16 +9,21 @@ import org.apache.commons.codec.binary.Hex;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.google.bitcoin.core.Coinbase;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.ProtocolException;
+import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
 
 public class BitcoinDaemonBlockTemplate
 implements BlockTemplate
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BitcoinDaemonBlockTemplate.class);
+
     protected NetworkParameters networkParams;
     protected JSONObject jsonBlockTemplate;
 
@@ -136,7 +141,7 @@ implements BlockTemplate
     {
         try
         {
-            return new BigInteger(this.jsonBlockTemplate.getString("coinbasevalue"));
+            return new BigInteger(this.jsonBlockTemplate.get("coinbasevalue").toString());
         }
 
         catch (JSONException ex)
@@ -163,9 +168,9 @@ implements BlockTemplate
 
                 try
                 {
-                    String fee = tx.getString("fee");
+                    BigInteger feeInSatoshis = new BigInteger(tx.get("fee").toString());
 
-                    totalFees = totalFees.add(new BigInteger(fee));
+                    totalFees = totalFees.add(feeInSatoshis);
                 }
 
                 catch (JSONException ex)
@@ -217,6 +222,20 @@ implements BlockTemplate
                     Transaction transaction = new Transaction(this.networkParams, Hex.decodeHex(jsonTransactionData));
 
                     transactions.add(transaction);
+
+                    if (LOGGER.isDebugEnabled() && jsonTransaction.has("hash"))
+                    {
+                        Sha256Hash jsonHash =
+                            new Sha256Hash(
+                                HexUtil.swapEndianHexString(
+                                    jsonTransaction.getString("hash")));
+
+                        LOGGER.debug(
+                            String.format(
+                                "TX hash from JSON: %s, TX hash from decoding: %s",
+                                jsonHash.toString(),
+                                transaction.getHash().toString()));
+                    }
                 }
 
                 catch (ProtocolException e)

@@ -54,7 +54,7 @@ public class Coinbase
 
         byte[] height_array = new byte[4];
         ByteBuffer bb = ByteBuffer.wrap(height_array);
-        bb.putLong(block_height);
+        bb.putInt((int)block_height);
         height_array[0]=3;
 
         //The first entries here get replaced with data.

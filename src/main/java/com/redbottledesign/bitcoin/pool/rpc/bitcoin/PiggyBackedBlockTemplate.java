@@ -3,6 +3,7 @@ package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonBlockTemplate;
@@ -15,9 +16,18 @@ extends BitcoinDaemonBlockTemplate
 {
     protected static final BigDecimal NORMAL_BLOCK_REWARD = new BigDecimal(25);
 
+    private String workId;
+
     public PiggyBackedBlockTemplate(NetworkParameters networkParams, JSONObject jsonBlockTemplate)
     {
         super(networkParams, jsonBlockTemplate);
+
+        this.setWorkId(jsonBlockTemplate);
+    }
+
+    public String getWorkId()
+    {
+        return this.workId;
     }
 
     @Override
@@ -30,10 +40,34 @@ extends BitcoinDaemonBlockTemplate
     public BigInteger getReward()
     throws MalformedBlockTemplateException
     {
-        BigDecimal rewardInSatoshis = BitcoinUnit.SATOSHIS.convert(NORMAL_BLOCK_REWARD, BitcoinUnit.BITCOINS);
+        BigInteger rewardInSatoshis = BitcoinUnit.SATOSHIS.convert(NORMAL_BLOCK_REWARD, BitcoinUnit.BITCOINS).toBigInteger();
 
         // (25 * 1 / Network Difficulty)
-        return rewardInSatoshis.multiply(
-            BigDecimal.ONE.divide(BigDecimal.valueOf(this.getDifficulty()))).toBigInteger();
+        return rewardInSatoshis.multiply(BigInteger.ONE.divide(BigInteger.valueOf((long)this.getDifficulty())));
+    }
+
+    @Override
+    public BigInteger getTotalFees()
+    {
+        // No fee info from upstream pools
+        return BigInteger.ZERO;
+    }
+
+    protected void setWorkId(JSONObject jsonBlockTemplate)
+    {
+        if (jsonBlockTemplate.has("workid"))
+        {
+            try
+            {
+                this.workId = jsonBlockTemplate.getString("workid");
+            }
+
+            catch (JSONException ex)
+            {
+                throw new MalformedBlockTemplateException(
+                    "Unable to parse work ID: " + ex.getMessage(),
+                    ex);
+            }
+        }
     }
 }

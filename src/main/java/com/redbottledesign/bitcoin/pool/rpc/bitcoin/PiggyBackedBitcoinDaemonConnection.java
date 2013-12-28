@@ -1,12 +1,8 @@
 package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Scanner;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -15,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.Config;
-import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonBlockTemplate;
 import com.github.fireduck64.sockthing.rpc.bitcoin.BitcoinDaemonConnection;
 import com.github.fireduck64.sockthing.rpc.bitcoin.BlockTemplate;
 import com.google.bitcoin.core.Block;
@@ -61,12 +56,11 @@ extends BitcoinDaemonConnection
 
         result = requestResult.getJSONObject("result");
 
-        // FIXME: Need a custom block template for piggy-backed connections
-        return new BitcoinDaemonBlockTemplate(this.getNetworkParams(), result);
+        return new PiggyBackedBlockTemplate(this.getNetworkParams(), result);
     }
 
     @Override
-    public boolean submitBlock(Block block)
+    public boolean submitBlock(BlockTemplate blockTemplate, Block block)
     throws IOException, JSONException
     {
         boolean     wasSuccessful;
@@ -79,6 +73,21 @@ extends BitcoinDaemonConnection
 
         params.put(Hex.encodeHexString(block.bitcoinSerialize()));
 
+        // Send across work ID if we have it
+        if (blockTemplate instanceof PiggyBackedBlockTemplate)
+        {
+            String workId = ((PiggyBackedBlockTemplate)blockTemplate).getWorkId();
+
+            if (workId != null)
+            {
+                JSONObject  additionalParams = new JSONObject();
+
+                additionalParams.put("workid", workId);
+
+                params.put(additionalParams);
+            }
+        }
+
         message.put("params", params);
 
         result = this.sendSecondaryPost(message);
@@ -88,7 +97,7 @@ extends BitcoinDaemonConnection
         if (!wasSuccessful)
         {
             if (LOGGER.isErrorEnabled())
-                LOGGER.error("Block submit error:  "+ result.get("error"));
+                LOGGER.error("Block submit error:  " + result.toString());
         }
 
         return wasSuccessful;
@@ -99,13 +108,7 @@ extends BitcoinDaemonConnection
     {
         String response;
 
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Secondary bitcoin RPC POST: " + post.toString(2));
-
         response = this.sendSecondaryPost(this.getSecondaryUrl(), post.toString());
-
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Secondary bitcoin RPC response: " + response);
 
         return new JSONObject(response);
     }
@@ -134,45 +137,6 @@ extends BitcoinDaemonConnection
     protected String sendSecondaryPost(String url, String postdata)
     throws IOException
     {
-        URL u = new URL(url);
-
-        HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-
-        String basic = this.secondUsername + ":" + this.secondPassword;
-        String encoded = Base64.encodeBase64String(basic.getBytes());
-        connection.setRequestProperty("Authorization", "Basic " + encoded);
-        connection.setDoOutput(true);
-        connection.setDoInput(true);
-        connection.setInstanceFollowRedirects(false);
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("charset", "utf-8");
-        connection.setRequestProperty("Content-Length", "" + Integer.toString(postdata.getBytes().length));
-        connection.setUseCaches(false);
-
-        OutputStream wr = connection.getOutputStream();
-
-        wr.write(postdata.getBytes());
-        wr.flush();
-        wr.close();
-
-        Scanner scan;
-
-        if (connection.getResponseCode() != 500)
-            scan = new Scanner(connection.getInputStream());
-        else
-            scan = new Scanner(connection.getErrorStream());
-
-        StringBuilder sb = new StringBuilder();
-
-        while (scan.hasNextLine())
-        {
-            String line = scan.nextLine();
-            sb.append(line);
-            sb.append('\n');
-        }
-
-        scan.close();
-
-        return sb.toString();
+        return sendPost(new URL(url), this.secondUsername, this.secondPassword, postdata);
     }
 }

@@ -1,5 +1,7 @@
 package com.github.fireduck64.sockthing;
 
+import static com.google.bitcoin.core.Utils.doubleDigest;
+
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -401,7 +403,24 @@ public class JobInfo
 
         for (Transaction transaction : this.blockTemplate.getTransactions())
         {
-            hashes.add(transaction.getHash());
+            /* NOTE: transaction.getHash() works similarly, but returns the
+             *       whole hash in big endian order. The code here is more
+             *       efficient that converting a hash to a string, byte swapping
+             *       it, and then converting it back into a hash.
+             */
+            byte[]      transactionBits     = transaction.bitcoinSerialize();
+            Sha256Hash  transactionHashLE   = new Sha256Hash(doubleDigest(transactionBits));
+
+            hashes.add(transactionHashLE);
+
+            if (LOGGER.isDebugEnabled())
+            {
+                LOGGER.debug(
+                    String.format(
+                        "Big-endian TX hash: %s, little-endian TX hash: %s",
+                        transaction.getHash(),
+                        transactionHashLE));
+            }
         }
 
         JSONArray roots = new JSONArray();

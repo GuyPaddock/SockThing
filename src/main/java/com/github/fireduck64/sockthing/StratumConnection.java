@@ -244,10 +244,10 @@ public class StratumConnection
                 {
                     LOGGER.error(
                         String.format(
-                            "Error on connection %d: %s\n%s",
+                            "Error on connection '%s': %s",
                             connection_id,
-                            ex.getMessage(),
-                            ExceptionUtils.getStackTrace(ex)));
+                            ex.getMessage()),
+                        ex);
                 }
             }
 

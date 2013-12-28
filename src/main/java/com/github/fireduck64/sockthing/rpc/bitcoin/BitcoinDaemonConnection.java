@@ -1,6 +1,7 @@
 package com.github.fireduck64.sockthing.rpc.bitcoin;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -100,36 +101,40 @@ implements BitcoinRpcConnection
     protected String sendPost(String url, String postdata)
     throws IOException
     {
-        URL u = new URL(url);
+        return sendPost(new URL(url), this.username, this.password, postdata);
+    }
 
-        HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+    protected String sendPost(URL url, String userName, String password, String postdata)
+    throws IOException
+    {
+        HttpURLConnection   connection  = (HttpURLConnection)url.openConnection();
+        String              basic       = userName + ":" + password,
+                            encoded     = Base64.encodeBase64String(basic.getBytes());
+        OutputStream        wr;
+        Scanner             scan;
+        StringBuilder       sb          = new StringBuilder();
 
-        String basic = this.username + ":" + this.password;
-        String encoded = Base64.encodeBase64String(basic.getBytes());
-        connection.setRequestProperty("Authorization", "Basic "+encoded);
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Bitcoin RPC POST: " + postdata);
+
+        connection.setRequestProperty("Authorization", "Basic " + encoded);
         connection.setDoOutput(true);
         connection.setDoInput(true);
         connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod("POST");
         connection.setRequestProperty("charset", "utf-8");
-        connection.setRequestProperty("Content-Length", "" + Integer.toString(postdata.getBytes().length));
-        connection.setUseCaches (false);
+        connection.setRequestProperty("Content-Length", Integer.toString(postdata.getBytes().length));
+        connection.setUseCaches(false);
 
-        OutputStream wr = connection.getOutputStream();
+        wr = connection.getOutputStream();
+
         wr.write(postdata.getBytes());
         wr.flush();
         wr.close();
 
-        Scanner scan;
+        scan = new Scanner(getRequestInputStream(connection));
 
-        if (connection.getResponseCode() != 500)
-            scan = new Scanner(connection.getInputStream());
-        else
-            scan = new Scanner(connection.getErrorStream());
-
-        StringBuilder sb = new StringBuilder();
-
-        while(scan.hasNextLine())
+        while (scan.hasNextLine())
         {
             String line = scan.nextLine();
             sb.append(line);
@@ -137,8 +142,27 @@ implements BitcoinRpcConnection
         }
 
         scan.close();
-        return sb.toString();
 
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Bitcoin RPC response: " + sb);
+
+        return sb.toString();
+    }
+
+    protected static InputStream getRequestInputStream(HttpURLConnection connection)
+    throws IOException
+    {
+        InputStream result,
+                    inputStream = connection.getInputStream(),
+                    errorStream = connection.getErrorStream();
+
+        if ((connection.getResponseCode() < HttpURLConnection.HTTP_BAD_REQUEST) || (errorStream == null))
+            result = inputStream;
+
+        else
+            result = errorStream;
+
+        return result;
     }
 
     public String getSimplePostRequest(String cmd)
@@ -153,7 +177,7 @@ implements BitcoinRpcConnection
     }
 
     @Override
-    public boolean submitBlock(Block block)
+    public boolean submitBlock(BlockTemplate blockTemplate, Block block)
     throws IOException, JSONException
     {
         boolean     wasSuccessful;
@@ -175,7 +199,7 @@ implements BitcoinRpcConnection
         if (!wasSuccessful)
         {
             if (LOGGER.isErrorEnabled())
-                LOGGER.error("Block submit error:  "+ result.get("error"));
+                LOGGER.error("Block submit error:  " + result.toString());
         }
 
         return wasSuccessful;

@@ -496,7 +496,7 @@ public class StratumServer
 
       try
       {
-        if (this.bitcoinConnection.submitBlock(blk))
+        if (this.bitcoinConnection.submitBlock(this.getCurrentBlockTemplate(), blk))
             returnCode = "Y";
 
         else
