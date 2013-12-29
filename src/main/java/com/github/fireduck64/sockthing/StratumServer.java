@@ -42,7 +42,7 @@ import com.redbottledesign.bitcoin.pool.drupal.authentication.DrupalAuthHandler;
 import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BitcoinDaemonConnection;
 import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BitcoinRpcConnection;
 import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BlockTemplate;
-import com.redbottledesign.bitcoin.pool.rpc.bitcoin.PiggyBackedBitcoinDaemonConnection;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.piggyback.PiggyBackedBitcoinDaemonConnection;
 
 public class StratumServer
 {

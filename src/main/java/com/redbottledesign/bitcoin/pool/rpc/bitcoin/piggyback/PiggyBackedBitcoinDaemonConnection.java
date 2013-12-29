@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
+package com.redbottledesign.bitcoin.pool.rpc.bitcoin.piggyback;
 
 import java.io.IOException;
 import java.net.URL;
@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import com.github.fireduck64.sockthing.Config;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BitcoinDaemonConnection;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BlockTemplate;
 
 public class PiggyBackedBitcoinDaemonConnection
 extends BitcoinDaemonConnection

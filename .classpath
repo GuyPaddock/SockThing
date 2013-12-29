@@ -8,7 +8,6 @@
 	</classpathentry>
 	<classpathentry kind="lib" path="lib/aws-java-sdk-1.3.30.jar"/>
 	<classpathentry kind="lib" path="lib/bcprov-jdk16-146.jar"/>
-	<classpathentry kind="lib" path="lib/bitcoinj-0.6.1.jar" sourcepath="/bitcoinj"/>
 	<classpathentry kind="lib" path="lib/commons-dbcp-1.4.jar"/>
 	<classpathentry kind="lib" path="lib/commons-pool-1.6.jar"/>
 	<classpathentry kind="lib" path="lib/google-collect-snapshot.jar"/>

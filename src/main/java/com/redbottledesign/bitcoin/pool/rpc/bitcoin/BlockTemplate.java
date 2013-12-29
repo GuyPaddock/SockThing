@@ -3,7 +3,6 @@ package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 import java.math.BigInteger;
 import java.util.List;
 
-import com.google.bitcoin.core.Coinbase;
 import com.google.bitcoin.core.Transaction;
 
 public interface BlockTemplate
@@ -22,11 +21,15 @@ public interface BlockTemplate
 
     public boolean hasBlockReward();
 
+    public boolean hasCoinbaseTransactionBytes();
+
     public BigInteger getReward();
 
     public BigInteger getTotalFees();
 
     public List<Transaction> getTransactions();
 
-    public List<Transaction> getTransactions(Coinbase coinbase);
+    public List<Transaction> getTransactions(Transaction coinbaseTxn);
+
+    public byte[] getCoinbaseTransactionBytes();
 }

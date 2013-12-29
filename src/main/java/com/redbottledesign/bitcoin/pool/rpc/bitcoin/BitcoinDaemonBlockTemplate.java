@@ -1,6 +1,7 @@
 package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 
 import java.math.BigInteger;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -13,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.fireduck64.sockthing.util.HexUtil;
-import com.google.bitcoin.core.Coinbase;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.ProtocolException;
 import com.google.bitcoin.core.Sha256Hash;
@@ -26,6 +26,8 @@ implements BlockTemplate
 
     protected NetworkParameters networkParams;
     protected JSONObject jsonBlockTemplate;
+    protected BigInteger cachedFees;
+    protected List<Transaction> cachedTransactions;
 
     public BitcoinDaemonBlockTemplate(NetworkParameters networkParams, JSONObject jsonBlockTemplate)
     {
@@ -156,43 +158,10 @@ implements BlockTemplate
     public BigInteger getTotalFees()
     throws MalformedBlockTemplateException
     {
-        try
-        {
-            BigInteger totalFees = BigInteger.ZERO;
+        if (this.cachedFees == null)
+            parseFees();
 
-            JSONArray transactions = this.jsonBlockTemplate.getJSONArray("transactions");
-
-            for (int i = 0; i < transactions.length(); i++)
-            {
-                JSONObject tx = transactions.getJSONObject(i);
-
-                try
-                {
-                    BigInteger feeInSatoshis = new BigInteger(tx.get("fee").toString());
-
-                    totalFees = totalFees.add(feeInSatoshis);
-                }
-
-                catch (JSONException ex)
-                {
-                    throw new MalformedBlockTemplateException(
-                        String.format(
-                            "Fee information for transaction %d is missing or unable to be parsed: %s",
-                            i,
-                            ex.getMessage()),
-                        ex);
-                }
-            }
-
-            return totalFees;
-        }
-
-        catch (JSONException ex)
-        {
-            throw new MalformedBlockTemplateException(
-                "Transaction information is missing or unable to be parsed: " + ex.getMessage(),
-                ex);
-        }
+        return this.cachedFees;
     }
 
     @Override
@@ -202,15 +171,36 @@ implements BlockTemplate
     }
 
     @Override
-    public List<Transaction> getTransactions(Coinbase coinbase)
+    public List<Transaction> getTransactions(Transaction coinbaseTxn)
+    {
+        List<Transaction> result;
+
+        if (this.cachedTransactions == null)
+            parseTransactions();
+
+        if (coinbaseTxn != null)
+        {
+            LinkedList<Transaction> newList = new LinkedList<Transaction>(this.cachedTransactions);
+
+            newList.addFirst(coinbaseTxn);
+
+            result = newList;
+        }
+
+        else
+        {
+            result = Collections.unmodifiableList(this.cachedTransactions);
+        }
+
+        return result;
+    }
+
+    protected void parseTransactions()
     {
         try
         {
             LinkedList<Transaction> transactions        = new LinkedList<Transaction>();
             JSONArray               jsonTransactions    = this.jsonBlockTemplate.getJSONArray("transactions");
-
-            if (coinbase != null)
-                transactions.add(coinbase.genTx());
 
             for (int i = 0; i < jsonTransactions.length(); i++)
             {
@@ -244,7 +234,7 @@ implements BlockTemplate
                 }
             }
 
-            return transactions;
+            this.cachedTransactions = transactions;
         }
 
         catch (JSONException | DecoderException ex)
@@ -253,5 +243,58 @@ implements BlockTemplate
                 "Transaction information is missing or unable to be parsed: " + ex.getMessage(),
                 ex);
         }
+    }
+
+    private void parseFees()
+    {
+        try
+        {
+            BigInteger totalFees = BigInteger.ZERO;
+
+            JSONArray transactions = this.jsonBlockTemplate.getJSONArray("transactions");
+
+            for (int i = 0; i < transactions.length(); i++)
+            {
+                JSONObject tx = transactions.getJSONObject(i);
+
+                try
+                {
+                    BigInteger feeInSatoshis = new BigInteger(tx.get("fee").toString());
+
+                    totalFees = totalFees.add(feeInSatoshis);
+                }
+
+                catch (JSONException ex)
+                {
+                    throw new MalformedBlockTemplateException(
+                        String.format(
+                            "Fee information for transaction %d is missing or unable to be parsed: %s",
+                            i,
+                            ex.getMessage()),
+                        ex);
+                }
+            }
+
+            this.cachedFees = totalFees;
+        }
+
+        catch (JSONException ex)
+        {
+            throw new MalformedBlockTemplateException(
+                "Transaction information is missing or unable to be parsed: " + ex.getMessage(),
+                ex);
+        }
+    }
+
+    @Override
+    public boolean hasCoinbaseTransactionBytes()
+    {
+        return false;
+    }
+
+    @Override
+    public byte[] getCoinbaseTransactionBytes()
+    {
+        return null;
     }
 }
