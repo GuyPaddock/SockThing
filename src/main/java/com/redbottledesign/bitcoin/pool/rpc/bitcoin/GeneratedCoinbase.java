@@ -4,7 +4,6 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
-import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,10 +32,10 @@ extends AbstractCoinbase
 
     private boolean firstGen = true;
 
-    public GeneratedCoinbase(StratumServer server, PoolUser poolUser, long blockHeight, BigInteger blockReward,
-                             BigInteger feeTotal, byte[] extraNonce1)
+    public GeneratedCoinbase(StratumServer server, long blockHeight, BigInteger blockReward, BigInteger feeTotal,
+                             byte[] extraNonce1)
     {
-        super(server, poolUser);
+        super(server);
 
         server.getConfig().require("coinbase_text");
 
@@ -48,7 +47,9 @@ extends AbstractCoinbase
         this.setExtraNonce1(extraNonce1);
         this.setExtraNonce2(new byte[EXTRA2_BYTE_LENGTH]);
         this.randomizeCoinbaseScript();
-        this.regenerateCoinbaseTransaction();
+
+        // Generate initial transaction without user info
+        this.regenerateCoinbaseTransaction(null);
     }
 
     /**
@@ -56,20 +57,13 @@ extends AbstractCoinbase
      * messing with the script bytes, but the outputs are easily changed.
      */
     @Override
-    public void regenerateCoinbaseTransaction()
+    public void regenerateCoinbaseTransaction(PoolUser user)
     {
         StratumServer       server          = this.getServer();
-        PoolUser            user            = this.getPoolUser();
         NetworkParameters   networkParams   = server.getNetworkParameters();
         Transaction         priorTx         = this.getCoinbaseTransaction(),
                             newTx           = new Transaction(networkParams);
         byte[]              scriptBytes     = this.getCoinbaseScriptBytes();
-
-        if (LOGGER.isDebugEnabled())
-        {
-            LOGGER.debug("Coinbase() - Script bytes: " + scriptBytes.length);
-            LOGGER.debug("Coinbase() - Script: " + Hex.encodeHexString(scriptBytes));
-        }
 
         newTx.addInput(new TransactionInput(networkParams, newTx, scriptBytes));
 
@@ -87,17 +81,6 @@ extends AbstractCoinbase
             }
         }
 
-        if (LOGGER.isDebugEnabled())
-        {
-            LOGGER.debug("Coinbase() - Transaction: ");
-
-            for (TransactionOutput out : newTx.getOutputs())
-            {
-                LOGGER.debug("  " + out);
-            }
-        }
-
-        this.setCoinbaseTransactionBytes(newTx.bitcoinSerialize());
         this.setCoinbaseTransaction(newTx);
     }
 
@@ -135,7 +118,12 @@ extends AbstractCoinbase
         scriptBytes = script.getBytes();
 
         if (scriptBytes.length > 100)
-            throw new RuntimeException("Script bytes too long for coinbase");
+        {
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug("Truncating script bytes; too long for coinbase (> 100 bytes): " + script);
+
+            scriptBytes = new String(scriptBytes, 0, 100).getBytes();
+        }
 
         this.setCoinbaseScriptBytes(scriptBytes);
     }

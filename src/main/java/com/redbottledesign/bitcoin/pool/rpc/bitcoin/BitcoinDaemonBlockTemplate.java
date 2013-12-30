@@ -287,13 +287,13 @@ implements BlockTemplate
     }
 
     @Override
-    public boolean hasCoinbaseTransactionBytes()
+    public boolean hasCoinbaseTransaction()
     {
         return false;
     }
 
     @Override
-    public byte[] getCoinbaseTransactionBytes()
+    public Transaction getCoinbaseTransaction()
     {
         return null;
     }

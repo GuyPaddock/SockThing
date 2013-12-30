@@ -28,6 +28,8 @@ import com.google.bitcoin.core.Address;
 import com.google.bitcoin.core.AddressFormatException;
 import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
+import com.google.bitcoin.params.MainNetParams;
+import com.google.bitcoin.params.TestNet3Params;
 import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
 import com.redbottledesign.bitcoin.pool.agent.Agent;
 import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent;
@@ -303,10 +305,10 @@ public class StratumServer
         NetworkParameters networkParams;
 
         if (network.equals("prodnet"))
-            networkParams = NetworkParameters.prodNet();
+            networkParams = MainNetParams.get();
 
         else if (network.equals("testnet"))
-            networkParams = NetworkParameters.testNet3();
+            networkParams = TestNet3Params.get();
 
         else
             throw new IllegalArgumentException(String.format("'network' cannot be '%s'", network));

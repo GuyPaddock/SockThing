@@ -1,5 +1,6 @@
 package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 
+import com.github.fireduck64.sockthing.PoolUser;
 import com.google.bitcoin.core.Transaction;
 
 public interface Coinbase
@@ -20,7 +21,7 @@ public interface Coinbase
     public abstract byte[] getCoinbasePart2()
     throws IllegalStateException;
 
-    public abstract void regenerateCoinbaseTransaction();
+    public abstract void regenerateCoinbaseTransaction(PoolUser user);
 
     public void markSolved();
 }

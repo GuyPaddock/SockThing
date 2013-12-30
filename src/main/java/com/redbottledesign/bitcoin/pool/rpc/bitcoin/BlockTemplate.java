@@ -21,8 +21,6 @@ public interface BlockTemplate
 
     public boolean hasBlockReward();
 
-    public boolean hasCoinbaseTransactionBytes();
-
     public BigInteger getReward();
 
     public BigInteger getTotalFees();
@@ -31,5 +29,7 @@ public interface BlockTemplate
 
     public List<Transaction> getTransactions(Transaction coinbaseTxn);
 
-    public byte[] getCoinbaseTransactionBytes();
+    public boolean hasCoinbaseTransaction();
+
+    public Transaction getCoinbaseTransaction();
 }

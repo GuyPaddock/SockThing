@@ -1,6 +1,5 @@
 package com.redbottledesign.bitcoin.pool.rpc.bitcoin;
 
-import com.github.fireduck64.sockthing.PoolUser;
 import com.github.fireduck64.sockthing.StratumServer;
 
 public class CoinbaseFactory
@@ -16,17 +15,15 @@ public class CoinbaseFactory
     {
     }
 
-    public Coinbase generateCoinbase(StratumServer server, PoolUser poolUser, BlockTemplate blockTemplate,
-                                     byte[] extraNonce1)
+    public Coinbase generateCoinbase(StratumServer server, BlockTemplate blockTemplate, byte[] extraNonce1)
     {
         Coinbase result;
 
-        if (!blockTemplate.hasCoinbaseTransactionBytes())
+        if (!blockTemplate.hasCoinbaseTransaction())
         {
             result =
                 new GeneratedCoinbase(
                     server,
-                    poolUser,
                     blockTemplate.getHeight(),
                     blockTemplate.getReward(),
                     blockTemplate.getTotalFees(),
@@ -35,7 +32,7 @@ public class CoinbaseFactory
 
         else
         {
-            result = new StaticCoinbase(server, poolUser, blockTemplate.getCoinbaseTransactionBytes());
+            result = new StaticCoinbase(server, blockTemplate.getCoinbaseTransaction());
         }
 
         return result;

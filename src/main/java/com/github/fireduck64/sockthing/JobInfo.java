@@ -21,15 +21,14 @@ import org.slf4j.LoggerFactory;
 import com.github.fireduck64.sockthing.sharesaver.ShareSaveException;
 import com.github.fireduck64.sockthing.util.DiffMath;
 import com.github.fireduck64.sockthing.util.HexUtil;
-import com.google.bitcoin.core.Block;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Sha256Hash;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.VerificationException;
 import com.redbottledesign.bitcoin.pool.VardiffCalculator;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.Block;
 import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BlockTemplate;
 import com.redbottledesign.bitcoin.pool.rpc.bitcoin.Coinbase;
-import com.redbottledesign.bitcoin.pool.rpc.bitcoin.CoinbaseFactory;
 
 public class JobInfo
 {
@@ -50,8 +49,8 @@ public class JobInfo
     private final Coinbase coinbase;
 
     public JobInfo(StratumServer server, PoolUser poolUser, String jobId, BlockTemplate blockTemplate,
-                   byte[] extraNonce1)
-    throws org.json.JSONException
+                   Coinbase coinbase)
+    throws JSONException
     {
         this.poolUser       = poolUser;
         this.server         = server;
@@ -62,15 +61,19 @@ public class JobInfo
         this.feeTotal       = blockTemplate.getTotalFees();
         this.difficulty     = server.getBlockDifficulty();
         this.submits        = new HashSet<String>();
-        this.coinbase       = CoinbaseFactory.getInstance().generateCoinbase(server, poolUser, blockTemplate, extraNonce1);
+        this.coinbase       = coinbase;
 
         this.shareTarget = DiffMath.getTargetForDifficulty(poolUser.getDifficulty());
-
     }
 
     public long getBlockHeight()
     {
         return this.blockHeight;
+    }
+
+    public Coinbase getCoinbase()
+    {
+        return this.coinbase;
     }
 
     public JSONObject getMiningNotifyMessage(boolean clean)
@@ -148,12 +151,21 @@ public class JobInfo
     protected void validateSubmitInternal(JSONArray params, SubmitResult submitResult)
     throws JSONException, DecoderException, ShareSaveException
     {
-        String              user                    = params.getString(0),
-                            jobId                   = params.getString(1),
-                            ntime                   = params.getString(3),
-                            nonce                   = params.getString(4),
-                            submitCanonicalString   = params.getString(2) + params.getString(3) + params.getString(4);
-        byte[]              extraNonce2             = Hex.decodeHex(params.getString(2).toCharArray());
+        String  user                    = params.getString(0),
+                jobId                   = params.getString(1),
+                ntime                   = params.getString(3),
+                nonce                   = params.getString(4),
+                submitCanonicalString   = params.getString(2) + params.getString(3) + params.getString(4);
+        byte[]  extraNonce2             = Hex.decodeHex(params.getString(2).toCharArray());
+
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug(
+                String.format(
+                    "validateSubmitInternal() - nonce: %s, extra2: %s",
+                    HexUtil.swapEndianHexString(nonce),
+                    params.getString(2)));
+        }
 
         synchronized (this.submits)
         {
@@ -183,15 +195,6 @@ public class JobInfo
                 break;
         }
 
-        if (LOGGER.isDebugEnabled())
-        {
-            LOGGER.debug(
-                String.format(
-                    "validateSubmitInternal() - nonce: %s, extra2: %s",
-                    HexUtil.swapEndianHexString(nonce),
-                    params.getString(2)));
-        }
-
         synchronized (this.coinbase)
         {
             Sha256Hash  coinbaseHash,
@@ -199,7 +202,7 @@ public class JobInfo
             JSONArray   branches;
 
             this.coinbase.setExtraNonce2(extraNonce2);
-            this.coinbase.regenerateCoinbaseTransaction();
+            this.coinbase.regenerateCoinbaseTransaction(this.poolUser);
 
             coinbaseHash = this.coinbase.getCoinbaseTransaction().getHash();
             merkleRoot   = new Sha256Hash(HexUtil.swapEndianHexString(coinbaseHash.toString()));
@@ -223,6 +226,8 @@ public class JobInfo
                 MessageDigest   md;
                 byte[]          pass;
                 Sha256Hash      blockhash;
+                String          blockHashString,
+                                targetHashString;
                 double          shareDifficulty;
 
                 header.append("00000002");
@@ -264,7 +269,10 @@ public class JobInfo
                 submitResult.setNetworkDiffiult(this.difficulty);
                 submitResult.setOurDifficulty(shareDifficulty);
 
-                if (blockhash.toString().compareTo(this.shareTarget.toString()) < 0)
+                blockHashString     = blockhash.toString();
+                targetHashString    = this.shareTarget.toString();
+
+                if (blockHashString.compareTo(targetHashString) < 0)
                 {
                     submitResult.setOurResult("Y");
 
@@ -283,8 +291,10 @@ public class JobInfo
                     {
                       LOGGER.info(
                           String.format(
-                              "Share rejected (%s): %s %d %s",
+                              "Share rejected (%s, S:%s, T:%s): %s %d %s",
                               submitResult.getReason(),
+                              blockHashString,
+                              targetHashString,
                               poolUser.getName(),
                               this.blockHeight,
                               blockhash));
@@ -293,7 +303,7 @@ public class JobInfo
                     return;
                 }
 
-                if (blockhash.toString().compareTo(this.blockTemplate.getTarget()) < 0)
+                if (blockHashString.compareTo(this.blockTemplate.getTarget()) < 0)
                 {
                     submitResult.setUpstreamResult(this.buildAndSubmitBlock(params, merkleRoot));
                     submitResult.setHeight(this.blockHeight);
@@ -409,15 +419,6 @@ public class JobInfo
             Sha256Hash  transactionHashLE   = new Sha256Hash(doubleDigest(transactionBits));
 
             hashes.add(transactionHashLE);
-
-            if (LOGGER.isDebugEnabled())
-            {
-                LOGGER.debug(
-                    String.format(
-                        "Big-endian TX hash: %s, little-endian TX hash: %s",
-                        transaction.getHash(),
-                        transactionHashLE));
-            }
         }
 
         JSONArray roots = new JSONArray();

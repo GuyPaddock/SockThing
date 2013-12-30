@@ -1,4 +1,5 @@
 package com.github.fireduck64.sockthing;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.util.NoSuchElementException;
@@ -19,6 +20,8 @@ import org.slf4j.LoggerFactory;
 import com.github.fireduck64.sockthing.util.HexUtil;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
 import com.redbottledesign.bitcoin.pool.rpc.bitcoin.BlockTemplate;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.Coinbase;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.CoinbaseFactory;
 import com.redbottledesign.bitcoin.pool.util.queue.EvictableQueue;
 
 public class StratumConnection
@@ -41,36 +44,30 @@ public class StratumConnection
     private volatile boolean open;
     private volatile boolean mining_subscribe=false;
     private PoolUser user;
-    private final Config config;
-
-    private final byte[] extranonce1;
 
     private UserSessionData user_session_data;
 
     private final AtomicLong next_request_id=new AtomicLong(10000);
 
     private final LinkedBlockingQueue<JSONObject> out_queue = new LinkedBlockingQueue<JSONObject>();
-    private Random rnd;
 
     private long get_client_id=-1;
     private String client_version;
 
+    private Coinbase coinbase;
+
     public StratumConnection(StratumServer server, Socket sock, String connection_id)
     {
-        this.server = server;
-        this.config = server.getConfig();
-        this.sock = sock;
-        this.connection_id = connection_id;
+        this.server              = server;
+        this.sock                = sock;
+        this.connection_id       = connection_id;
+        this.open                = true;
+        this.last_network_action = new AtomicLong(System.nanoTime());
 
-        open                = true;
-        last_network_action = new AtomicLong(System.nanoTime());
-
-        //Get from user session for now.  Might do something fancy with resume later.
-        extranonce1 = UserSessionData.getExtranonce1();
+        this.refreshCoinbase();
 
         new OutThread().start();
         new InThread().start();
-
     }
 
     public void close()
@@ -98,11 +95,6 @@ public class StratumConnection
         return next_request_id.getAndIncrement();
     }
 
-    protected void updateLastNetworkAction()
-    {
-        last_network_action.set(System.nanoTime());
-    }
-
     public void sendMessage(JSONObject msg)
     {
         try
@@ -118,23 +110,59 @@ public class StratumConnection
 
 
     public void sendRealJob(BlockTemplate blockTemplate, boolean clean)
-        throws Exception
+    throws Exception
     {
-        if (user_session_data == null)
+        String      jobId;
+        JobInfo     jobInfo;
+        JSONObject  miningNotifyMessage;
+
+        if (this.user_session_data == null)
             return;
 
-        if (!mining_subscribe)
+        if (!this.mining_subscribe)
             return;
 
-        String job_id = user_session_data.getNextJobId();
+        this.refreshCoinbase();
 
-        JobInfo ji = new JobInfo(server, user, job_id, blockTemplate, extranonce1);
+        jobId   = this.user_session_data.getNextJobId();
+        jobInfo = new JobInfo(this.server, this.user, jobId, blockTemplate, this.coinbase);
 
-        user_session_data.saveJobInfo(job_id, ji);
+        this.user_session_data.saveJobInfo(jobId, jobInfo);
 
-        JSONObject msg = ji.getMiningNotifyMessage(clean);
+        miningNotifyMessage = jobInfo.getMiningNotifyMessage(clean);
 
-        sendMessage(msg);
+        this.sendMessage(miningNotifyMessage);
+    }
+
+    protected void updateLastNetworkAction()
+    {
+        this.last_network_action.set(System.nanoTime());
+    }
+
+    protected void refreshCoinbase()
+    {
+        // Get from user session for now.  Might do something fancy with resume later.
+        byte[]          userNonce = UserSessionData.getExtranonce1();
+        BlockTemplate   blockTemplate;
+
+        if (LOGGER.isDebugEnabled())
+            LOGGER.debug("Refreshing Stratum coinbase.");
+
+        try
+        {
+            blockTemplate = server.getCurrentBlockTemplate();
+        }
+
+        catch (IOException | JSONException ex)
+        {
+            throw new RuntimeException("Failed to obtain current block template: " + ex.getMessage(), ex);
+        }
+
+        this.coinbase =
+            CoinbaseFactory.getInstance().generateCoinbase(
+                server,
+                blockTemplate,
+                userNonce);
     }
 
     public class OutThread
@@ -291,7 +319,7 @@ public class StratumConnection
             lst2.put("hhtt");
             JSONArray lst = new JSONArray();
             lst.put(lst2);
-            lst.put(Hex.encodeHexString(extranonce1));
+            lst.put(Hex.encodeHexString(this.coinbase.getExtraNonce1()));
             lst.put(4);
             lst.put(RUNTIME_SESSION);
             reply.put("result", lst);
@@ -330,7 +358,7 @@ public class StratumConnection
 
                 user_session_data = server.getUserSessionData(pu);
 
-                sendRealJob(server.getCurrentBlockTemplate(),false);
+                sendRealJob(server.getCurrentBlockTemplate(), false);
             }
 
         }
@@ -365,6 +393,7 @@ public class StratumConnection
             JSONArray params = msg.getJSONArray("params");
 
             String job_id = params.getString(1);
+
             JobInfo ji = user_session_data.getJobInfo(job_id);
 
             if (ji == null)

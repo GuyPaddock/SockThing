@@ -2,7 +2,6 @@ package com.redbottledesign.bitcoin.pool.rpc.bitcoin.piggyback;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.List;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -23,14 +22,12 @@ extends BitcoinDaemonBlockTemplate
 
     private String workId;
     private Transaction coinbase;
-    private byte[] coinbaseBytes;
 
     public PiggyBackedBlockTemplate(NetworkParameters networkParams, JSONObject jsonBlockTemplate)
     {
         super(networkParams, jsonBlockTemplate);
 
-        this.coinbase       = null;
-        this.coinbaseBytes  = null;
+        this.coinbase = null;
 
         this.parseTemplate(jsonBlockTemplate);
     }
@@ -77,8 +74,7 @@ extends BitcoinDaemonBlockTemplate
                 JSONObject  jsonCoinbase        = jsonBlockTemplate.getJSONObject("coinbasetxn");
                 char[]      jsonCoinbaseData    = jsonCoinbase.getString("data").toCharArray();
 
-                this.coinbase       = new Transaction(this.networkParams, Hex.decodeHex(jsonCoinbaseData));
-                this.coinbaseBytes  = this.coinbase.bitcoinSerialize();
+                this.coinbase = new Transaction(this.networkParams, Hex.decodeHex(jsonCoinbaseData));
             }
 
             catch (JSONException | ProtocolException | DecoderException ex)
@@ -106,21 +102,14 @@ extends BitcoinDaemonBlockTemplate
     }
 
     @Override
-    public List<Transaction> getTransactions(Transaction coinbaseTxn)
+    public boolean hasCoinbaseTransaction()
     {
-        // Ignore provided coinbase.
-        return super.getTransactions(this.coinbase);
+        return (this.coinbase != null);
     }
 
     @Override
-    public boolean hasCoinbaseTransactionBytes()
+    public Transaction getCoinbaseTransaction()
     {
-        return (this.coinbaseBytes == null);
-    }
-
-    @Override
-    public byte[] getCoinbaseTransactionBytes()
-    {
-        return this.coinbaseBytes;
+        return this.coinbase;
     }
 }
