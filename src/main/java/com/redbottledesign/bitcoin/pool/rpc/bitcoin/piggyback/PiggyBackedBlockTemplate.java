@@ -22,12 +22,14 @@ extends BitcoinDaemonBlockTemplate
 
     private String workId;
     private Transaction coinbase;
+    private boolean stale;
 
     public PiggyBackedBlockTemplate(NetworkParameters networkParams, JSONObject jsonBlockTemplate)
     {
         super(networkParams, jsonBlockTemplate);
 
-        this.coinbase = null;
+        this.stale      = false;
+        this.coinbase   = null;
 
         this.parseTemplate(jsonBlockTemplate);
     }
@@ -40,6 +42,17 @@ extends BitcoinDaemonBlockTemplate
     public String getWorkId()
     {
         return this.workId;
+    }
+
+    @Override
+    public boolean isStale()
+    {
+        return this.stale;
+    }
+
+    public void setStale(boolean stale)
+    {
+        this.stale = stale;
     }
 
     @Override

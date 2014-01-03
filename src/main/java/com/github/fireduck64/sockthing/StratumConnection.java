@@ -122,6 +122,9 @@ public class StratumConnection
         if (!this.mining_subscribe)
             return;
 
+        if (clean)
+            this.user_session_data.clearAllJobs();
+
         this.refreshCoinbase();
 
         jobId   = this.user_session_data.getNextJobId();
@@ -211,7 +214,7 @@ public class StratumConnection
                 {
                     LOGGER.error(
                         String.format(
-                            "Error on connection %d: %s\n%s",
+                            "Error on connection '%s': %s\n%s",
                             connection_id,
                             ex.getMessage(),
                             ExceptionUtils.getStackTrace(ex)));
@@ -320,7 +323,7 @@ public class StratumConnection
             JSONArray lst = new JSONArray();
             lst.put(lst2);
             lst.put(Hex.encodeHexString(this.coinbase.getExtraNonce1()));
-            lst.put(4);
+            lst.put(this.coinbase.getExtraNonce1Size());
             lst.put(RUNTIME_SESSION);
             reply.put("result", lst);
 

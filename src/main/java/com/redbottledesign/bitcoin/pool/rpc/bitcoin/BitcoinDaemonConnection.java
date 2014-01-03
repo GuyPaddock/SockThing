@@ -25,6 +25,15 @@ implements BitcoinRpcConnection
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BitcoinDaemonConnection.class);
 
+    private final ThreadLocal<Logger> logger = new ThreadLocal<Logger>()
+    {
+        @Override
+        protected Logger initialValue()
+        {
+            return LOGGER;
+        }
+    };
+
     private NetworkParameters networkParams;
     private String username;
     private String password;
@@ -49,13 +58,7 @@ implements BitcoinRpcConnection
     {
         String response;
 
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Bitcoin RPC POST: " + post.toString(2));
-
         response = this.sendPost(this.getUrl(), post.toString());
-
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Bitcoin RPC response: " + response);
 
         return new JSONObject(response);
     }
@@ -107,6 +110,7 @@ implements BitcoinRpcConnection
     protected String sendPost(URL url, String userName, String password, String postdata)
     throws IOException
     {
+        Logger              logger      = this.getLogger();
         HttpURLConnection   connection  = (HttpURLConnection)url.openConnection();
         String              basic       = userName + ":" + password,
                             encoded     = Base64.encodeBase64String(basic.getBytes());
@@ -114,8 +118,8 @@ implements BitcoinRpcConnection
         Scanner             scan;
         StringBuilder       sb          = new StringBuilder();
 
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Bitcoin RPC POST: " + postdata);
+        if (logger.isTraceEnabled())
+            logger.trace("Bitcoin RPC POST: " + postdata);
 
         connection.setRequestProperty("Authorization", "Basic " + encoded);
         connection.setDoOutput(true);
@@ -143,8 +147,8 @@ implements BitcoinRpcConnection
 
         scan.close();
 
-        if (LOGGER.isDebugEnabled())
-            LOGGER.debug("Bitcoin RPC response: " + sb);
+        if (logger.isTraceEnabled())
+            logger.trace("Bitcoin RPC response: " + sb);
 
         return sb.toString();
     }
@@ -198,8 +202,10 @@ implements BitcoinRpcConnection
 
         if (!wasSuccessful)
         {
-            if (LOGGER.isErrorEnabled())
-                LOGGER.error("Block submit error:  " + result.toString());
+            Logger logger = this.getLogger();
+
+            if (logger.isErrorEnabled())
+                logger.error("Block submit error:  " + result.toString());
         }
 
         return wasSuccessful;
@@ -358,5 +364,20 @@ implements BitcoinRpcConnection
     protected int getRequestId()
     {
         return (this.requestNumber++);
+    }
+
+    protected Logger getLogger()
+    {
+        return this.logger.get();
+    }
+
+    protected void setLogger(Logger logger)
+    {
+        this.logger.set(logger);
+    }
+
+    protected void resetLogger()
+    {
+        this.logger.remove();
     }
 }

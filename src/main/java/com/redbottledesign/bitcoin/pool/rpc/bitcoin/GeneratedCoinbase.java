@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,15 +14,37 @@ import com.github.fireduck64.sockthing.WittyRemarksAgent;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.Transaction;
 import com.google.bitcoin.core.TransactionInput;
-import com.google.bitcoin.core.TransactionOutput;
 
 /**
- * Creates a stratum compatible coinbase transaction
+ * Generates a stratum-compatible coinbase transaction.
+ *
+ * The structure is as follows:
+ *
+ * <pre>
+ * Transaction Header [42 bytes]  | Coinbase Part #1
+ * Block Height  [4 bytes]        |
+ * Extra Nonce 1 [4 bytes]
+ * Extra Nonce 2 [4 bytes]
+ * Random Number [4 bytes]        | Coinbase Part #2
+ * Misc Text     [up to 42 bytes] |
+ * </pre>
  */
 public class GeneratedCoinbase
 extends AbstractCoinbase
 {
-    protected static final int RANDOM_OFF = 12;
+    protected static final int COINBASE1_TX_OFFSET = 0;
+
+    protected static final int BLOCK_HEIGHT_SCRIPT_OFFSET   = 0;
+    protected static final int BLOCK_HEIGHT_BYTE_LENGTH     = 4;
+
+    protected static final int EXTRA1_SCRIPT_OFFSET = BLOCK_HEIGHT_SCRIPT_OFFSET + BLOCK_HEIGHT_BYTE_LENGTH;
+    protected static final int EXTRA1_BYTE_LENGTH   = 4;
+
+    protected static final int EXTRA2_SCRIPT_OFFSET = EXTRA1_SCRIPT_OFFSET + EXTRA1_BYTE_LENGTH;
+    protected static final int EXTRA2_BYTE_LENGTH   = 4;
+
+    protected static final int RANDOM_SCRIPT_OFFSET = EXTRA2_SCRIPT_OFFSET + EXTRA2_BYTE_LENGTH;
+    protected static final int RANDOM_BYTE_LENGTH   = 4;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GeneratedCoinbase.class);
 
@@ -29,8 +52,6 @@ extends AbstractCoinbase
     private final BigInteger feeTotal;
 
     private String wittyRemark;
-
-    private boolean firstGen = true;
 
     public GeneratedCoinbase(StratumServer server, long blockHeight, BigInteger blockReward, BigInteger feeTotal,
                              byte[] extraNonce1)
@@ -47,9 +68,61 @@ extends AbstractCoinbase
         this.setExtraNonce1(extraNonce1);
         this.setExtraNonce2(new byte[EXTRA2_BYTE_LENGTH]);
         this.randomizeCoinbaseScript();
+    }
 
-        // Generate initial transaction without user info
-        this.regenerateCoinbaseTransaction(null);
+    @Override
+    public int getTotalCoinbaseTransactionLength()
+    {
+        return this.getCoinbaseTransactionBytes().length;
+    }
+
+    @Override
+    public int getCoinbase1Offset()
+    {
+        return 0;
+    }
+
+    @Override
+    public int getCoinbase1Size()
+    {
+        return TX_HEADER_LENGTH + BLOCK_HEIGHT_BYTE_LENGTH;
+    }
+
+    @Override
+    public int getExtraNonce1Offset()
+    {
+        return EXTRA1_SCRIPT_OFFSET;
+    }
+
+    @Override
+    public int getExtraNonce1Size()
+    {
+        return EXTRA1_BYTE_LENGTH;
+    }
+
+    @Override
+    public int getExtraNonce2Offset()
+    {
+        return EXTRA2_SCRIPT_OFFSET;
+    }
+
+    @Override
+    public int getExtraNonce2Size()
+    {
+        return EXTRA2_BYTE_LENGTH;
+    }
+
+    @Override
+    public int getCoinbase2Offset()
+    {
+        return TX_HEADER_LENGTH + BLOCK_HEIGHT_BYTE_LENGTH + EXTRA1_BYTE_LENGTH + EXTRA2_BYTE_LENGTH;
+    }
+
+    @Override
+    public int getCoinbase2Size()
+    {
+        //So coinbase1 size - extranonce(1+8)
+        return this.getTotalCoinbaseTransactionLength() - TX_HEADER_LENGTH - BLOCK_HEIGHT_BYTE_LENGTH - EXTRA1_BYTE_LENGTH - EXTRA2_BYTE_LENGTH;
     }
 
     /**
@@ -61,27 +134,36 @@ extends AbstractCoinbase
     {
         StratumServer       server          = this.getServer();
         NetworkParameters   networkParams   = server.getNetworkParameters();
-        Transaction         priorTx         = this.getCoinbaseTransaction(),
-                            newTx           = new Transaction(networkParams);
+        Transaction         newTx           = new Transaction(networkParams);
         byte[]              scriptBytes     = this.getCoinbaseScriptBytes();
 
         newTx.addInput(new TransactionInput(networkParams, newTx, scriptBytes));
-
-        if (this.firstGen)
-        {
-            server.getOutputMonster().addOutputs(user, newTx, this.blockReward, this.feeTotal);
-
-            this.firstGen = false;
-        }
-        else
-        {
-            for (TransactionOutput out : priorTx.getOutputs())
-            {
-                newTx.addOutput(out);
-            }
-        }
+        server.getOutputMonster().addOutputs(user, newTx, this.blockReward, this.feeTotal);
 
         this.setCoinbaseTransaction(newTx);
+
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug(
+                String.format(
+                    "regenerateCoinbaseTransaction() - Coinbase Part #1: %s",
+                    Hex.encodeHexString(this.getCoinbasePart1())));
+
+            LOGGER.debug(
+                String.format(
+                    "regenerateCoinbaseTransaction() - Coinbase Extra Nonce #1: %s",
+                    Hex.encodeHexString(this.getExtraNonce1())));
+
+            LOGGER.debug(
+                String.format(
+                    "regenerateCoinbaseTransaction() - Coinbase Extra Nonce #2: %s",
+                    Hex.encodeHexString(this.getExtraNonce2())));
+
+            LOGGER.debug(
+                String.format(
+                    "regenerateCoinbaseTransaction() - Coinbase Part #2: %s",
+                    Hex.encodeHexString(this.getCoinbasePart2())));
+        }
     }
 
     @Override
@@ -117,6 +199,7 @@ extends AbstractCoinbase
 
         scriptBytes = script.getBytes();
 
+        // Truncate to exactly 100 bytes
         if (scriptBytes.length > 100)
         {
             if (LOGGER.isDebugEnabled())
@@ -145,7 +228,7 @@ extends AbstractCoinbase
 
         for (int i = 0; i < heightBytes.length; i++)
         {
-            scriptBytes[i + BLOCK_HEIGHT_OFF] = heightBytes[i];
+            scriptBytes[BLOCK_HEIGHT_SCRIPT_OFFSET + i] = heightBytes[i];
         }
 
         // Terrible endian hack
@@ -158,14 +241,14 @@ extends AbstractCoinbase
     protected void randomizeCoinbaseScript()
     {
         byte[]  scriptBytes     = this.getCoinbaseScriptBytes(),
-                randBytes       = new byte[4];
+                randBytes       = new byte[RANDOM_BYTE_LENGTH];
         Random  randomGenerator = new Random();
 
         randomGenerator.nextBytes(randBytes);
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < randBytes.length; i++)
         {
-            scriptBytes[i + RANDOM_OFF] = randBytes[i];
+            scriptBytes[RANDOM_SCRIPT_OFFSET + i] = randBytes[i];
         }
 
         this.setCoinbaseScriptBytes(scriptBytes);

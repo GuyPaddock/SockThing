@@ -36,6 +36,13 @@ implements BlockTemplate
     }
 
     @Override
+    public boolean isStale()
+    {
+        // Never expires, because it's refreshed whenever block height changes
+        return false;
+    }
+
+    @Override
     public long getHeight()
     throws MalformedBlockTemplateException
     {

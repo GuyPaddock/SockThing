@@ -25,6 +25,7 @@ extends BitcoinDaemonConnection
     protected int secondPort;
     protected String secondUsername;
     protected String secondPassword;
+    protected PiggyBackedBlockTemplate lastBlockTemplate;
 
     public PiggyBackedBitcoinDaemonConnection(NetworkParameters networkParams, Config config)
     {
@@ -35,28 +36,42 @@ extends BitcoinDaemonConnection
     public BlockTemplate getCurrentBlockTemplate()
     throws IOException, JSONException
     {
-        JSONArray   params          = new JSONArray();
-        JSONObject  msg             = new JSONObject(),
-                    caps            = new JSONObject(),
-                    requestResult,
-                    result;
+        JSONArray                   params          = new JSONArray();
+        JSONObject                  msg             = new JSONObject(),
+                                    caps            = new JSONObject(),
+                                    requestResult,
+                                    result;
+        PiggyBackedBlockTemplate    blockTemplate;
 
-        msg.put("method", "getblocktemplate");
-        msg.put("id",     Integer.toString(this.getRequestId()));
+        this.switchLogger();
 
-        caps.put("capabilities", new JSONArray());
-        params.put(caps);
+        try
+        {
+            msg.put("method", "getblocktemplate");
+            msg.put("id",     Integer.toString(this.getRequestId()));
 
-        msg.put("params", params);
+            caps.put("capabilities", new JSONArray());
+            params.put(caps);
 
-        requestResult = this.sendSecondaryPost(msg);
+            msg.put("params", params);
 
-        if (!requestResult.isNull("error"))
-            throw new RuntimeException("Block template retrieval failed: " + requestResult.get("error"));
+            requestResult = this.sendSecondaryPost(msg);
 
-        result = requestResult.getJSONObject("result");
+            if (!requestResult.isNull("error"))
+                throw new RuntimeException("Block template retrieval failed: " + requestResult.get("error"));
 
-        return new PiggyBackedBlockTemplate(this.getNetworkParams(), result);
+            result          = requestResult.getJSONObject("result");
+            blockTemplate   = new PiggyBackedBlockTemplate(this.getNetworkParams(), result);
+
+            this.lastBlockTemplate = blockTemplate;
+
+            return blockTemplate;
+        }
+
+        finally
+        {
+            this.resetLogger();
+        }
     }
 
     @Override
@@ -68,39 +83,64 @@ extends BitcoinDaemonConnection
         JSONObject  message         = new JSONObject(),
                     result;
 
-        message.put("method", "submitblock");
-        message.put("id",     Integer.toString(this.getRequestId()));
+        this.switchLogger();
 
-        params.put(Hex.encodeHexString(block.bitcoinSerialize()));
-
-        // Send across work ID if we have it
-        if (blockTemplate instanceof PiggyBackedBlockTemplate)
+        try
         {
-            String workId = ((PiggyBackedBlockTemplate)blockTemplate).getWorkId();
+            message.put("method", "submitblock");
+            message.put("id",     Integer.toString(this.getRequestId()));
 
-            if (workId != null)
+            params.put(Hex.encodeHexString(block.bitcoinSerialize()));
+
+            // Send across work ID if we have it
+            if (blockTemplate instanceof PiggyBackedBlockTemplate)
             {
-                JSONObject  additionalParams = new JSONObject();
+                String workId = ((PiggyBackedBlockTemplate)blockTemplate).getWorkId();
 
-                additionalParams.put("workid", workId);
+                if (workId != null)
+                {
+                    JSONObject  additionalParams = new JSONObject();
 
-                params.put(additionalParams);
+                    additionalParams.put("workid", workId);
+
+                    params.put(additionalParams);
+                }
             }
+
+            message.put("params", params);
+
+            result = this.sendSecondaryPost(message);
+
+            wasSuccessful = (result.isNull("error") && result.isNull("result"));
+
+            if (!wasSuccessful)
+            {
+                Logger logger;
+
+                this.switchLogger();
+
+                logger = this.getLogger();
+
+                if (logger.isErrorEnabled())
+                    logger.error("Block submit error:  " + result.toString());
+
+                if (result.has("result") && result.getString("result").equals("unknown-work"))
+                {
+                    if (logger.isDebugEnabled())
+                        logger.debug("Upstream pool reports work is unknown. Marking block template as stale.");
+
+                    // Force refresh
+                    this.lastBlockTemplate.setStale(true);
+                }
+            }
+
+            return wasSuccessful;
         }
 
-        message.put("params", params);
-
-        result = this.sendSecondaryPost(message);
-
-        wasSuccessful = (result.isNull("error") && result.isNull("result"));
-
-        if (!wasSuccessful)
+        finally
         {
-            if (LOGGER.isErrorEnabled())
-                LOGGER.error("Block submit error:  " + result.toString());
+            this.resetLogger();
         }
-
-        return wasSuccessful;
     }
 
     public JSONObject sendSecondaryPost(JSONObject post)
@@ -137,6 +177,21 @@ extends BitcoinDaemonConnection
     protected String sendSecondaryPost(String url, String postdata)
     throws IOException
     {
-        return sendPost(new URL(url), this.secondUsername, this.secondPassword, postdata);
+        this.switchLogger();
+
+        try
+        {
+            return sendPost(new URL(url), this.secondUsername, this.secondPassword, postdata);
+        }
+
+        finally
+        {
+            this.resetLogger();
+        }
+    }
+
+    protected void switchLogger()
+    {
+        this.setLogger(LOGGER);
     }
 }

@@ -7,6 +7,8 @@ import com.google.bitcoin.core.Transaction;
 
 public interface BlockTemplate
 {
+    public boolean isStale();
+
     public long getHeight();
 
     public double getDifficulty();

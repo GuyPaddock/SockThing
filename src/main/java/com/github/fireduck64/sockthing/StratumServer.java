@@ -32,7 +32,6 @@ import com.google.bitcoin.params.MainNetParams;
 import com.google.bitcoin.params.TestNet3Params;
 import com.redbottledesign.bitcoin.pool.FallbackShareSaver;
 import com.redbottledesign.bitcoin.pool.agent.Agent;
-import com.redbottledesign.bitcoin.pool.agent.BlockConfirmationAgent;
 import com.redbottledesign.bitcoin.pool.agent.PayoutAgent;
 import com.redbottledesign.bitcoin.pool.agent.RoundAgent;
 import com.redbottledesign.bitcoin.pool.agent.persistence.PersistenceAgent;
@@ -124,7 +123,7 @@ public class StratumServer
 
         new NotifyListenerUDP(this).start();
         new TimeoutThread().start();
-        new NewBlockThread().start();
+        new NewBlockTemplateThread().start();
         new PruneThread().start();
 
         List<String> ports = this.config.getList("port");
@@ -328,7 +327,7 @@ public class StratumServer
 
         server.registerAgent(PplnsAgent.class, pplnsAgent);
         server.registerAgent(new RoundAgent(server));
-        server.registerAgent(new BlockConfirmationAgent(server));
+//        server.registerAgent(new BlockConfirmationAgent(server));
 
         checkpointer.setupCheckpointing(persistenceAgent, pplnsAgent);
         checkpointer.restoreCheckpointsFromDisk();
@@ -372,14 +371,14 @@ public class StratumServer
     {
         BlockTemplate c = this.cachedBlockTemplate;
 
-        if (c != null)
+        if ((c != null) && !c.isStale())
           return c;
 
         synchronized (this.blockTemplateLock)
         {
           c = this.cachedBlockTemplate;
 
-          if (c != null)
+          if ((c != null) && !c.isStale())
               return c;
 
           c = this.bitcoinConnection.getCurrentBlockTemplate();
@@ -399,15 +398,18 @@ public class StratumServer
     {
         String result = "N";
 
-        for (int i = 0; i < 10; i++)
+        synchronized (this.blockTemplateLock)
         {
-            if (LOGGER.isDebugEnabled())
-                LOGGER.debug("Attempting block submit: " + blk);
+            for (int i = 0; i < 10; i++)
+            {
+                if (LOGGER.isDebugEnabled())
+                    LOGGER.debug("Attempting block submit: " + blk);
 
-            result = submitBlockAttempt(blk);
+                result = submitBlockAttempt(blk);
 
-            if (result.equals("Y"))
-                return result;
+                if (result.equals("Y") || ((this.cachedBlockTemplate != null) && (this.cachedBlockTemplate.isStale())))
+                    return result;
+            }
         }
 
         return result;
@@ -714,7 +716,7 @@ public class StratumServer
         }
     }
 
-    public class NewBlockThread
+    public class NewBlockTemplateThread
     extends Thread
     {
         public final long MAX_TIME_WITHOUT_SUCCESS = TimeUnit.MILLISECONDS.convert(2, TimeUnit.MINUTES);
@@ -727,10 +729,10 @@ public class StratumServer
         long last_success_time;
 
 
-        public NewBlockThread()
+        public NewBlockTemplateThread()
         {
             this.setDaemon(true);
-            this.setName("NewBlockThread");
+            this.setName(this.getClass().getSimpleName());
 
             this.last_update_time = System.currentTimeMillis();
             this.last_success_time = System.currentTimeMillis();
@@ -749,7 +751,7 @@ public class StratumServer
                         System.exit(-1);
                     }
 
-                    if (StratumServer.this.newBlockNotifyObject.tryAcquire(1, 1000, TimeUnit.MILLISECONDS))
+                    if (StratumServer.this.newBlockNotifyObject.tryAcquire(1, 2000, TimeUnit.MILLISECONDS))
                     {
                         if (LOGGER.isInfoEnabled())
                             LOGGER.info("New block notify");
@@ -777,7 +779,9 @@ public class StratumServer
         {
             int blockCount = StratumServer.this.bitcoinConnection.getBlockCount();
 
-            if (blockCount != this.last_block)
+            if ((blockCount != this.last_block) ||
+                ((StratumServer.this.cachedBlockTemplate != null) &&
+                 (StratumServer.this.cachedBlockTemplate.isStale())))
             {
                 /*
                  * Using target high (next block height) for logging because

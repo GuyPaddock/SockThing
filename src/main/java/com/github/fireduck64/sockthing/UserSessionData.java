@@ -4,8 +4,18 @@ import java.util.Random;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.spongycastle.util.Arrays;
+
 public class UserSessionData
 {
+    private static final int EXTRANONCE_BYTES = 4;
+
+    private static AtomicLong nextExtraNonce1;
+
+    static
+    {
+        nextExtraNonce1 = new AtomicLong(0);
+    }
 
     /**
      * Hopefully the user is submitting shares and this keeping the interesting
@@ -48,6 +58,11 @@ public class UserSessionData
         }
     }
 
+    public void clearAllJobs()
+    {
+        this.open_jobs.clear();
+    }
+
     /**
      * Always use the same one to make reconnects work right
      * Instead we get protection from using a random number in each coinbase
@@ -55,7 +70,11 @@ public class UserSessionData
      */
     public static byte[] getExtranonce1()
     {
-        return "SOCK".getBytes();
+        byte[] extraNonce1Bytes = Long.toString(nextExtraNonce1.get()).getBytes();
+
+        return Arrays.copyOfRange(extraNonce1Bytes, 0, EXTRANONCE_BYTES);
+
+//        return "SOCK".getBytes();
     }
 
     /**

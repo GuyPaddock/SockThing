@@ -64,6 +64,9 @@ public class JobInfo
         this.coinbase       = coinbase;
 
         this.shareTarget = DiffMath.getTargetForDifficulty(poolUser.getDifficulty());
+
+        // Update coinbase for the user we were provided
+        this.coinbase.regenerateCoinbaseTransaction(poolUser);
     }
 
     public long getBlockHeight()
@@ -148,190 +151,6 @@ public class JobInfo
         }
     }
 
-    protected void validateSubmitInternal(JSONArray params, SubmitResult submitResult)
-    throws JSONException, DecoderException, ShareSaveException
-    {
-        String  user                    = params.getString(0),
-                jobId                   = params.getString(1),
-                ntime                   = params.getString(3),
-                nonce                   = params.getString(4),
-                submitCanonicalString   = params.getString(2) + params.getString(3) + params.getString(4);
-        byte[]  extraNonce2             = Hex.decodeHex(params.getString(2).toCharArray());
-
-        if (LOGGER.isDebugEnabled())
-        {
-            LOGGER.debug(
-                String.format(
-                    "validateSubmitInternal() - nonce: %s, extra2: %s",
-                    HexUtil.swapEndianHexString(nonce),
-                    params.getString(2)));
-        }
-
-        synchronized (this.submits)
-        {
-            if (this.submits.contains(submitCanonicalString))
-            {
-                submitResult.setOurResult("N");
-                submitResult.setReason("duplicate");
-                return;
-            }
-
-            this.submits.add(submitCanonicalString);
-        }
-
-        switch (this.server.checkStale(this.blockHeight))
-        {
-            case REALLY_STALE:
-                submitResult.setOurResult("N");
-                submitResult.setReason("quite stale");
-                return;
-
-            case SLIGHTLY_STALE:
-                submitResult.setReason("slightly stale");
-
-            /* Intentional fall-through. */
-            case CURRENT:
-            default:
-                break;
-        }
-
-        synchronized (this.coinbase)
-        {
-            Sha256Hash  coinbaseHash,
-                        merkleRoot;
-            JSONArray   branches;
-
-            this.coinbase.setExtraNonce2(extraNonce2);
-            this.coinbase.regenerateCoinbaseTransaction(this.poolUser);
-
-            coinbaseHash = this.coinbase.getCoinbaseTransaction().getHash();
-            merkleRoot   = new Sha256Hash(HexUtil.swapEndianHexString(coinbaseHash.toString()));
-
-            branches = getMerkleRoots();
-
-            for (int i = 0; i < branches.length(); i++)
-            {
-                Sha256Hash br = new Sha256Hash(branches.getString(i));
-
-                if (LOGGER.isDebugEnabled())
-                    LOGGER.debug(String.format("validateSubmitInternal() - Merkle %s %s.", merkleRoot, br));
-
-                merkleRoot = HexUtil.treeHash(merkleRoot, br);
-            }
-
-            try
-            {
-                StringBuilder   header = new StringBuilder();
-                String          headerString;
-                MessageDigest   md;
-                byte[]          pass;
-                Sha256Hash      blockhash;
-                String          blockHashString,
-                                targetHashString;
-                double          shareDifficulty;
-
-                header.append("00000002");
-
-                header.append(HexUtil.swapBytesInsideWord(
-                  HexUtil.swapEndianHexString(this.blockTemplate.getPreviousBlockHash())));
-
-                header.append(HexUtil.swapBytesInsideWord(merkleRoot.toString()));
-                header.append(ntime);
-                header.append(this.blockTemplate.getDifficultyBits());
-                header.append(nonce);
-                //header.append("000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000");
-
-                headerString = header.toString();
-                headerString = HexUtil.swapBytesInsideWord(headerString);
-
-                if (LOGGER.isDebugEnabled())
-                {
-                    LOGGER.debug("validateSubmitInternal() - Header: " + headerString);
-                    LOGGER.debug("validateSubmitInternal() - Header bytes: " + headerString.length());
-                }
-
-                md = MessageDigest.getInstance("SHA-256");
-
-                md.update(Hex.decodeHex(headerString.toCharArray()));
-
-                pass = md.digest();
-
-                md.reset();
-                md.update(pass);
-
-                blockhash = new Sha256Hash(
-                  HexUtil.swapEndianHexString(
-                    new Sha256Hash(md.digest()).toString()));
-
-                shareDifficulty = DiffMath.getDifficultyForHash(blockhash);
-
-                submitResult.setHash(blockhash);
-                submitResult.setNetworkDiffiult(this.difficulty);
-                submitResult.setOurDifficulty(shareDifficulty);
-
-                blockHashString     = blockhash.toString();
-                targetHashString    = this.shareTarget.toString();
-
-                if (blockHashString.compareTo(targetHashString) < 0)
-                {
-                    submitResult.setOurResult("Y");
-
-                    if (LOGGER.isInfoEnabled())
-                    {
-                      LOGGER.info(
-                          String.format("Share submitted: %s %d %s", poolUser.getName(), this.blockHeight, blockhash));
-                    }
-                }
-                else
-                {
-                    submitResult.setOurResult("N");
-                    submitResult.setReason("H-not-zero");
-
-                    if (LOGGER.isInfoEnabled())
-                    {
-                      LOGGER.info(
-                          String.format(
-                              "Share rejected (%s, S:%s, T:%s): %s %d %s",
-                              submitResult.getReason(),
-                              blockHashString,
-                              targetHashString,
-                              poolUser.getName(),
-                              this.blockHeight,
-                              blockhash));
-                    }
-
-                    return;
-                }
-
-                if (blockHashString.compareTo(this.blockTemplate.getTarget()) < 0)
-                {
-                    submitResult.setUpstreamResult(this.buildAndSubmitBlock(params, merkleRoot));
-                    submitResult.setHeight(this.blockHeight);
-
-                    if (LOGGER.isInfoEnabled())
-                    {
-                      LOGGER.info(
-                          String.format(
-                              "Block submitted upstream (result: %s): %s %d %s",
-                              submitResult.getUpstreamResult(),
-                              poolUser.getName(),
-                              this.blockHeight,
-                              blockhash));
-                    }
-                }
-
-                // Re-compute user's difficulty
-                if (VardiffCalculator.getInstance().computeDifficultyAdjustment(this.poolUser, shareDifficulty))
-                    submitResult.setShouldSendDifficulty(true);
-            }
-
-            catch (NoSuchAlgorithmException e)
-            {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
     public String buildAndSubmitBlock(JSONArray params, Sha256Hash merkleRoot)
     throws JSONException, DecoderException
     {
@@ -403,7 +222,236 @@ public class JobInfo
         }
     }
 
-    public JSONArray getMerkleRoots()
+    protected void validateSubmitInternal(JSONArray params, SubmitResult submitResult)
+    throws JSONException, DecoderException, ShareSaveException
+    {
+        boolean     ourResult               = true;
+        String      ourResultReason         = null,
+                    user                    = params.getString(0),
+                    jobId                   = params.getString(1),
+                    ntime                   = params.getString(3),
+                    nonce                   = params.getString(4),
+                    submitCanonicalString   = params.getString(2) + params.getString(3) + params.getString(4);
+        byte[]      extraNonce2             = Hex.decodeHex(params.getString(2).toCharArray());
+        String      userName                = poolUser.getName();
+        Sha256Hash  blockhash               = null;
+        String      blockHashString         = null,
+                    targetHashString        = null;
+
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug(
+                String.format(
+                    "validateSubmitInternal() - nonce: %s, extra2: %s",
+                    HexUtil.swapEndianHexString(nonce),
+                    params.getString(2)));
+        }
+
+        synchronized (this.submits)
+        {
+            if (this.submits.contains(submitCanonicalString))
+            {
+                ourResult       = false;
+                ourResultReason = "duplicate";
+            }
+
+            else
+            {
+                this.submits.add(submitCanonicalString);
+            }
+        }
+
+        if (ourResult != false)
+        {
+            switch (this.server.checkStale(this.blockHeight))
+            {
+                case REALLY_STALE:
+                    ourResult       = false;
+                    ourResultReason = "quite stale";
+                    break;
+
+                case SLIGHTLY_STALE:
+                    ourResultReason = "slightly stale";
+                    break;
+
+                case CURRENT:
+                default:
+                    break;
+            }
+        }
+
+        if (ourResult != false)
+        {
+            synchronized (this.coinbase)
+            {
+                Sha256Hash  merkleRoot;
+
+                this.coinbase.setExtraNonce2(extraNonce2);
+                this.coinbase.regenerateCoinbaseTransaction(this.poolUser);
+
+                merkleRoot = this.calculateMerkleRoot();
+
+                try
+                {
+                    StringBuilder   header = new StringBuilder();
+                    String          headerString;
+                    MessageDigest   md;
+                    byte[]          pass;
+                    double          shareDifficulty;
+
+                    header.append("00000002");
+
+                    header.append(HexUtil.swapBytesInsideWord(
+                      HexUtil.swapEndianHexString(this.blockTemplate.getPreviousBlockHash())));
+
+                    header.append(HexUtil.swapBytesInsideWord(merkleRoot.toString()));
+                    header.append(ntime);
+                    header.append(this.blockTemplate.getDifficultyBits());
+                    header.append(nonce);
+                    //header.append("000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000");
+
+                    headerString = header.toString();
+                    headerString = HexUtil.swapBytesInsideWord(headerString);
+
+                    if (LOGGER.isDebugEnabled())
+                    {
+                        LOGGER.debug(
+                            String.format(
+                                "validateSubmitInternal() - Header (%d): %s",
+                                headerString.length(),
+                                headerString));
+                    }
+
+                    md = MessageDigest.getInstance("SHA-256");
+
+                    md.update(Hex.decodeHex(headerString.toCharArray()));
+
+                    pass = md.digest();
+
+                    md.reset();
+                    md.update(pass);
+
+                    blockhash = new Sha256Hash(
+                      HexUtil.swapEndianHexString(
+                        new Sha256Hash(md.digest()).toString()));
+
+                    shareDifficulty = DiffMath.getDifficultyForHash(blockhash);
+
+                    submitResult.setHash(blockhash);
+                    submitResult.setNetworkDiffiult(this.difficulty);
+                    submitResult.setOurDifficulty(shareDifficulty);
+
+                    blockHashString     = blockhash.toString();
+                    targetHashString    = this.shareTarget.toString();
+
+                    if (blockHashString.compareTo(targetHashString) < 0)
+                    {
+                        if (LOGGER.isInfoEnabled())
+                        {
+                          LOGGER.info(
+                              String.format("Share submitted: %s %d %s", userName, this.blockHeight, blockhash));
+                        }
+                    }
+                    else
+                    {
+                        ourResult       = false;
+                        ourResultReason = "H-not-zero";
+
+                        if (LOGGER.isInfoEnabled())
+                        {
+                          LOGGER.info(
+                              String.format(
+                                  "Share rejected (%s, S:%s, T:%s): %s %d %s",
+                                  submitResult.getReason(),
+                                  blockHashString,
+                                  targetHashString,
+                                  userName,
+                                  this.blockHeight,
+                                  blockhash));
+                        }
+                    }
+
+                    if (ourResult != false)
+                    {
+                        if (blockHashString.compareTo(this.blockTemplate.getTarget()) < 0)
+                        {
+                            submitResult.setUpstreamResult(this.buildAndSubmitBlock(params, merkleRoot));
+                            submitResult.setHeight(this.blockHeight);
+
+                            if (LOGGER.isInfoEnabled())
+                            {
+                              LOGGER.info(
+                                  String.format(
+                                      "Block submitted upstream (result: %s): %s %d %s",
+                                      submitResult.getUpstreamResult(),
+                                      userName,
+                                      this.blockHeight,
+                                      blockhash));
+                            }
+                        }
+
+                        // Re-compute user's difficulty
+                        if (VardiffCalculator.getInstance().computeDifficultyAdjustment(this.poolUser, shareDifficulty))
+                            submitResult.setShouldSendDifficulty(true);
+                    }
+                }
+
+                catch (NoSuchAlgorithmException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        submitResult.setOurResult((ourResult ? "Y" : "N"));
+        submitResult.setReason(ourResultReason);
+
+        if (LOGGER.isInfoEnabled())
+        {
+            if (ourResult == true)
+            {
+                LOGGER.info(
+                    String.format(
+                        "Share accepted: %s %d %s",
+                        userName,
+                        this.blockHeight,
+                        blockhash));
+            }
+
+            else
+            {
+                LOGGER.info(
+                    String.format(
+                        "Share rejected (%s): %s %d %s",
+                        submitResult.getReason(),
+                        userName,
+                        this.blockHeight,
+                        blockhash));
+            }
+        }
+    }
+
+    protected Sha256Hash calculateMerkleRoot()
+    throws JSONException
+    {
+        Sha256Hash  coinbaseHash    = this.coinbase.getCoinbaseTransaction().getHash(),
+                    merkleRoot      = new Sha256Hash(HexUtil.swapEndianHexString(coinbaseHash.toString()));
+        JSONArray   branches        = this.getMerkleRoots();
+
+        for (int i = 0; i < branches.length(); i++)
+        {
+            Sha256Hash branchHash = new Sha256Hash(branches.getString(i));
+
+            if (LOGGER.isDebugEnabled())
+                LOGGER.debug(String.format("validateSubmitInternal() - Merkle %s %s.", merkleRoot, branchHash));
+
+            merkleRoot = HexUtil.treeHash(merkleRoot, branchHash);
+        }
+
+        return merkleRoot;
+    }
+
+    protected JSONArray getMerkleRoots()
     throws JSONException
     {
         ArrayList<Sha256Hash> hashes = new ArrayList<Sha256Hash>();

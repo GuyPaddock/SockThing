@@ -6,10 +6,12 @@ import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.fireduck64.sockthing.PoolUser;
 import com.github.fireduck64.sockthing.StratumServer;
 import com.google.bitcoin.core.NetworkParameters;
 import com.google.bitcoin.core.ProtocolException;
 import com.google.bitcoin.core.Transaction;
+import com.google.bitcoin.core.TransactionInput;
 
 public abstract class AbstractCoinbase
 implements Coinbase
@@ -17,15 +19,6 @@ implements Coinbase
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCoinbase.class);
 
     protected static final int TX_HEADER_LENGTH = 42;
-
-    protected static final int BLOCK_HEIGHT_BYTE_LENGTH = 4;
-    protected static final int BLOCK_HEIGHT_OFF = 0;
-
-    protected static final int EXTRA1_OFF = 4;
-    protected static final int EXTRA1_BYTE_LENGTH = 4;
-
-    protected static final int EXTRA2_OFF = 8;
-    protected static final int EXTRA2_BYTE_LENGTH = 4;
 
     private final StratumServer server;
     private final NetworkParameters networkParams;
@@ -42,6 +35,12 @@ implements Coinbase
     public StratumServer getServer()
     {
         return this.server;
+    }
+
+    @Override
+    public int getTotalCoinbaseTransactionLength()
+    {
+        return this.coinbaseTransactionBytes.length;
     }
 
     @Override
@@ -70,12 +69,13 @@ implements Coinbase
             /* This contains our standard 42 byte transaction header then 4 bytes
              * of block height for block v2.
              */
-            int     coinbase1Size   = TX_HEADER_LENGTH + BLOCK_HEIGHT_BYTE_LENGTH;
+            int     coinbase1Offset = this.getCoinbase1Offset(),
+                    coinbase1Size   = this.getCoinbase1Size();
             byte[]  buff            = new byte[coinbase1Size];
 
             for (int i = 0; i < coinbase1Size; i++)
             {
-                buff[i] = this.coinbaseTransactionBytes[i];
+                buff[i] = this.coinbaseTransactionBytes[coinbase1Offset + i];
             }
 
             return buff;
@@ -85,44 +85,84 @@ implements Coinbase
     @Override
     public byte[] getExtraNonce1()
     {
-        byte[] scriptBytes = this.getCoinbaseScriptBytes();
+        byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
+        int     extraNonce1Offset   = this.getExtraNonce1Offset(),
+                extraNonce1Size     = this.getExtraNonce1Size();
 
         if (scriptBytes == null)
             throw new IllegalStateException("No coinbase script data is available.");
 
-        return Arrays.copyOfRange(scriptBytes, EXTRA1_OFF, EXTRA1_OFF + EXTRA1_BYTE_LENGTH);
+        return Arrays.copyOfRange(scriptBytes, extraNonce1Offset, extraNonce1Offset + extraNonce1Size);
+    }
+
+    public void setExtraNonce1(byte[] extraNonce1)
+    {
+        byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
+        int     extraNonce1Offset   = this.getExtraNonce1Offset(),
+                extraNonce1Size     = this.getExtraNonce1Size();
+
+        if (scriptBytes == null)
+        {
+            throw new IllegalStateException("No coinbase script data is available.");
+        }
+
+        else if ((extraNonce1 == null) || (extraNonce1.length != extraNonce1Size))
+        {
+            throw new IllegalArgumentException(
+                String.format("Extra nonce #1 must be exactly %d bytes.", extraNonce1Size));
+        }
+
+        for (int i = 0; i < extraNonce1.length; i++)
+        {
+            scriptBytes[extraNonce1Offset + i] = extraNonce1[i];
+        }
+
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug(
+                String.format(
+                    "setExtraNonce1() - extraNonce1 bytes (%d): %s",
+                    extraNonce1.length,
+                    Hex.encodeHexString(extraNonce1)));
+        }
+
+        this.setCoinbaseScriptBytes(scriptBytes);
     }
 
     @Override
     public byte[] getExtraNonce2()
     {
-        byte[] scriptBytes = this.getCoinbaseScriptBytes();
+        byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
+        int     extraNonce2Offset   = this.getExtraNonce2Offset(),
+                extraNonce2Size     = this.getExtraNonce2Size();
 
         if (scriptBytes == null)
             throw new IllegalStateException("No coinbase script data is available.");
 
-        return Arrays.copyOfRange(scriptBytes, EXTRA2_OFF, EXTRA2_OFF + EXTRA2_BYTE_LENGTH);
+        return Arrays.copyOfRange(scriptBytes, extraNonce2Offset, extraNonce2Offset + extraNonce2Size);
     }
 
     @Override
     public void setExtraNonce2(byte[] extraNonce2)
     {
-        byte[] scriptBytes = this.getCoinbaseScriptBytes();
+        byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
+        int     extraNonce2Offset   = this.getExtraNonce2Offset(),
+                extraNonce2Size     = this.getExtraNonce2Size();
 
         if (scriptBytes == null)
         {
             throw new IllegalStateException("No coinbase script data is available.");
         }
 
-        else if ((extraNonce2 == null) || (extraNonce2.length != EXTRA2_BYTE_LENGTH))
+        else if ((extraNonce2 == null) || (extraNonce2.length != extraNonce2Size))
         {
             throw new IllegalArgumentException(
-                String.format("Extra nonce #2 must be exactly %d bytes.", EXTRA2_BYTE_LENGTH));
+                String.format("Extra nonce #2 must be exactly %d bytes.", extraNonce2Size));
         }
 
         for (int i = 0; i < extraNonce2.length; i++)
         {
-            scriptBytes[EXTRA2_OFF + i] = extraNonce2[i];
+            scriptBytes[extraNonce2Offset + i] = extraNonce2[i];
         }
 
         if (LOGGER.isDebugEnabled())
@@ -148,13 +188,16 @@ implements Coinbase
 
         else
         {
-            //So coinbase1 size - extranonce(1+8)
-            int     sz      = this.coinbaseTransactionBytes.length - TX_HEADER_LENGTH - 4 - 8;
-            byte[]  buff    = new byte[sz];
+            /* This contains our standard 42 byte transaction header then 4 bytes
+             * of block height for block v2.
+             */
+            int     coinbase2Offset = this.getCoinbase2Offset(),
+                    coinbase2Size   = this.getCoinbase2Size();
+            byte[]  buff            = new byte[coinbase2Size];
 
-            for (int i = 0; i < sz; i++)
+            for (int i = 0; i < coinbase2Size; i++)
             {
-                buff[i] = this.coinbaseTransactionBytes[TX_HEADER_LENGTH + 8 + 4 + i];
+                buff[i] = this.coinbaseTransactionBytes[coinbase2Offset + i];
             }
 
             return buff;
@@ -162,41 +205,61 @@ implements Coinbase
     }
 
     @Override
-    public void markSolved()
+    public void regenerateCoinbaseTransaction(PoolUser user)
     {
-        // Default implementation: no-op
-    }
+        Transaction newCoinbase;
 
-    protected void setExtraNonce1(byte[] extraNonce1)
-    {
-        byte[] scriptBytes = this.getCoinbaseScriptBytes();
-
-        if (scriptBytes == null)
+        try
         {
-            throw new IllegalStateException("No coinbase script data is available.");
+            newCoinbase = new Transaction(this.networkParams, this.coinbaseTransactionBytes);
         }
 
-        else if ((extraNonce1 == null) || (extraNonce1.length != EXTRA1_BYTE_LENGTH))
+        catch (ProtocolException ex)
         {
-            throw new IllegalArgumentException(
-                String.format("Extra nonce #1 must be exactly %d bytes.", EXTRA1_BYTE_LENGTH));
+            throw new IllegalStateException("Unable to generate coinbase transaction: " + ex.getMessage(), ex);
         }
 
-        for (int i = 0; i < extraNonce1.length; i++)
-        {
-            scriptBytes[EXTRA1_OFF + i] = extraNonce1[i];
-        }
+        /* Clear any inputs that were already in the TX bytes, then rebuild
+         * the input from the script bytes.
+         */
+        newCoinbase.clearInputs();
+        newCoinbase.addInput(
+            new TransactionInput(
+                this.networkParams,
+                this.coinbaseTransaction,
+                this.coinbaseScriptBytes));
+
+        // Keep TX and script bytes in-sync
+        this.setCoinbaseTransaction(newCoinbase);
 
         if (LOGGER.isDebugEnabled())
         {
             LOGGER.debug(
                 String.format(
-                    "setExtraNonce1() - extraNonce1 bytes (%d): %s",
-                    extraNonce1.length,
-                    Hex.encodeHexString(extraNonce1)));
-        }
+                    "regenerateCoinbaseTransaction() - Coinbase Part #1: %s",
+                    Hex.encodeHexString(this.getCoinbasePart1())));
 
-        this.setCoinbaseScriptBytes(scriptBytes);
+            LOGGER.debug(
+                String.format(
+                    "regenerateCoinbaseTransaction() - Coinbase Extra Nonce #1: %s",
+                    Hex.encodeHexString(this.getExtraNonce1())));
+
+            LOGGER.debug(
+                String.format(
+                    "regenerateCoinbaseTransaction() - Coinbase Extra Nonce #2: %s",
+                    Hex.encodeHexString(this.getExtraNonce2())));
+
+            LOGGER.debug(
+                String.format(
+                    "regenerateCoinbaseTransaction() - Coinbase Part #2: %s",
+                    Hex.encodeHexString(this.getCoinbasePart2())));
+        }
+    }
+
+    @Override
+    public void markSolved()
+    {
+        // Default implementation: no-op
     }
 
     protected void setCoinbaseTransaction(Transaction coinbaseTransaction)
@@ -241,7 +304,15 @@ implements Coinbase
 
     protected void setCoinbaseScriptBytes(byte[] scriptBytes)
     {
+        this.setCoinbaseScriptBytes(scriptBytes, true);
+    }
+
+    protected void setCoinbaseScriptBytes(byte[] scriptBytes, boolean regenerateCoinbaseTransaction)
+    {
         this.coinbaseScriptBytes = scriptBytes;
+
+        if (regenerateCoinbaseTransaction)
+            this.markCoinbaseForRegenerate();
 
         if (LOGGER.isDebugEnabled())
         {
@@ -256,29 +327,24 @@ implements Coinbase
     protected void refreshCoinbaseScriptBytes()
     {
         if (!this.coinbaseTransaction.getInputs().isEmpty())
-            this.setCoinbaseScriptBytes(this.coinbaseTransaction.getInput(0).getScriptBytes());
+        {
+            /* Ensure we don't invalidate the coinbase TX, since it will match
+             * the script bytes after this call.
+             */
+            this.setCoinbaseScriptBytes(this.coinbaseTransaction.getInput(0).getScriptBytes(), false);
+        }
+    }
 
-        if (LOGGER.isDebugEnabled() && (this.coinbaseTransactionBytes != null))
+    protected void markCoinbaseForRegenerate()
+    {
+        if (LOGGER.isDebugEnabled())
         {
             LOGGER.debug(
-                String.format(
-                    "setCoinbaseTransactionBytes() - Coinbase Part #1: %s",
-                    Hex.encodeHexString(this.getCoinbasePart1())));
-
-            LOGGER.debug(
-                String.format(
-                    "setCoinbaseTransactionBytes() - Coinbase Extra Nonce #1: %s",
-                    Hex.encodeHexString(this.getExtraNonce1())));
-
-            LOGGER.debug(
-                String.format(
-                    "setCoinbaseTransactionBytes() - Coinbase Extra Nonce #2: %s",
-                    Hex.encodeHexString(this.getExtraNonce2())));
-
-            LOGGER.debug(
-                String.format(
-                    "setCoinbaseTransactionBytes() - Coinbase Part #2: %s",
-                    Hex.encodeHexString(this.getCoinbasePart2())));
+                "markCoinbaseForRegenerate() - Invalidating coinbase TX. regenerateCoinbaseTransaction() will need " +
+                "to be called to rebuild it from the new script bytes.");
         }
+
+        // Invalidate the coinbase TX, forcing the caller to regenerate it.
+        this.coinbaseTransaction = null;
     }
 }
