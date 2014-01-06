@@ -105,7 +105,7 @@ public abstract class StratumMessage
     }
 
     /**
-     * <p>Gets the unique, numeric identifier for this message, relative to the side
+     * <p>Sets the unique, numeric identifier for this message, relative to the side
      * of the connection that initiated the request.</p>
      *
      * <p>This may be {@code null} if the side of the connection that initiated
@@ -137,6 +137,29 @@ public abstract class StratumMessage
     throws MalformedStratumMessageException
     {
         this.parseId(jsonMessage);
+
+        this.validateParsedData(jsonMessage);
+    }
+
+    /**
+     * <p>Validates that all of the information that was parsed into this
+     * message is valid.</p>
+     *
+     * <p>This is automatically invoked by {@link #parseMessage(JSONObject)}. The
+     * default behavior provides no validation logic, but sub-classes can
+     * override this method to provide their own validation logic.</p>
+     *
+     * @param   jsonMessage
+     *          The message that was parsed.
+     *
+     * @throws  MalformedStratumMessageException
+     *          If the data parsed into this object from the provided message
+     *          was incorrect for the type of message that was expected.
+     */
+    protected void validateParsedData(JSONObject jsonMessage)
+    throws MalformedStratumMessageException
+    {
+        // Default: do nothing.
     }
 
     /**

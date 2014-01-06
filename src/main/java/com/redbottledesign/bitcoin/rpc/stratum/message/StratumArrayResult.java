@@ -65,6 +65,20 @@ implements StratumResult
 
     /**
      * <p>Constructor for {@link StratumArrayResult} that initializes a new
+     * instance having no subject and the specified result data.</p>
+     *
+     * @param   resultData
+     *          Data, if any, that should be contained in the result (after
+     *          the subject tuple).
+     */
+    public StratumArrayResult(Object... resultData)
+    throws IllegalArgumentException
+    {
+        this(null, null, resultData);
+    }
+
+    /**
+     * <p>Constructor for {@link StratumArrayResult} that initializes a new
      * instance having the specified subject, subject key, and result data.</p>
      *
      * <p>All arguments may be {@code null}.</p>

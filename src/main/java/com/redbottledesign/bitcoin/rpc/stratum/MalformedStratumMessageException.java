@@ -44,6 +44,27 @@ extends Exception
                 message.toString()));
     }
 
+    public MalformedStratumMessageException(String method, String error, JSONObject message)
+    {
+        super(
+            String.format(
+                "Unknown or malformed \"%s\" Stratum JSON message received (%s): %s",
+                method,
+                error,
+                message.toString()));
+    }
+
+    public MalformedStratumMessageException(String method, String error, Throwable t, JSONObject message)
+    {
+        super(
+            String.format(
+                "Unknown or malformed \"%s\" Stratum JSON message received (%s): %s",
+                method,
+                error,
+                message.toString()),
+            t);
+    }
+
     public MalformedStratumMessageException(JSONArray message)
     {
         super("Unknown or malformed Stratum JSON message received: " + message.toString());
@@ -75,5 +96,26 @@ extends Exception
                 "Unknown or malformed \"%s\" Stratum JSON message received: %s",
                 method,
                 message.toString()));
+    }
+
+    public MalformedStratumMessageException(String method, String error, JSONArray message)
+    {
+        super(
+            String.format(
+                "Unknown or malformed \"%s\" Stratum JSON message received (%s): %s",
+                method,
+                error,
+                message.toString()));
+    }
+
+    public MalformedStratumMessageException(String method, String error, Throwable t, JSONArray message)
+    {
+        super(
+            String.format(
+                "Unknown or malformed \"%s\" Stratum JSON message received (%s): %s",
+                method,
+                error,
+                message.toString()),
+            t);
     }
 }

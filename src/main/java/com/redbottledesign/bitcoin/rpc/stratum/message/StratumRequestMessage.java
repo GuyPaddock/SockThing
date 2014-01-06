@@ -1,6 +1,7 @@
 package com.redbottledesign.bitcoin.rpc.stratum.message;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -54,7 +55,7 @@ extends StratumMessage
     /**
      * The name of the method being invoked.
      */
-    private String method;
+    private String methodName;
 
     /**
      * The list of parameters being supplied to the method.
@@ -91,40 +92,24 @@ extends StratumMessage
 
     /**
      * Constructor for {@link StratumRequestMessage} that initializes a new
-     * instance having the specified numeric ID and method, with no parameters.
-     *
-     * @param   id
-     *          The unique, numeric identifier for the message. This may be
-     *          {@code null}.
-     *
-     * @param   method
-     *          The name of the method being invoked on the remote side.
-     */
-    public StratumRequestMessage(long id, String method)
-    {
-        this(id, method, Collections.emptyList());
-    }
-
-    /**
-     * Constructor for {@link StratumRequestMessage} that initializes a new
      * instance having the specified numeric ID, method, and parameters.
      *
      * @param   id
      *          The unique, numeric identifier for the message. This may be
      *          {@code null}.
      *
-     * @param   method
+     * @param   methodName
      *          The name of the method being invoked on the remote side.
      *
      * @param   params
      *          The parameters being passed to the method.
      */
-    public StratumRequestMessage(long id, String method, List<Object> params)
+    public StratumRequestMessage(long id, String methodName, Object... params)
     {
         super(id);
 
-        this.setMethod(method);
-        this.setParams(new ArrayList<>(params));
+        this.setMethodName(methodName);
+        this.setParams(Arrays.asList(params));
     }
 
     /**
@@ -132,9 +117,9 @@ extends StratumMessage
      *
      * @return  The name of the method.
      */
-    public String getMethod()
+    public String getMethodName()
     {
-        return this.method;
+        return this.methodName;
     }
 
     /**
@@ -158,7 +143,7 @@ extends StratumMessage
 
         try
         {
-            object.put(JSON_STRATUM_KEY_METHOD, this.getMethod());
+            object.put(JSON_STRATUM_KEY_METHOD, this.getMethodName());
 
             for (Object param : this.getParams())
             {
@@ -178,12 +163,12 @@ extends StratumMessage
     /**
      * Sets the name of the method being invoked.
      *
-     * @param   method
+     * @param   methodName
      *          The name of the method.
      */
-    protected void setMethod(String method)
+    protected void setMethodName(String methodName)
     {
-        this.method = method;
+        this.methodName = methodName;
     }
 
     /**
@@ -204,10 +189,11 @@ extends StratumMessage
     protected void parseMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        super.parseMessage(jsonMessage);
-
-        this.parseMethod(jsonMessage);
+        this.parseMethodName(jsonMessage);
         this.parseParams(jsonMessage);
+
+        // Call superclass last, since it calls validateParsedData()
+        super.parseMessage(jsonMessage);
     }
 
     /**
@@ -220,7 +206,7 @@ extends StratumMessage
      *          If the provided JSON message object is not a properly-formed
      *          Stratum message or cannot be understood.
      */
-    protected void parseMethod(JSONObject jsonMessage)
+    protected void parseMethodName(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
         String method;
@@ -241,7 +227,7 @@ extends StratumMessage
             throw new MalformedStratumMessageException(jsonMessage, ex);
         }
 
-        this.setMethod(method);
+        this.setMethodName(method);
     }
 
     /**

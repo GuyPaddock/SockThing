@@ -27,7 +27,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
-public class StratumResponseMessage<T>
+public class StratumResponseMessage
 extends StratumMessage
 {
     /**
@@ -89,6 +89,24 @@ extends StratumMessage
     }
 
     /**
+     * Constructor for {@link StratumResponseMessage} that initializes a new
+     * instance having the specified numeric ID and error.
+     *
+     * @param   id
+     *          The unique, numeric identifier for the message. This may be
+     *          {@code null}.
+     *
+     * @param   error
+     *          The error that occurred while processing the request.
+     */
+    public StratumResponseMessage(long id, String error)
+    {
+        super(id);
+
+        this.setError(error);
+    }
+
+    /**
      * Gets the result of the method call.
      *
      * @return  The result of the method call.
@@ -132,6 +150,27 @@ extends StratumMessage
     }
 
     /**
+     * Sets the numeric identifier for this response, which must correspond
+     * to the identifier provided in the original request.
+     *
+     * @param   id
+     *          Sets the unique identifier for the message. This cannot be
+     *          {@code null}.
+     *
+     * @throws  IllegalArgumentException
+     *          If {@code id} is {@code null}.
+     */
+    @Override
+    protected void setId(Long id)
+    throws IllegalArgumentException
+    {
+        if (id == null)
+            throw new IllegalArgumentException("id cannot be null.");
+
+        super.setId(id);
+    }
+
+    /**
      * Sets the result of the method call.
      *
      * @param   result
@@ -139,6 +178,9 @@ extends StratumMessage
      */
     protected void setResult(StratumResult result)
     {
+        if ((result != null) && (this.getError() != null))
+            throw new IllegalArgumentException("Result must be null if an error is set.");
+
         this.result = result;
     }
 
@@ -151,6 +193,9 @@ extends StratumMessage
      */
     protected void setError(String error)
     {
+        if ((error != null) && (this.getResult() != null))
+            throw new IllegalArgumentException("Error must be null if a result is set.");
+
         this.error = error;
     }
 
@@ -161,10 +206,11 @@ extends StratumMessage
     protected void parseMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        super.parseMessage(jsonMessage);
-
         this.parseResult(jsonMessage);
         this.parseError(jsonMessage);
+
+        // Call superclass last, since it calls validateParsedData()
+        super.parseMessage(jsonMessage);
     }
 
     /**
