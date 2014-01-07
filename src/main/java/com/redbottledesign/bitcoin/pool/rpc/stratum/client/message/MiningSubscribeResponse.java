@@ -11,28 +11,111 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.StratumArrayResult;
 import com.redbottledesign.bitcoin.rpc.stratum.message.StratumResponseMessage;
 import com.redbottledesign.bitcoin.rpc.stratum.message.StratumResult;
 
+/**
+ * <p>Java representation of a Stratum {@code mining.notify} response
+ * message.</p>
+ *
+ * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ *
+ * @author Guy Paddock (gpaddock@redbottledesign.com)
+ */
 public class MiningSubscribeResponse
 extends StratumResponseMessage
 {
+    /**
+     * The offset of the result value that specifies the bytes in extra nonce #1.
+     */
+    private static final int RESULT_OFFSET_EXTRA_NONCE_1 = 0;
+
+    /**
+     * The offset of the result value that specifies size of extra nonce #2.
+     */
+    private static final int RESULT_OFFSET_EXTRA_NONCE_2_BYTE_LENGTH = 1;
+
+    /**
+     * The unique subject for this type of response.
+     */
     public static final String RESPONSE_SUBJECT = "mining.notify";
 
+    /**
+     * Constructor for {@link MiningSubscribeResponse} that creates a new
+     * instance with the specified request ID, subscription ID, extra
+     * nonce #1, and extra nonce #2 byte length.
+     *
+     * @param   id
+     *          The ID of the request to which this response corresponds.
+     *
+     * @param   subscriptionId
+     *          The unique subscription ID that the worker can use to refer to
+     *          this subscription later.
+     *
+     * @param   extraNonce1
+     *          The bytes the worker must use for extra nonce #1.
+     *
+     * @param   extraNonce2ByteLength
+     *          The number of bytes that the worker can use to generate extra
+     *          nonce #2.
+     */
     public MiningSubscribeResponse(long id, String subscriptionId, byte[] extraNonce1, int extraNonce2ByteLength)
     {
         super(id, createSubscriptionResult(subscriptionId, extraNonce1, extraNonce2ByteLength));
     }
 
+    /**
+     * Constructor for {@link MiningSubscribeResponse} that creates a new
+     * instance with the specified request, subscription ID, extra nonce #1,
+     * and extra nonce #2 byte length.
+     *
+     * @param   request
+     *          The request to which this response corresponds.
+     *
+     * @param   subscriptionId
+     *          The unique subscription ID that the worker can use to refer to
+     *          this subscription later.
+     *
+     * @param   extraNonce1
+     *          The bytes the worker must use for extra nonce #1.
+     *
+     * @param   extraNonce2ByteLength
+     *          The number of bytes that the worker can use to generate extra
+     *          nonce #2.
+     */
     public MiningSubscribeResponse(MiningSubscribeRequest request, String subscriptionId, byte[] extraNonce1,
                                    int extraNonce2ByteLength)
     {
-        super(request.getId(), createSubscriptionResult(subscriptionId, extraNonce1, extraNonce2ByteLength));
+        this(request.getId(), subscriptionId, extraNonce1, extraNonce2ByteLength);
     }
 
+    /**
+     * Constructor for {@link MiningSubscribeResponse} that creates a new
+     * instance from information in the provided JSON message.
+     *
+     * @param   jsonMessage
+     *          The message in JSON format.
+     */
     public MiningSubscribeResponse(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
         super(jsonMessage);
     }
 
+    /**
+     * Creates a new stratum result object from the given subscription id,
+     * nonce #1 bytes, and nonce #2 size.
+     *
+     * @param   subscriptionId
+     *          The unique subscription ID that the worker can use to refer to
+     *          this subscription later.
+     *
+     * @param   extraNonce1
+     *          The bytes the worker must use for extra nonce #1.
+     *
+     * @param   extraNonce2ByteLength
+     *          The number of bytes that the worker must fill to generate extra
+     *          nonce #2.
+     *
+     * @return  A stratum result object that wraps the given values.
+     */
     protected static StratumArrayResult createSubscriptionResult(String subscriptionId, byte[] extraNonce1,
                                                                  int extraNonce2ByteLength)
     {
@@ -43,17 +126,33 @@ extends StratumResponseMessage
             extraNonce2ByteLength);
     }
 
+    /**
+     * Gets the result of this response as a {@link StratumArrayResult}.
+     *
+     * @return  The result of this response, as a {@link StratumArrayResult}.
+     */
     @Override
     public StratumArrayResult getResult()
     {
         return (StratumArrayResult)super.getResult();
     }
 
+    /**
+     * Gets the unique subscription ID that the worker can use to refer to this
+     * subscription later.
+     *
+     * @return  The result of this response, as a {@link StratumArrayResult}.
+     */
     public String getSubscriptionId()
     {
         return this.getResult().getSubjectKey();
     }
 
+    /**
+     * Gets the bytes the worker must use for extra nonce #1.
+     *
+     * @return  The bytes in extra nonce #1.
+     */
     public byte[] getExtraNonce1()
     {
         List<Object> resultData  = this.getResult().getResultData();
@@ -66,11 +165,16 @@ extends StratumResponseMessage
 
         catch (DecoderException ex)
         {
-            // Should never happen
             throw new RuntimeException("Unable to decode extra nonce #1: " + ex.getMessage(), ex);
         }
     }
 
+    /**
+     * Gets the number of bytes that the worker must fill to generate extra
+     * nonce #2.
+     *
+     * @return  The number of bytes in extra nonce #2.
+     */
     public int getExtraNonce2ByteLength()
     {
         List<Object> resultData  = this.getResult().getResultData();
@@ -79,6 +183,9 @@ extends StratumResponseMessage
         return extraNonce1;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void validateParsedData(JSONObject jsonMessage)
     throws MalformedStratumMessageException
@@ -116,7 +223,7 @@ extends StratumResponseMessage
                 jsonMessage);
         }
 
-        if (!(resultData.get(0) instanceof String))
+        if (!(resultData.get(RESULT_OFFSET_EXTRA_NONCE_1) instanceof String))
         {
             throw new MalformedStratumMessageException(
                 RESPONSE_SUBJECT,
@@ -124,7 +231,7 @@ extends StratumResponseMessage
                 jsonMessage);
         }
 
-        if (!(resultData.get(1) instanceof Integer))
+        if (!(resultData.get(RESULT_OFFSET_EXTRA_NONCE_2_BYTE_LENGTH) instanceof Integer))
         {
             throw new MalformedStratumMessageException(
                 RESPONSE_SUBJECT,

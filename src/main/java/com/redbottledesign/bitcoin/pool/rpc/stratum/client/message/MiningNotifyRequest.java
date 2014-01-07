@@ -13,22 +13,100 @@ import com.google.bitcoin.core.Sha256Hash;
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
 import com.redbottledesign.bitcoin.rpc.stratum.message.StratumRequestMessage;
 
+/**
+ * <p>Java representation of a Stratum {@code mining.notify} request
+ * message.</p>
+ *
+ * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ *
+ * @author Guy Paddock (gpaddock@redbottledesign.com)
+ */
 public class MiningNotifyRequest
 extends StratumRequestMessage
 {
-
+    /**
+     * The name of this method as it appears in the request.
+     */
     public static final String METHOD_NAME = "mining.notify";
 
-    private static final int PARAM_OFFSET_JOB_ID                = 0;
-    private static final int PARAM_OFFSET_PREVIOUS_BLOCK_HASH   = 1;
-    private static final int PARAM_OFFSET_COINBASE_PART1        = 2;
-    private static final int PARAM_OFFSET_COINBASE_PART2        = 3;
-    private static final int PARAM_OFFSET_MERKLE_BRANCHES       = 4;
-    private static final int PARAM_OFFSET_BLOCK_VERSION         = 5;
-    private static final int PARAM_OFFSET_NETWORK_DIFFICULTY    = 6;
-    private static final int PARAM_OFFSET_NETWORK_TIME          = 7;
-    private static final int PARAM_OFFSET_CLEAN_JOBS            = 8;
+    /**
+     * The offset of the parameter that specifies the Stratum Job ID.
+     */
+    private static final int PARAM_OFFSET_JOB_ID = 0;
 
+    /**
+     * The offset of the parameter that specifies the hash of the previous block.
+     */
+    private static final int PARAM_OFFSET_PREVIOUS_BLOCK_HASH = 1;
+
+    /**
+     * The offset of the parameter that specifies the first part of the coinbase.
+     */
+    private static final int PARAM_OFFSET_COINBASE_PART1 = 2;
+
+    /**
+     * The offset of the parameter that specifies the second part of the coinbase.
+     */
+    private static final int PARAM_OFFSET_COINBASE_PART2 = 3;
+
+    /**
+     * The offset of the parameter that specifies the list of merkle branches.
+     */
+    private static final int PARAM_OFFSET_MERKLE_BRANCHES = 4;
+
+    /**
+     * The offset of the parameter that specifies the block version, encoded in bytes.
+     */
+    private static final int PARAM_OFFSET_BLOCK_VERSION = 5;
+
+    /**
+     * The offset of the parameter that specifies the network difficulty, encoded in bytes.
+     */
+    private static final int PARAM_OFFSET_NETWORK_DIFFICULTY = 6;
+
+    /**
+     * The offset of the parameter that specifies the network time, encoded in bytes.
+     */
+    private static final int PARAM_OFFSET_NETWORK_TIME = 7;
+
+    /**
+     * The offset of the parameter that specifies whether or not to clean jobs.
+     */
+    private static final int PARAM_OFFSET_CLEAN_JOBS = 8;
+
+    /**
+     * <p>Constructor for {@link MiningNotifyRequest} that creates a new
+     * instance with the specified mining parameters.</p>
+     *
+     * <p>The request is automatically assigned a unique ID.</p>
+     *
+     * @param   jobId
+     *          The Stratum job ID.
+     *
+     * @param   previousBlockHash
+     *          The hash of the previous block.
+     *
+     * @param   coinbasePart1
+     *          The first part of the coinbase.
+     *
+     * @param   coinbasePart2
+     *          The second part of the coinbase.
+     *
+     * @param   merkleBranches
+     *          The list of merkle branches.
+     *
+     * @param   blockVersion
+     *          The block version, encoded in bytes.
+     *
+     * @param   networkDifficultyBits
+     *          The network difficulty, encoded in bytes.
+     *
+     * @param   networkTime
+     *          The network time, encoded in bytes.
+     *
+     * @param   cleanJobs
+     *          Whether or not to clean jobs.
+     */
     public MiningNotifyRequest(String jobId, Sha256Hash previousBlockHash, byte[] coinbasePart1,
                                byte[] coinbasePart2, List<String> merkleBranches, byte[] blockVersion,
                                byte[] networkDifficultyBits, long networkTime, boolean cleanJobs)
@@ -46,6 +124,42 @@ extends StratumRequestMessage
             cleanJobs);
     }
 
+    /**
+     * <p>Constructor for {@link MiningNotifyRequest} that creates a new
+     * instance with the specified message ID and mining parameters.</p>
+     *
+     * <p>The message is automatically assigned a unique ID.</p>
+     *
+     * @param   id
+     *          The message ID.
+     *
+     * @param   jobId
+     *          The Stratum job ID.
+     *
+     * @param   previousBlockHash
+     *          The hash of the previous block.
+     *
+     * @param   coinbasePart1
+     *          The first part of the coinbase.
+     *
+     * @param   coinbasePart2
+     *          The second part of the coinbase.
+     *
+     * @param   merkleBranches
+     *          The list of merkle branches.
+     *
+     * @param   blockVersion
+     *          The block version.
+     *
+     * @param   networkDifficultyBits
+     *          The network difficulty.
+     *
+     * @param   networkTime
+     *          The network time.
+     *
+     * @param   cleanJobs
+     *          Whether or not to clean jobs.
+     */
     public MiningNotifyRequest(long id, String jobId, Sha256Hash previousBlockHash, byte[] coinbasePart1,
                                byte[] coinbasePart2, List<String> merkleBranches, byte[] blockVersion,
                                byte[] networkDifficultyBits, long networkTime, boolean cleanJobs)
@@ -64,22 +178,44 @@ extends StratumRequestMessage
             cleanJobs);
     }
 
+    /**
+     * Constructor for {@link MiningNotifyRequest} that creates a new
+     * instance from information in the provided JSON message.
+     *
+     * @param   jsonMessage
+     *          The message in JSON format.
+     */
     public MiningNotifyRequest(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
         super(jsonMessage);
     }
 
+    /**
+     * Gets the Stratum job ID.
+     *
+     * @return  The job ID.
+     */
     public String getJobId()
     {
         return this.getParams().get(PARAM_OFFSET_JOB_ID).toString();
     }
 
+    /**
+     * Gets the hash of the previous block.
+     *
+     * @return  The previous block hash.
+     */
     public Sha256Hash getPreviousBlockHash()
     {
         return new Sha256Hash(this.getParams().get(PARAM_OFFSET_PREVIOUS_BLOCK_HASH).toString());
     }
 
+    /**
+     * Gets the first part of the coinbase transaction.
+     *
+     * @return  The first part of the coinbase.
+     */
     public byte[] getCoinbasePart1()
     {
         try
@@ -93,6 +229,11 @@ extends StratumRequestMessage
         }
     }
 
+    /**
+     * Gets the second part of the coinbase transaction.
+     *
+     * @return  The second part of the coinbase.
+     */
     public byte[] getCoinbasePart2()
     {
         try
@@ -106,6 +247,11 @@ extends StratumRequestMessage
         }
     }
 
+    /**
+     * Gets the list of merkle branches.
+     *
+     * @return  The merkle branch list.
+     */
     public List<String> getMerkleBranches()
     {
         JSONArray       jsonMerkleBranches  = (JSONArray)this.getParams().get(PARAM_OFFSET_MERKLE_BRANCHES);
@@ -127,6 +273,11 @@ extends StratumRequestMessage
         return results;
     }
 
+    /**
+     * Gets the block version, encoded in bytes.
+     *
+     * @return  The block version.
+     */
     public byte[] getBlockVersion()
     {
         try
@@ -141,6 +292,11 @@ extends StratumRequestMessage
         }
     }
 
+    /**
+     * Gets the network difficulty, encoded in bytes.
+     *
+     * @return  The network difficulty.
+     */
     public byte[] getNetworkDifficultyBits()
     {
         try
@@ -154,6 +310,11 @@ extends StratumRequestMessage
         }
     }
 
+    /**
+     * Gets the network time, encoded in bytes.
+     *
+     * @return  The network time.
+     */
     public long getNetworkTime()
     {
         String  networkTimeString = this.getParams().get(PARAM_OFFSET_NETWORK_TIME).toString();
@@ -172,6 +333,13 @@ extends StratumRequestMessage
         return networkTime;
     }
 
+    /**
+     * Gets whether or not the miner should clean all outstanding jobs before
+     * switching over to this job.
+     *
+     * @return  {@code true} if the miner should discard any outstanding work;
+     *          {@code false}, otherwise.
+     */
     public boolean shouldCleanJobs()
     {
         Object cleanJobs = this.getParams().get(PARAM_OFFSET_CLEAN_JOBS);
@@ -187,6 +355,9 @@ extends StratumRequestMessage
         return (boolean)cleanJobs;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void validateParsedData(JSONObject jsonMessage)
     throws MalformedStratumMessageException
