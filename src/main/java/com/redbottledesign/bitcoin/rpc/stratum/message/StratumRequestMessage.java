@@ -209,7 +209,7 @@ extends StratumMessage
     protected void parseMethodName(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        String method;
+        String methodName;
 
         if (!jsonMessage.has(JSON_STRATUM_KEY_METHOD))
         {
@@ -219,7 +219,7 @@ extends StratumMessage
 
         try
         {
-            method = jsonMessage.getString(JSON_STRATUM_KEY_METHOD);
+            methodName = jsonMessage.getString(JSON_STRATUM_KEY_METHOD);
         }
 
         catch (JSONException ex)
@@ -227,7 +227,13 @@ extends StratumMessage
             throw new MalformedStratumMessageException(jsonMessage, ex);
         }
 
-        this.setMethodName(method);
+        if (methodName.isEmpty())
+        {
+            throw new MalformedStratumMessageException(
+                jsonMessage, String.format("empty '%s'", JSON_STRATUM_KEY_METHOD));
+        }
+
+        this.setMethodName(methodName);
     }
 
     /**
