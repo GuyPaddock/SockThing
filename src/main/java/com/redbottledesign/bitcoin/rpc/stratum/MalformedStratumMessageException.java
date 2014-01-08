@@ -11,9 +11,14 @@ extends Exception
      */
     private static final long serialVersionUID = -5169028037089628215L;
 
-    public MalformedStratumMessageException(JSONObject message)
+    public MalformedStratumMessageException(JSONObject jsonMessage)
     {
-        super("Unknown or malformed Stratum JSON message received: " + message.toString());
+        this(jsonMessage.toString());
+    }
+
+    public MalformedStratumMessageException(String jsonMessage)
+    {
+        super("Unknown or malformed Stratum JSON message received: " + jsonMessage);
     }
 
     public MalformedStratumMessageException(JSONObject message, String error)
@@ -25,16 +30,20 @@ extends Exception
                 message.toString()));
     }
 
-    public MalformedStratumMessageException(JSONObject message, Throwable t)
+    public MalformedStratumMessageException(JSONObject jsonMessage, Throwable t)
+    {
+        this(jsonMessage.toString(), t);
+    }
+
+    public MalformedStratumMessageException(String jsonMessage, Throwable t)
     {
         super(
             String.format(
                 "Unknown or malformed Stratum JSON message received (%s): %s",
                 t.getMessage(),
-                message.toString()),
+                jsonMessage),
             t);
     }
-
     public MalformedStratumMessageException(String method, JSONObject message)
     {
         super(
