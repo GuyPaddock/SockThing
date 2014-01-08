@@ -11,7 +11,7 @@ import org.json.JSONException;
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
 
 /**
- * <p>{@link StratumResult} handler for a result that's an array of data,
+ * <p>{@link Result} handler for a result that's an array of data,
  * including an optional <em>subject tuple</em>.</p>
  *
  * <p>The subject tuple consists of a string that identifies the context for
@@ -42,8 +42,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
-public class StratumArrayResult
-implements StratumResult
+public class ArrayResult
+implements Result
 {
     /**
      * An optional subject that can provide the receiving party with additional
@@ -64,21 +64,21 @@ implements StratumResult
     private List<Object> resultData;
 
     /**
-     * <p>Constructor for {@link StratumArrayResult} that initializes a new
+     * <p>Constructor for {@link ArrayResult} that initializes a new
      * instance having no subject and the specified result data.</p>
      *
      * @param   resultData
      *          Data, if any, that should be contained in the result (after
      *          the subject tuple).
      */
-    public StratumArrayResult(Object... resultData)
+    public ArrayResult(Object... resultData)
     throws IllegalArgumentException
     {
         this(null, null, resultData);
     }
 
     /**
-     * <p>Constructor for {@link StratumArrayResult} that initializes a new
+     * <p>Constructor for {@link ArrayResult} that initializes a new
      * instance having the specified subject, subject key, and result data.</p>
      *
      * <p>All arguments may be {@code null}.</p>
@@ -101,7 +101,7 @@ implements StratumResult
      *          If a non-{@code null} value is provided for {@code subjectKey}
      *          when {@code subject} is {@code null}.
      */
-    public StratumArrayResult(String subject, String subjectKey, Object... resultData)
+    public ArrayResult(String subject, String subjectKey, Object... resultData)
     throws IllegalArgumentException
     {
         this.setSubject(subject);
@@ -110,7 +110,7 @@ implements StratumResult
     }
 
     /**
-     * Constructor for {@link StratumArrayResult} that initializes a new
+     * Constructor for {@link ArrayResult} that initializes a new
      * instance from information in the included JSON array.
      *
      * @param   jsonResultData
@@ -120,7 +120,7 @@ implements StratumResult
      *          If the provided JSON message object is not a properly-formed
      *          Stratum message or cannot be understood.
      */
-    public StratumArrayResult(JSONArray jsonResultData)
+    public ArrayResult(JSONArray jsonResultData)
     throws MalformedStratumMessageException
     {
         this.parseResult(jsonResultData);

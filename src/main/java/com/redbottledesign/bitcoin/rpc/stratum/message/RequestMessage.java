@@ -32,8 +32,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
-public class StratumRequestMessage
-extends StratumMessage
+public class RequestMessage
+extends Message
 {
     /**
      * Constant for the name of the {@code method} field in the JSON object for
@@ -74,7 +74,7 @@ extends StratumMessage
     }
 
     /**
-     * Constructor for {@link StratumRequestMessage} that initializes a new
+     * Constructor for {@link RequestMessage} that initializes a new
      * instance from information in the included JSON message.
      *
      * @param   jsonMessage
@@ -84,14 +84,14 @@ extends StratumMessage
      *          If the provided JSON message object is not a properly-formed
      *          Stratum message or cannot be understood.
      */
-    public StratumRequestMessage(JSONObject jsonMessage)
+    public RequestMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
         super(jsonMessage);
     }
 
     /**
-     * Constructor for {@link StratumRequestMessage} that initializes a new
+     * Constructor for {@link RequestMessage} that initializes a new
      * instance having the specified numeric ID, method, and parameters.
      *
      * @param   id
@@ -104,7 +104,7 @@ extends StratumMessage
      * @param   params
      *          The parameters being passed to the method.
      */
-    public StratumRequestMessage(long id, String methodName, Object... params)
+    public RequestMessage(long id, String methodName, Object... params)
     {
         super(id);
 

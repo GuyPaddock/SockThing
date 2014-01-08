@@ -1,7 +1,7 @@
 package com.redbottledesign.bitcoin.rpc.stratum.message;
 
 /**
- * <p>{@link StratumResult} handler for a result that's a single value.</p>
+ * <p>{@link Result} handler for a result that's a single value.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *
@@ -10,8 +10,8 @@ package com.redbottledesign.bitcoin.rpc.stratum.message;
  *
  * @author  Guy Paddock (guy.paddock@redbottledesign.com)
  */
-public class StratumValueResult<T>
-implements StratumResult
+public class ValueResult<T>
+implements Result
 {
     /**
      * The value of this result.
@@ -19,13 +19,13 @@ implements StratumResult
     private T value;
 
     /**
-     * Constructor for {@link StratumValueResult} that initializes the new
+     * Constructor for {@link ValueResult} that initializes the new
      * instance to wrap the provided value.
      *
      * @param   value
      *          The result value to wrap.
      */
-    public StratumValueResult(T value)
+    public ValueResult(T value)
     {
         this.setValue(value);
     }

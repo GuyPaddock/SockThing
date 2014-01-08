@@ -2,9 +2,13 @@ package com.redbottledesign.bitcoin.rpc.stratum.message;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,14 +53,14 @@ public class MessageMarshaller
     /**
      * The map of method names to request message types.
      */
-    protected Map<String, Class<? extends StratumRequestMessage>> requestMethodMap;
+    protected Map<String, Class<? extends RequestMessage>> requestMethodMap;
 
     /**
      * The map of waiting requests to response message types.
      *
      * This map is purged as requests are answered or time-out.
      */
-    protected Cache<Long, Class<? extends StratumResponseMessage>> requestResponseMap;
+    protected Cache<Long, Class<? extends ResponseMessage>> requestResponseMap;
 
     /**
      * The constructor for {@link MessageMarshaller}.
@@ -68,7 +72,7 @@ public class MessageMarshaller
     }
 
     /**
-     * Registers a concrete {@link StratumRequestMessage} type as the
+     * Registers a concrete {@link RequestMessage} type as the
      * appropriate message for un-marshalling requests for the specified
      * Stratum method.
      *
@@ -78,7 +82,7 @@ public class MessageMarshaller
      * @param   messageType
      *          The type of concrete message type for the method.
      */
-    public void registerRequestHandler(String methodName, Class<? extends StratumRequestMessage> messageType)
+    public void registerRequestHandler(String methodName, Class<? extends RequestMessage> messageType)
     {
         this.requestMethodMap.put(methodName, messageType);
     }
@@ -94,7 +98,7 @@ public class MessageMarshaller
      *          method; or {@code null} if this instance does not have any
      *          registered handlers for the specified method.
      */
-    public Class<? extends StratumMessage> getRequestHandlerForMethod(String methodName)
+    public Class<? extends Message> getRequestHandlerForMethod(String methodName)
     {
         return this.requestMethodMap.get(methodName);
     }
@@ -113,7 +117,7 @@ public class MessageMarshaller
      *          If {@code requestId} matches a request that is already
      *          registered as pending with this instance.
      */
-    public void registerPendingRequest(long requestId, Class<? extends StratumResponseMessage> responseType)
+    public void registerPendingRequest(long requestId, Class<? extends ResponseMessage> responseType)
     throws IllegalArgumentException
     {
         if (this.requestResponseMap.getIfPresent(requestId) != null)
@@ -123,12 +127,49 @@ public class MessageMarshaller
     }
 
     /**
+     * Marshals the specified array of JSON messages into concrete Stratum messages.
+     *
+     * @param   jsonMessages
+     *          The JSON array containing each message as a JSONObject.
+     *
+     * @return  The list of concrete {@link Message}s that represent the
+     *          information from the provided JSON message.
+     *
+     * @throws  MalformedStratumMessageException
+     *          If any JSON information is invalid or doesn't match the
+     *          messages that this marshaller was expecting or is capable of
+     *          marshalling.
+     */
+    public List<Message> marshalMessages(JSONArray jsonMessages)
+    throws MalformedStratumMessageException
+    {
+        List<Message> results = new LinkedList<>();
+
+        for (int messageIndex = 0; messageIndex < jsonMessages.length(); ++messageIndex)
+        {
+            try
+            {
+                JSONObject jsonMessage = jsonMessages.getJSONObject(messageIndex);
+
+                results.add(this.marshalMessage(jsonMessage));
+            }
+
+            catch (JSONException ex)
+            {
+                throw new MalformedStratumMessageException(jsonMessages, ex);
+            }
+        }
+
+        return results;
+    }
+
+    /**
      * Marshals the specified JSON message into a concrete Stratum message.
      *
      * @param   jsonMessage
      *          The JSON object containing the full message.
      *
-     * @return  A concrete {@link StratumMessage} that represents the
+     * @return  A concrete {@link Message} that represents the
      *          information from the provided JSON message.
      *
      * @throws  MalformedStratumMessageException
@@ -136,10 +177,10 @@ public class MessageMarshaller
      *          messages that this marshaller was expecting or is capable of
      *          marshalling.
      */
-    public StratumMessage marshal(JSONObject jsonMessage)
+    public Message marshalMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        StratumMessage result;
+        Message result;
 
         if (!jsonMessage.has(JSON_MESSAGE_KEY_RESULT))
             result = marshalRequestMessage(jsonMessage);
@@ -156,7 +197,7 @@ public class MessageMarshaller
      * @param   jsonMessage
      *          The JSON object containing the full request message.
      *
-     * @return  A concrete {@link StratumMessage} that represents the
+     * @return  A concrete {@link Message} that represents the
      *          request information from the provided JSON message.
      *
      * @throws  MalformedStratumMessageException
@@ -164,13 +205,13 @@ public class MessageMarshaller
      *          requests that this marshaller was expecting or is capable of
      *          marshalling.
      */
-    protected StratumMessage marshalRequestMessage(JSONObject jsonMessage)
+    protected Message marshalRequestMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        StratumMessage                  result;
-        StratumRequestMessage           request     = new StratumRequestMessage(jsonMessage);
+        Message                  result;
+        RequestMessage           request     = new RequestMessage(jsonMessage);
         String                          methodName  = request.getMethodName();
-        Class<? extends StratumMessage> requestType = this.requestMethodMap.get(methodName);
+        Class<? extends Message> requestType = this.requestMethodMap.get(methodName);
 
         if (requestType != null)
             result = this.marshalMessage(jsonMessage, requestType);
@@ -187,7 +228,7 @@ public class MessageMarshaller
      * @param   jsonMessage
      *          The JSON object containing the full response message.
      *
-     * @return  A concrete {@link StratumMessage} that represents the
+     * @return  A concrete {@link Message} that represents the
      *          response information from the provided JSON message.
      *
      * @throws  MalformedStratumMessageException
@@ -195,13 +236,13 @@ public class MessageMarshaller
      *          responses that this marshaller was expecting or is capable of
      *          marshalling.
      */
-    protected StratumMessage marshalResponseMessage(JSONObject jsonMessage)
+    protected Message marshalResponseMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        StratumMessage                  result;
-        StratumResponseMessage          response     = new StratumResponseMessage(jsonMessage);
+        Message                  result;
+        ResponseMessage          response     = new ResponseMessage(jsonMessage);
         Long                            messageId    = response.getId(); // Must always be set in responses
-        Class<? extends StratumMessage> responseType = this.requestResponseMap.getIfPresent(messageId);
+        Class<? extends Message> responseType = this.requestResponseMap.getIfPresent(messageId);
 
         if (responseType != null)
             result = this.marshalMessage(jsonMessage, responseType);
@@ -219,16 +260,16 @@ public class MessageMarshaller
      * @param   jsonMessage
      *          The JSON object containing the message.
      *
-     * @return  A concrete {@link StratumMessage} that represents the
+     * @return  A concrete {@link Message} that represents the
      *          information from the provided JSON message.
      *
      * @throws  MalformedStratumMessageException
      *          If the JSON information is invalid.
      */
-    protected StratumMessage marshalMessage(JSONObject jsonMessage, Class<? extends StratumMessage> messageType)
+    protected Message marshalMessage(JSONObject jsonMessage, Class<? extends Message> messageType)
     throws MalformedStratumMessageException
     {
-        StratumMessage result;
+        Message result;
 
         try
         {
@@ -259,7 +300,7 @@ public class MessageMarshaller
      * @param   expectedResponseType
      *          The type of response that was expected for the message.
      */
-    protected void onRequestExpired(Long messageId, Class<? extends StratumResponseMessage> expectedResponseType)
+    protected void onRequestExpired(Long messageId, Class<? extends ResponseMessage> expectedResponseType)
     {
         if (LOGGER.isErrorEnabled())
         {
@@ -278,15 +319,15 @@ public class MessageMarshaller
      *
      * @return  A new cache for waiting request responses.
      */
-    protected Cache<Long, Class<? extends StratumResponseMessage>> createRequestResponseMap()
+    protected Cache<Long, Class<? extends ResponseMessage>> createRequestResponseMap()
     {
         return CacheBuilder
             .newBuilder()
             .expireAfterWrite(IGNORED_REQUEST_TIMEOUT_MINUTES, TimeUnit.MINUTES)
-            .removalListener(new RemovalListener<Long, Class<? extends StratumResponseMessage>>()
+            .removalListener(new RemovalListener<Long, Class<? extends ResponseMessage>>()
             {
                 @Override
-                public void onRemoval(RemovalNotification<Long, Class<? extends StratumResponseMessage>> notification)
+                public void onRemoval(RemovalNotification<Long, Class<? extends ResponseMessage>> notification)
                 {
                     if (notification.getCause() == RemovalCause.EXPIRED)
                     {

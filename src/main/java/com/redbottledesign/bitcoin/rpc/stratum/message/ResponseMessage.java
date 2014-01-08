@@ -27,8 +27,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
-public class StratumResponseMessage
-extends StratumMessage
+public class ResponseMessage
+extends Message
 {
     /**
      * Constant for the name of the {@code method} field in the JSON object for
@@ -45,7 +45,7 @@ extends StratumMessage
     /**
      * The result of the method call.
      */
-    private StratumResult result;
+    private Result result;
 
     /**
      * An error message describing why the last request could not be completed,
@@ -54,7 +54,7 @@ extends StratumMessage
     private String error;
 
     /**
-     * Constructor for {@link StratumResponseMessage} that initializes a new
+     * Constructor for {@link ResponseMessage} that initializes a new
      * instance from information in the included JSON message.
      *
      * @param   jsonMessage
@@ -64,14 +64,14 @@ extends StratumMessage
      *          If the provided JSON message object is not a properly-formed
      *          Stratum message or cannot be understood.
      */
-    public StratumResponseMessage(JSONObject jsonMessage)
+    public ResponseMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
         super(jsonMessage);
     }
 
     /**
-     * Constructor for {@link StratumResponseMessage} that initializes a new
+     * Constructor for {@link ResponseMessage} that initializes a new
      * instance having the specified numeric ID and result.
      *
      * @param   id
@@ -81,7 +81,7 @@ extends StratumMessage
      * @param   result
      *          The result of the method call.
      */
-    public StratumResponseMessage(long id, StratumResult result)
+    public ResponseMessage(long id, Result result)
     {
         super(id);
 
@@ -89,7 +89,7 @@ extends StratumMessage
     }
 
     /**
-     * Constructor for {@link StratumResponseMessage} that initializes a new
+     * Constructor for {@link ResponseMessage} that initializes a new
      * instance having the specified numeric ID and error.
      *
      * @param   id
@@ -99,7 +99,7 @@ extends StratumMessage
      * @param   error
      *          The error that occurred while processing the request.
      */
-    public StratumResponseMessage(long id, String error)
+    public ResponseMessage(long id, String error)
     {
         super(id);
 
@@ -111,7 +111,7 @@ extends StratumMessage
      *
      * @return  The result of the method call.
      */
-    public StratumResult getResult()
+    public Result getResult()
     {
         return this.result;
     }
@@ -176,7 +176,7 @@ extends StratumMessage
      * @param   result
      *          The new result of the method call.
      */
-    protected void setResult(StratumResult result)
+    protected void setResult(Result result)
     {
         if ((result != null) && (this.getError() != null))
             throw new IllegalArgumentException("Result must be null if an error is set.");
@@ -226,7 +226,7 @@ extends StratumMessage
     protected void parseResult(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        StratumResult result;
+        Result result;
 
         if (!jsonMessage.has(JSON_STRATUM_KEY_RESULT))
         {
@@ -236,7 +236,7 @@ extends StratumMessage
 
         try
         {
-            result = StratumResultFactory.getInstance().createResult(jsonMessage.get(JSON_STRATUM_KEY_RESULT));
+            result = ResultFactory.getInstance().createResult(jsonMessage.get(JSON_STRATUM_KEY_RESULT));
         }
 
         catch (JSONException ex)
