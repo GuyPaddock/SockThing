@@ -1,6 +1,7 @@
 package com.redbottledesign.bitcoin.rpc.stratum.message;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -127,6 +128,46 @@ public class MessageMarshaller
     }
 
     /**
+     * Marshals the specified string of strictly-formatted JSON data into one
+     * or more concrete Stratum messages.
+     *
+     * @param   jsonString
+     *          The string of JSON data.
+     *
+     * @return  The list of one or more concrete {@link Message}s that
+     *          represent the information from the provided JSON message.
+     *
+     * @throws  MalformedStratumMessageException
+     *          If any JSON information is invalid or doesn't match the
+     *          messages that this marshaller was expecting or is capable of
+     *          marshalling.
+     */
+    public List<Message> marshalMessages(String jsonString)
+    throws MalformedStratumMessageException
+    {
+        List<Message> results;
+
+        try
+        {
+            if (jsonString.startsWith("["))
+                results = this.marshalMessages(
+                            new JSONArray(jsonString));
+
+            else
+                results = Collections.singletonList(
+                            this.marshalMessage(
+                                new JSONObject(jsonString)));
+        }
+
+        catch (JSONException ex)
+        {
+            throw new MalformedStratumMessageException(jsonString, ex);
+        }
+
+        return results;
+    }
+
+    /**
      * Marshals the specified array of JSON messages into concrete Stratum messages.
      *
      * @param   jsonMessages
@@ -189,6 +230,19 @@ public class MessageMarshaller
             result = marshalResponseMessage(jsonMessage);
 
         return result;
+    }
+
+    /**
+     * Unmarshals the specified Stratum message to a String of JSON data.
+     *
+     * @param   message
+     *          The Stratum message to unmarshal.
+     *
+     * @return  A String that represents the message in strict JSON.
+     */
+    public String unmarshalMessage(Message message)
+    {
+        return message.toJson().toString();
     }
 
     /**

@@ -100,11 +100,16 @@ extends Message
      *
      * @param   methodName
      *          The name of the method being invoked on the remote side.
+     *          This cannot be {@code null}.
      *
      * @param   params
      *          The parameters being passed to the method.
+     *
+     * @throws  IllegalArgumentException
+     *          If {@code methodName} is {@code null}.
      */
     public RequestMessage(long id, String methodName, Object... params)
+    throws IllegalArgumentException
     {
         super(id);
 
@@ -168,6 +173,12 @@ extends Message
      */
     protected void setMethodName(String methodName)
     {
+        if (methodName == null)
+            throw new IllegalArgumentException("methodName cannot be null.");
+
+        if (methodName.isEmpty())
+            throw new IllegalArgumentException("methodName cannot be an empty string.");
+
         this.methodName = methodName;
     }
 
