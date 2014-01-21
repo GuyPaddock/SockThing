@@ -1,6 +1,8 @@
 package com.redbottledesign.bitcoin.rpc.stratum.transport;
 
 import com.redbottledesign.bitcoin.rpc.stratum.message.MessageMarshaller;
+import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
 
 /**
  * <p>Abstract base implementation for Stratum {@link ConnectionState}
@@ -29,6 +31,18 @@ implements ConnectionState
     private final MessageMarshaller marshaller;
 
     /**
+     * The listener that this state will use to receive incoming request
+     * messages from the transport.
+     */
+    private final RequestListener requestListener;
+
+    /**
+     * The listener that this state will use to receive incoming response
+     * messages from the transport.
+     */
+    private final ResponseListener responseListener;
+
+    /**
      * <p>Constructor for {@link AbstractConnectionState}.</p>
      *
      * <p>Initializes a new instance that corresponds to the specified
@@ -41,6 +55,9 @@ implements ConnectionState
     {
         this.transport  = transport;
         this.marshaller = this.createMarshaller();
+
+        this.requestListener = new RequestListener();
+        this.responseListener = new ResponseListener();
     }
 
     /**
@@ -60,6 +77,24 @@ implements ConnectionState
     public MessageMarshaller getMarshaller()
     {
         return this.marshaller;
+    }
+
+    @Override
+    public void start()
+    {
+        StatefulMessageTransport transport = this.getTransport();
+
+        transport.registerRequestListener(this.requestListener);
+        transport.registerResponseListener(this.responseListener);
+    }
+
+    @Override
+    public void end()
+    {
+        StatefulMessageTransport transport = this.getTransport();
+
+        transport.unregisterRequestListener(this.requestListener);
+        transport.unregisterResponseListener(this.responseListener);
     }
 
     /**
@@ -87,5 +122,41 @@ implements ConnectionState
     protected void moveToState(ConnectionState newState)
     {
         this.getTransport().setConnectionState(newState);
+    }
+
+    /**
+     * <p>The listener that this state will use to receive incoming request
+     * messages from the transport.</p>
+     *
+     * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+     *
+     * @author Guy Paddock (guy.paddock@redbottledesign.com)
+     */
+    protected class RequestListener
+    implements MessageListener<RequestMessage>
+    {
+        @Override
+        public void onMessageReceived(RequestMessage message)
+        {
+            AbstractConnectionState.this.processRequest(message);
+        }
+    }
+
+    /**
+     * <p>The listener that this state will use to receive incoming response
+     * messages from the transport.</p>
+     *
+     * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+     *
+     * @author Guy Paddock (guy.paddock@redbottledesign.com)
+     */
+    protected class ResponseListener
+    implements MessageListener<ResponseMessage>
+    {
+        @Override
+        public void onMessageReceived(ResponseMessage message)
+        {
+            AbstractConnectionState.this.processResponse(message);
+        }
     }
 }

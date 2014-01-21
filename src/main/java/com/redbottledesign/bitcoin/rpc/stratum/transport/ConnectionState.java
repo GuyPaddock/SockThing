@@ -2,6 +2,7 @@ package com.redbottledesign.bitcoin.rpc.stratum.transport;
 
 import com.redbottledesign.bitcoin.rpc.stratum.message.MessageMarshaller;
 import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
 
 
 /**
@@ -41,7 +42,15 @@ public interface ConnectionState
      * Notifies this connection state to process the provided request message.
      *
      * @param   message
-     *          The message to process.
+     *          The request message to process.
      */
     public abstract void processRequest(RequestMessage message);
+
+    /**
+     * Notifies this connection state to process the provided response message.
+     *
+     * @param   message
+     *          The response message to process.
+     */
+    public abstract void processResponse(ResponseMessage message);
 }

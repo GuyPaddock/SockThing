@@ -37,7 +37,7 @@ extends AbstractMessageTransport
      * @return  Either the current connection state; or {@code null} if this
      *          transport is not connected.
      */
-    protected ConnectionState getConnectionState()
+    protected synchronized ConnectionState getConnectionState()
     {
         return this.connectionState;
     }
@@ -59,7 +59,7 @@ extends AbstractMessageTransport
      * @throws  IllegalArgumentException
      *          If {@code state} is {@code null}.
      */
-    protected void setConnectionState(ConnectionState state)
+    protected synchronized void setConnectionState(ConnectionState state)
     throws IllegalArgumentException
     {
         if (state == null)

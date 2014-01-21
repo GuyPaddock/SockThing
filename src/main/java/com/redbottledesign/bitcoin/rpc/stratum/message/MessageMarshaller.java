@@ -262,10 +262,10 @@ public class MessageMarshaller
     protected Message marshalRequestMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        Message                  result;
-        RequestMessage           request     = new RequestMessage(jsonMessage);
-        String                          methodName  = request.getMethodName();
-        Class<? extends Message> requestType = this.requestMethodMap.get(methodName);
+        Message                     result;
+        RequestMessage              request     = new RequestMessage(jsonMessage);
+        String                      methodName  = request.getMethodName();
+        Class<? extends Message>    requestType = this.requestMethodMap.get(methodName);
 
         if (requestType != null)
             result = this.marshalMessage(jsonMessage, requestType);
@@ -293,10 +293,10 @@ public class MessageMarshaller
     protected Message marshalResponseMessage(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        Message                  result;
-        ResponseMessage          response     = new ResponseMessage(jsonMessage);
-        Long                            messageId    = response.getId(); // Must always be set in responses
-        Class<? extends Message> responseType = this.requestResponseMap.getIfPresent(messageId);
+        Message                     result;
+        ResponseMessage             response     = new ResponseMessage(jsonMessage);
+        Long                        messageId    = response.getId(); // Must always be set in responses
+        Class<? extends Message>    responseType = this.requestResponseMap.getIfPresent(messageId);
 
         if (responseType != null)
             result = this.marshalMessage(jsonMessage, responseType);

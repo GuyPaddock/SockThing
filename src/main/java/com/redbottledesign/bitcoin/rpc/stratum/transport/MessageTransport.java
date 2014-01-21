@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import com.redbottledesign.bitcoin.rpc.stratum.message.Message;
 import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
 
 /**
  * <p>Common interface Stratum transports.</p>
@@ -17,26 +18,6 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
  */
 public interface MessageTransport
 {
-    /**
-     * Registers the specified listener to be informed whenever one or more
-     * responses are received over the transport.
-     *
-     * @param   listener
-     *          The listener that will be notified when one or more responses
-     *          are received.
-     */
-    public void registerResponseListener(ResponseListener listener);
-
-    /**
-     * Unregisters the specified listener from being informed whenever one or
-     * more responses are received over the transport.
-     *
-     * @param   listener
-     *          The listener that will no longer be notified when responses are
-     *          received.
-     */
-    public void unregisterResponseListener(ResponseListener listener);
-
     /**
      * Sends the specified request over the transport.
      *
@@ -52,14 +33,52 @@ public interface MessageTransport
     throws IOException;
 
     /**
-     * Polls the transport for any pending, unacknowledged responses from prior
-     * requests.
+     * Polls the transport for any pending, unacknowledged messages.
      *
      * @throws  IOException
      *          If the transport connection fails for any reason, such as an
      *          interrupted connection or any other type of unexpected
      *          connection drop-out or failure.
      */
-    public void pollForResponses()
+    public void pollForMessages()
     throws IOException;
+
+    /**
+     * Registers the specified listener to be informed whenever requests are
+     * received over the transport.
+     *
+     * @param   listener
+     *          The listener that will be notified when requests are received.
+     */
+    public void registerRequestListener(MessageListener<RequestMessage> listener);
+
+    /**
+     * Unregisters the specified listener from being informed whenever requests
+     * are received over the transport.
+     *
+     * @param   listener
+     *          The listener that will no longer be notified when requests are
+     *          received.
+     */
+    public void unregisterRequestListener(MessageListener<RequestMessage> listener);
+
+    /**
+     * Registers the specified listener to be informed whenever responses are
+     * received over the transport.
+     *
+     * @param   listener
+     *          The listener that will be notified when one or more responses
+     *          are received.
+     */
+    public void registerResponseListener(MessageListener<ResponseMessage> listener);
+
+    /**
+     * Unregisters the specified listener from being informed whenever
+     * responses are received over the transport.
+     *
+     * @param   listener
+     *          The listener that will no longer be notified when responses are
+     *          received.
+     */
+    public void unregisterResponseListener(MessageListener<ResponseMessage> listener);
 }
