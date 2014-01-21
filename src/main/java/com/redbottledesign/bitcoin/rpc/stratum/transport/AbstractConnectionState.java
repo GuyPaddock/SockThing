@@ -84,6 +84,7 @@ implements ConnectionState
     {
         StatefulMessageTransport transport = this.getTransport();
 
+        // Inform this state of any messages received
         transport.registerRequestListener(this.requestListener);
         transport.registerResponseListener(this.responseListener);
     }
@@ -93,6 +94,7 @@ implements ConnectionState
     {
         StatefulMessageTransport transport = this.getTransport();
 
+        // No longer inform this state of any messages received
         transport.unregisterRequestListener(this.requestListener);
         transport.unregisterResponseListener(this.responseListener);
     }
