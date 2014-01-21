@@ -1,9 +1,9 @@
-package com.redbottledesign.bitcoin.pool.rpc.stratum.client.message;
+package com.redbottledesign.bitcoin.pool.rpc.stratum.message;
 
 import org.json.JSONObject;
 
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumRequestMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.subscribe} request
@@ -14,7 +14,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.StratumRequestMessage;
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
 public class MiningSubscribeRequest
-extends StratumRequestMessage
+extends RequestMessage
 {
     /**
      * The name of this method as it appears in the request.
@@ -28,7 +28,7 @@ extends StratumRequestMessage
      */
     public MiningSubscribeRequest()
     {
-        this(StratumRequestMessage.getNextRequestId());
+        this(RequestMessage.getNextRequestId());
     }
 
     /**

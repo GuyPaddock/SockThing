@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.rpc.stratum.client.message;
+package com.redbottledesign.bitcoin.pool.rpc.stratum.message;
 
 import java.util.List;
 
@@ -7,9 +7,9 @@ import org.apache.commons.codec.binary.Hex;
 import org.json.JSONObject;
 
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumArrayResult;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumResponseMessage;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumResult;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ArrayResult;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.Result;
 
 /**
  * <p>Java representation of a Stratum {@code mining.notify} response
@@ -20,7 +20,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.StratumResult;
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
 public class MiningSubscribeResponse
-extends StratumResponseMessage
+extends ResponseMessage
 {
     /**
      * The offset of the result value that specifies the bytes in extra nonce #1.
@@ -116,10 +116,10 @@ extends StratumResponseMessage
      *
      * @return  A stratum result object that wraps the given values.
      */
-    protected static StratumArrayResult createSubscriptionResult(String subscriptionId, byte[] extraNonce1,
+    protected static ArrayResult createSubscriptionResult(String subscriptionId, byte[] extraNonce1,
                                                                  int extraNonce2ByteLength)
     {
-        return new StratumArrayResult(
+        return new ArrayResult(
             RESPONSE_SUBJECT,
             subscriptionId,
             Hex.encodeHexString(extraNonce1),
@@ -127,21 +127,21 @@ extends StratumResponseMessage
     }
 
     /**
-     * Gets the result of this response as a {@link StratumArrayResult}.
+     * Gets the result of this response as a {@link ArrayResult}.
      *
-     * @return  The result of this response, as a {@link StratumArrayResult}.
+     * @return  The result of this response, as a {@link ArrayResult}.
      */
     @Override
-    public StratumArrayResult getResult()
+    public ArrayResult getResult()
     {
-        return (StratumArrayResult)super.getResult();
+        return (ArrayResult)super.getResult();
     }
 
     /**
      * Gets the unique subscription ID that the worker can use to refer to this
      * subscription later.
      *
-     * @return  The result of this response, as a {@link StratumArrayResult}.
+     * @return  The result of this response, as a {@link ArrayResult}.
      */
     public String getSubscriptionId()
     {
@@ -190,16 +190,16 @@ extends StratumResponseMessage
     protected void validateParsedData(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        StratumResult       result      = super.getResult();
-        StratumArrayResult  arrayResult;
+        Result       result      = super.getResult();
+        ArrayResult  arrayResult;
         List<Object>        resultData;
 
         super.validateParsedData(jsonMessage);
 
-        if (!(result instanceof StratumArrayResult))
+        if (!(result instanceof ArrayResult))
             throw new MalformedStratumMessageException(jsonMessage, "Result in response message is not an array.");
 
-        arrayResult = (StratumArrayResult)result;
+        arrayResult = (ArrayResult)result;
         resultData  = arrayResult.getResultData();
 
         if (!arrayResult.getSubject().equals(RESPONSE_SUBJECT))

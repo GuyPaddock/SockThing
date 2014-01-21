@@ -1,11 +1,11 @@
-package com.redbottledesign.bitcoin.pool.rpc.stratum.client.message;
+package com.redbottledesign.bitcoin.pool.rpc.stratum.message;
 
 import java.util.List;
 
 import org.json.JSONObject;
 
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumRequestMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.authorize} request
@@ -16,12 +16,17 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.StratumRequestMessage;
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
 public class MiningAuthorizeRequest
-extends StratumRequestMessage
+extends RequestMessage
 {
     /**
      * The name of this method as it appears in the request.
      */
     public static final String METHOD_NAME = "mining.authorize";
+
+    /**
+     * The number of required parameters for this request.
+     */
+    public static final int PARAM_REQUIRED_COUNT = 1;
 
     /**
      * The offset of the parameter that specifies the worker user name.
@@ -47,7 +52,7 @@ extends StratumRequestMessage
      */
     public MiningAuthorizeRequest(String username, String password)
     {
-        this(StratumRequestMessage.getNextRequestId(), username, password);
+        this(RequestMessage.getNextRequestId(), username, password);
     }
 
     /**
@@ -92,15 +97,15 @@ extends StratumRequestMessage
 
         super.validateParsedData(jsonMessage);
 
-        if (params.size() < 2)
+        if (params.size() < PARAM_REQUIRED_COUNT)
         {
             throw new MalformedStratumMessageException(
                 METHOD_NAME,
-                "both a username and password are required",
+                "at least a username is required",
                 jsonMessage);
         }
 
-        if (!(params.get(0) instanceof String))
+        if (!(params.get(PARAM_OFFSET_USERNAME) instanceof String))
         {
             throw new MalformedStratumMessageException(
                 METHOD_NAME,
@@ -108,7 +113,7 @@ extends StratumRequestMessage
                 jsonMessage);
         }
 
-        if (!(params.get(1) instanceof String))
+        if (!(params.get(PARAM_OFFSET_PASSWORD) instanceof String))
         {
             throw new MalformedStratumMessageException(
                 METHOD_NAME,

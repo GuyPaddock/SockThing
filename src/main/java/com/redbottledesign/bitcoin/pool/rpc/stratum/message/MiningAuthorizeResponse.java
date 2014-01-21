@@ -1,10 +1,10 @@
-package com.redbottledesign.bitcoin.pool.rpc.stratum.client.message;
+package com.redbottledesign.bitcoin.pool.rpc.stratum.message;
 
 import org.json.JSONObject;
 
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumArrayResult;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumResponseMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ArrayResult;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.authorize} response
@@ -15,7 +15,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.StratumResponseMessage;
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
 public class MiningAuthorizeResponse
-extends StratumResponseMessage
+extends ResponseMessage
 {
     /**
      * Constructor for {@link MiningAuthorizeResponse} that creates a new
@@ -23,10 +23,14 @@ extends StratumResponseMessage
      *
      * @param   id
      *          The ID of the request to which this response corresponds.
+     *
+     * @param   authorized
+     *          {@code true} if the miner was successfully authorized;
+     *          {@code false}, otherwise.
      */
     public MiningAuthorizeResponse(long id, boolean authorized)
     {
-        super(id, new StratumArrayResult(authorized));
+        super(id, new ArrayResult(authorized));
     }
 
     /**
@@ -36,6 +40,10 @@ extends StratumResponseMessage
      *
      * @param   id
      *          The ID of the request to which this response corresponds.
+     *
+     * @param   error
+     *          An error message for why the miner could not be successfully
+     *          authorized.
      */
     public MiningAuthorizeResponse(long id, String error)
     {

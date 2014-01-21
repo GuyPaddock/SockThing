@@ -1,4 +1,4 @@
-package com.redbottledesign.bitcoin.pool.rpc.stratum.client.message;
+package com.redbottledesign.bitcoin.pool.rpc.stratum.message;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -11,7 +11,7 @@ import org.json.JSONObject;
 
 import com.google.bitcoin.core.Sha256Hash;
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
-import com.redbottledesign.bitcoin.rpc.stratum.message.StratumRequestMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.notify} request
@@ -22,12 +22,17 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.StratumRequestMessage;
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */
 public class MiningNotifyRequest
-extends StratumRequestMessage
+extends RequestMessage
 {
     /**
      * The name of this method as it appears in the request.
      */
     public static final String METHOD_NAME = "mining.notify";
+
+    /**
+     * The number of required parameters for this request.
+     */
+    public static final int PARAM_REQUIRED_COUNT = 9;
 
     /**
      * The offset of the parameter that specifies the Stratum Job ID.
@@ -112,7 +117,7 @@ extends StratumRequestMessage
                                byte[] networkDifficultyBits, long networkTime, boolean cleanJobs)
     {
         this(
-            StratumRequestMessage.getNextRequestId(),
+            RequestMessage.getNextRequestId(),
             jobId,
             previousBlockHash,
             coinbasePart1,
@@ -401,11 +406,11 @@ extends StratumRequestMessage
          *                 should move to the new one after exhausting the
          *                 current nonce range.
          */
-        if (params.size() < 9)
+        if (params.size() < PARAM_REQUIRED_COUNT)
         {
             throw new MalformedStratumMessageException(
                 METHOD_NAME,
-                "9 parameters are required.",
+                PARAM_REQUIRED_COUNT + " parameters are required.",
                 jsonMessage);
         }
 
