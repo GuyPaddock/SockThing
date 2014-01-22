@@ -17,7 +17,12 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  *
  * <p>Aside from the standard {@code mining.set_difficulty} and
  * {@code client.get_version} requests that are accepted in all connection
- * states, this state does not accept any requests.</p>
+ * states, this state accepts the following type of request:</p>
+ *
+ * <dl>
+ *    <dt>{@code mining.notify}</dt>
+ *    <dd>Used to push new work to the miner.</dd>
+ * </dl>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *
