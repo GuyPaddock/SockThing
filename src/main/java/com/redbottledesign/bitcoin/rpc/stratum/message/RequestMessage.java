@@ -62,15 +62,20 @@ extends Message
      */
     private List<Object> params;
 
+    static
+    {
+        nextRequestId = new AtomicLong(1);
+    }
+
     /**
      * Gets a unique identifier than can be used to identify the next Stratum
      * request.
      *
      * @return  A unique identifier for the next Stratum request.
      */
-    public static long getNextRequestId()
+    public static String getNextRequestId()
     {
-        return nextRequestId.getAndIncrement();
+        return Long.toString(nextRequestId.getAndIncrement());
     }
 
     /**
@@ -92,10 +97,10 @@ extends Message
 
     /**
      * Constructor for {@link RequestMessage} that initializes a new
-     * instance having the specified numeric ID, method, and parameters.
+     * instance having the specified ID, method, and parameters.
      *
      * @param   id
-     *          The unique, numeric identifier for the message. This may be
+     *          The unique identifier for the message. This may be
      *          {@code null}.
      *
      * @param   methodName
@@ -108,7 +113,7 @@ extends Message
      * @throws  IllegalArgumentException
      *          If {@code methodName} is {@code null}.
      */
-    public RequestMessage(long id, String methodName, Object... params)
+    public RequestMessage(String id, String methodName, Object... params)
     throws IllegalArgumentException
     {
         super(id);

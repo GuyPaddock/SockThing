@@ -1,5 +1,11 @@
 package com.redbottledesign.bitcoin.rpc.stratum.transport;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.redbottledesign.bitcoin.rpc.stratum.message.MessageMarshaller;
 import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
@@ -19,6 +25,11 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
 public abstract class AbstractConnectionState
 implements ConnectionState
 {
+    /**
+     * The logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractConnectionState.class);
+
     /**
      * The Stratum message transport to which this state corresponds.
      */
@@ -43,6 +54,16 @@ implements ConnectionState
     private final ResponseListener responseListener;
 
     /**
+     * The map from request message types to appropriate handlers.
+     */
+    private final Map<Class<? extends RequestMessage>, MessageListener<RequestMessage>> requestHandlers;
+
+    /**
+     * The map from response message types to appropriate handlers.
+     */
+    private final Map<Class<? extends ResponseMessage>, MessageListener<ResponseMessage>> responseHandlers;
+
+    /**
      * <p>Constructor for {@link AbstractConnectionState}.</p>
      *
      * <p>Initializes a new instance that corresponds to the specified
@@ -56,8 +77,28 @@ implements ConnectionState
         this.transport  = transport;
         this.marshaller = this.createMarshaller();
 
-        this.requestListener = new RequestListener();
-        this.responseListener = new ResponseListener();
+        this.requestListener    = new RequestListener();
+        this.responseListener   = new ResponseListener();
+        this.requestHandlers    = new HashMap<>();
+        this.responseHandlers   = new HashMap<>();
+
+        this.initializeHandlers();
+    }
+
+    /**
+     * <p>Populates the maps of request and response handlers to appropriately
+     * handle the types of messages that will be received while in this
+     * state.</p>
+     *
+     * <p>This method is automatically invoked by the constructor.</p>
+     *
+     * <p>All states that expect to receive messages should override this
+     * method with an implementation that makes appropriate calls to
+     * {@link #registerRequestHandler(Class, MessageListener)} and
+     * {@link #registerResponseHandler(Class, MessageListener)}.</p>
+     */
+    protected void initializeHandlers()
+    {
     }
 
     /**
@@ -82,7 +123,7 @@ implements ConnectionState
     @Override
     public void start()
     {
-        StatefulMessageTransport transport = this.getTransport();
+        final StatefulMessageTransport transport = this.getTransport();
 
         // Inform this state of any messages received
         transport.registerRequestListener(this.requestListener);
@@ -92,11 +133,54 @@ implements ConnectionState
     @Override
     public void end()
     {
-        StatefulMessageTransport transport = this.getTransport();
+        final StatefulMessageTransport transport = this.getTransport();
 
         // No longer inform this state of any messages received
         transport.unregisterRequestListener(this.requestListener);
         transport.unregisterResponseListener(this.responseListener);
+    }
+
+    /**
+     * Registers a handler in this state for the specified type of request message.
+     *
+     * @param   messageType
+     *          The type of message for which a handler is being registered.
+     *
+     * @param   handler
+     *          The handler to invoke for the message.
+     */
+    @SuppressWarnings("unchecked")
+    protected <T extends RequestMessage> void registerRequestHandler(Class<T> messageType, MessageListener<T> handler)
+    {
+        if (this.requestHandlers.containsKey(messageType))
+        {
+            throw new IllegalArgumentException(
+                "A handler is already registered for this request message type: " + messageType.getName());
+        }
+
+        this.requestHandlers.put(messageType, (MessageListener<RequestMessage>)handler);
+    }
+
+    /**
+     * Registers a handler in this state for the specified type of response message.
+     *
+     * @param   messageType
+     *          The type of message for which a handler is being registered.
+     *
+     * @param   handler
+     *          The handler to invoke for the message.
+     */
+    @SuppressWarnings("unchecked")
+    protected <T extends ResponseMessage> void registerResponseHandler(Class<T> messageType,
+                                                                       MessageListener<T> handler)
+    {
+        if (this.responseHandlers.containsKey(messageType))
+        {
+            throw new IllegalArgumentException(
+                "A handler is already registered for this response message type: " + messageType.getName());
+        }
+
+        this.responseHandlers.put(messageType, (MessageListener<ResponseMessage>)handler);
     }
 
     /**
@@ -109,6 +193,80 @@ implements ConnectionState
     protected MessageMarshaller createMarshaller()
     {
         return new MessageMarshaller();
+    }
+
+    /**
+     * <p>Default request handler for connection states.</p>
+     *
+     * <p>This implementation dispatches the incoming request to the
+     * appropriate handler, as registered by a prior call to
+     * {@link #registerRequestHandler(Class, MessageListener)}.</p>
+     *
+     * @param   message
+     *          The message to dispatch.
+     */
+    @Override
+    public boolean processRequest(RequestMessage message)
+    {
+        boolean                         handled = false;
+        MessageListener<RequestMessage> handler = this.requestHandlers.get(message.getClass());
+
+        if (handler != null)
+        {
+            handler.onMessageReceived(message);
+
+            handled = true;
+        }
+
+        else
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    "Request message '%s' was ignored by state '%s'.",
+                    message.getClass().getName(),
+                    this.getClass().getName());
+            }
+        }
+
+        return handled;
+    }
+
+    /**
+     * <p>Default response handler for connection states.</p>
+     *
+     * <p>This implementation dispatches the incoming response to the
+     * appropriate handler, as registered by a prior call to
+     * {@link #registerResponseHandler(Class, MessageListener)}.</p>
+     *
+     * @param   message
+     *          The message to dispatch.
+     */
+    @Override
+    public boolean processResponse(ResponseMessage message)
+    {
+        boolean                          handled = false;
+        MessageListener<ResponseMessage> handler = this.responseHandlers.get(message.getClass());
+
+        if (handler != null)
+        {
+            handler.onMessageReceived(message);
+
+            handled = true;
+        }
+
+        else
+        {
+            if (LOGGER.isErrorEnabled())
+            {
+                LOGGER.error(
+                    "Response message '%s' was ignored by state '%s'.",
+                    message.getClass().getName(),
+                    this.getClass().getName());
+            }
+        }
+
+        return handled;
     }
 
     /**

@@ -3,8 +3,8 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.message;
 import org.json.JSONObject;
 
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
-import com.redbottledesign.bitcoin.rpc.stratum.message.ArrayResult;
 import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ValueResult;
 
 /**
  * <p>Java representation of a Stratum {@code mining.authorize} response
@@ -28,9 +28,9 @@ extends ResponseMessage
      *          {@code true} if the miner was successfully authorized;
      *          {@code false}, otherwise.
      */
-    public MiningAuthorizeResponse(long id, boolean authorized)
+    public MiningAuthorizeResponse(String id, boolean authorized)
     {
-        super(id, new ArrayResult(authorized));
+        super(id, new ValueResult<>(authorized));
     }
 
     /**
@@ -45,7 +45,7 @@ extends ResponseMessage
      *          An error message for why the miner could not be successfully
      *          authorized.
      */
-    public MiningAuthorizeResponse(long id, String error)
+    public MiningAuthorizeResponse(String id, String error)
     {
         super(id, error);
     }
@@ -61,5 +61,26 @@ extends ResponseMessage
     throws MalformedStratumMessageException
     {
         super(jsonMessage);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public ValueResult<Boolean> getResult()
+    {
+        return (ValueResult<Boolean>)super.getResult();
+    }
+
+    /**
+     * Returns whether or not the worker was successfully authorized.
+     *
+     * @return  {@code true} if the worker was successfully authorized;
+     *          {@code false}, otherwise.
+     */
+    public boolean isAuthorized()
+    {
+        return this.getResult().getValue();
     }
 }

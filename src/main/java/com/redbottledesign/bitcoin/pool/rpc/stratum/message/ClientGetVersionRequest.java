@@ -5,52 +5,47 @@ import org.json.JSONObject;
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
 import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
-/**
- * <p>Java representation of a Stratum {@code mining.subscribe} request
- * message.</p>
- *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
- *
- * @author Guy Paddock (gpaddock@redbottledesign.com)
- */
-public class MiningSubscribeRequest
+public class ClientGetVersionRequest
 extends RequestMessage
 {
     /**
      * The name of this method as it appears in the request.
      */
-    public static final String METHOD_NAME = "mining.subscribe";
+    public static final String METHOD_NAME = "client.get_version";
 
     /**
-     * <p>Constructor for {@link MiningSubscribeRequest}.</p>
+     * <p>Constructor for {@link ClientGetVersionRequest} that creates a new
+     * instance.</p>
      *
      * <p>The request is automatically assigned a unique ID.</p>
      */
-    public MiningSubscribeRequest()
+    public ClientGetVersionRequest()
+    throws IllegalArgumentException
     {
         this(RequestMessage.getNextRequestId());
     }
 
     /**
-     * Constructor for {@link MiningSubscribeRequest} that initializes the
-     * request to have the specified message ID.
+     * <p>Constructor for {@link ClientGetVersionRequest} that creates a new
+     * instance with the specified message ID.</p>
      *
      * @param   id
      *          The message ID.
      */
-    public MiningSubscribeRequest(String id)
+    public ClientGetVersionRequest(String id)
+    throws IllegalArgumentException
     {
         super(id, METHOD_NAME);
     }
 
     /**
-     * Constructor for {@link MiningAuthorizeRequest} that creates a new
+     * Constructor for {@link ClientGetVersionRequest} that creates a new
      * instance from information in the provided JSON message.
      *
      * @param   jsonMessage
      *          The message in JSON format.
      */
-    public MiningSubscribeRequest(JSONObject jsonMessage)
+    public ClientGetVersionRequest(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
         super(jsonMessage);

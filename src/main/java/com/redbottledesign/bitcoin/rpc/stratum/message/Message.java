@@ -24,13 +24,13 @@ public abstract class Message
     protected static final String JSON_STRATUM_KEY_ID = "id";
 
     /**
-     * <p>The unique, numeric identifier for this message, relative to the side
+     * <p>The unique identifier for this message, relative to the side
      * of the connection that initiated the request.</p>
      *
      * <p>This may be {@code null} if the side of the connection that initiated
      * the request does not expect a response.</p>
      */
-    private Long id;
+    private String id;
 
     /**
      * Constructor for {@link Message} that initializes a new instance
@@ -51,19 +51,19 @@ public abstract class Message
 
     /**
      * Constructor for {@link Message} that initializes a new instance
-     * having the specified numeric ID.
+     * having the specified ID.
      *
      * @param   id
-     *          The unique, numeric identifier for the message. This may be
+     *          The unique identifier for the message. This may be
      *          {@code null}.
      */
-    protected Message(long id)
+    protected Message(String id)
     {
         this.setId(id);
     }
 
     /**
-     * <p>Gets the unique, numeric identifier for this message, relative to the side
+     * <p>Gets the unique identifier for this message, relative to the side
      * of the connection that initiated the request.</p>
      *
      * <p>This may be {@code null} if the side of the connection that initiated
@@ -72,7 +72,7 @@ public abstract class Message
      * @return  The unique identifier for the message; or {@code null} if none was
      *          provided.
      */
-    public Long getId()
+    public String getId()
     {
         return this.id;
     }
@@ -105,7 +105,7 @@ public abstract class Message
     }
 
     /**
-     * <p>Sets the unique, numeric identifier for this message, relative to the side
+     * <p>Sets the unique identifier for this message, relative to the side
      * of the connection that initiated the request.</p>
      *
      * <p>This may be {@code null} if the side of the connection that initiated
@@ -114,7 +114,7 @@ public abstract class Message
      * @param   id
      *          Sets the unique identifier for the message. This may be {@code null}.
      */
-    protected void setId(Long id)
+    protected void setId(String id)
     {
         this.id = id;
     }
@@ -192,7 +192,7 @@ public abstract class Message
         }
 
         if (id != null)
-            this.setId(Long.parseLong(id.toString()));
+            this.setId(id.toString());
 
         else
             this.setId(null);

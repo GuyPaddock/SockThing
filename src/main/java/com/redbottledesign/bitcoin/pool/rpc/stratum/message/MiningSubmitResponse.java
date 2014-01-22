@@ -3,8 +3,8 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.message;
 import org.json.JSONObject;
 
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
-import com.redbottledesign.bitcoin.rpc.stratum.message.ArrayResult;
 import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ValueResult;
 
 /**
  * <p>Java representation of a Stratum {@code mining.submit} response
@@ -24,9 +24,9 @@ extends ResponseMessage
      * @param   id
      *          The ID of the request to which this response corresponds.
      */
-    public MiningSubmitResponse(long id, boolean submitted)
+    public MiningSubmitResponse(String id, boolean submitted)
     {
-        super(id, new ArrayResult(submitted));
+        super(id, new ValueResult<>(submitted));
     }
 
     /**
@@ -37,7 +37,7 @@ extends ResponseMessage
      * @param   id
      *          The ID of the request to which this response corresponds.
      */
-    public MiningSubmitResponse(long id, String error)
+    public MiningSubmitResponse(String id, String error)
     {
         super(id, error);
     }
@@ -53,5 +53,26 @@ extends ResponseMessage
     throws MalformedStratumMessageException
     {
         super(jsonMessage);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public ValueResult<Boolean> getResult()
+    {
+        return (ValueResult<Boolean>)super.getResult();
+    }
+
+    /**
+     * Returns whether or not the work was accepted.
+     *
+     * @return  {@code true} if the work was successfully accepted;
+     *          {@code false}, otherwise.
+     */
+    public boolean wasAccepted()
+    {
+        return this.getResult().getValue();
     }
 }

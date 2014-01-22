@@ -1,5 +1,8 @@
 package com.redbottledesign.bitcoin.rpc.stratum.transport;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * <p>Base class for Stratum message transports that vary the types of
  * messages they accept based on the state of their conversation with the
@@ -13,6 +16,11 @@ package com.redbottledesign.bitcoin.rpc.stratum.transport;
 public abstract class StatefulMessageTransport
 extends AbstractMessageTransport
 {
+    /**
+     * The logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(StatefulMessageTransport.class);
+
     /**
      * The state of this transport's current connection.
      */
@@ -65,8 +73,28 @@ extends AbstractMessageTransport
         if (state == null)
             throw new IllegalArgumentException("state cannot be null.");
 
-        if (this.connectionState != state)
+        if (this.connectionState == state)
         {
+            if (LOGGER.isDebugEnabled())
+            {
+                LOGGER.debug(
+                    String.format(
+                        "Attempt to transition to state '%s' was ignored, as it is already the active state.",
+                        state.getClass().getSimpleName()));
+            }
+        }
+
+        else
+        {
+            if (LOGGER.isDebugEnabled())
+            {
+                LOGGER.debug(
+                    String.format(
+                        "Transitioning from state '%s' to state '%s'.",
+                        (this.connectionState != null) ? this.connectionState.getClass().getSimpleName() : null,
+                        state.getClass().getSimpleName()));
+            }
+
             if (this.connectionState != null)
                 this.connectionState.end();
 

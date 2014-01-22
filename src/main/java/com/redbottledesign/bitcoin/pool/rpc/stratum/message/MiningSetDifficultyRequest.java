@@ -57,7 +57,7 @@ extends RequestMessage
      * @param   difficulty
      *          The new difficulty.
      */
-    public MiningSetDifficultyRequest(long id, long difficulty)
+    public MiningSetDifficultyRequest(String id, long difficulty)
     {
         super(id, METHOD_NAME, difficulty);
     }

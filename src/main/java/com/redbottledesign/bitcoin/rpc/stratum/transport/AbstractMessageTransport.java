@@ -1,6 +1,6 @@
 package com.redbottledesign.bitcoin.rpc.stratum.transport;
 
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -38,8 +38,8 @@ implements MessageTransport
      */
     public AbstractMessageTransport()
     {
-        this.requestListeners   = new HashSet<>();
-        this.responseListeners  = new HashSet<>();
+        this.requestListeners   = new LinkedHashSet<>();
+        this.responseListeners  = new LinkedHashSet<>();
     }
 
     /**

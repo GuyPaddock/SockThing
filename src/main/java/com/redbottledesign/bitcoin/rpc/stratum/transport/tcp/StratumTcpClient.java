@@ -11,13 +11,13 @@ import java.util.Scanner;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.redbottledesign.bitcoin.rpc.stratum.message.Message;
 import com.redbottledesign.bitcoin.rpc.stratum.message.MessageMarshaller;
 import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
+import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.StatefulMessageTransport;
 
@@ -57,7 +57,7 @@ extends StatefulMessageTransport
     /**
      * The connection socket.
      */
-    private Socket socket;
+    private volatile Socket socket;
 
     /**
      * Default constructor for {@link StratumTcpClient}.
@@ -108,7 +108,13 @@ extends StatefulMessageTransport
      */
     public boolean isOpen()
     {
-        return !this.getSocket().isClosed();
+        final Socket    socket = this.getSocket();
+        final boolean   result = (socket != null) && !socket.isClosed();
+
+        if (LOGGER.isTraceEnabled())
+            LOGGER.trace("isOpen(): " + result);
+
+        return result;
     }
 
     /**
@@ -173,11 +179,57 @@ extends StatefulMessageTransport
     /**
      * Queues the specified request to go out on the current connection.
      *
+     * @param   message
+     *          The request message to send.
+     *
      * @throws  IllegalStateException
      *          If the client is not currently connected.
      */
     @Override
     public void sendRequest(RequestMessage message)
+    throws IllegalStateException
+    {
+        this.sendRequest(message, null);
+    }
+
+    /**
+     * Queues the specified request to go out on the current connection, and
+     * associates it with a response of the specified type.
+     *
+     * @param   message
+     *          The request message to send.
+     *
+     * @param   responseType
+     *          The type of response expected for the request.
+     *          This may be {@code null}.
+     *
+     * @throws  IllegalStateException
+     *          If the client is not currently connected.
+     */
+    @Override
+    public void sendRequest(RequestMessage message, Class<? extends ResponseMessage> responseType)
+    throws IllegalStateException
+    {
+        if (!this.isOpen())
+            throw new IllegalStateException("The client is not currently connected.");
+
+        if (responseType != null)
+            this.getConnectionState().getMarshaller().registerPendingRequest(message.getId(), responseType);
+
+        this.outThread.queueMessage(message);
+    }
+
+    /**
+     * Queues the specified response to go out on the current connection.
+     *
+     * @param   message
+     *          The response message to send.
+     *
+     * @throws  IllegalStateException
+     *          If the client is not currently connected.
+     */
+    @Override
+    public void sendResponse(ResponseMessage message)
     throws IllegalStateException
     {
         if (!this.isOpen())
@@ -202,8 +254,9 @@ extends StatefulMessageTransport
     }
 
     /**
-     * Closes the current connection, if it is open.
+     * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (this.isOpen())
@@ -351,9 +404,9 @@ extends StatefulMessageTransport
                 {
                     LOGGER.error(
                         String.format(
-                            "Error on connection: %s\n%s",
-                            ex.getMessage(),
-                            ExceptionUtils.getStackTrace(ex)));
+                            "Error on connection: %s",
+                            ex.getMessage()),
+                        ex);
                 }
             }
 
@@ -361,6 +414,9 @@ extends StatefulMessageTransport
             {
                 StratumTcpClient.this.close();
             }
+
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace("Output thread exiting.");
         }
     }
 
@@ -401,7 +457,7 @@ extends StatefulMessageTransport
                 {
                     String jsonLine = scan.nextLine().trim();
 
-                    if (jsonLine.isEmpty())
+                    if (!jsonLine.isEmpty())
                     {
                         synchronized (StratumTcpClient.this)
                         {
@@ -426,9 +482,9 @@ extends StatefulMessageTransport
                 {
                     LOGGER.error(
                         String.format(
-                            "Error on connection: %s\n%s",
-                            ex.getMessage(),
-                            ExceptionUtils.getStackTrace(ex)));
+                            "Error on connection: %s",
+                            ex.getMessage()),
+                        ex);
                 }
             }
 
@@ -436,6 +492,9 @@ extends StatefulMessageTransport
             {
                 StratumTcpClient.this.close();
             }
+
+            if (LOGGER.isTraceEnabled())
+                LOGGER.trace("Input thread exiting.");
         }
     }
 }

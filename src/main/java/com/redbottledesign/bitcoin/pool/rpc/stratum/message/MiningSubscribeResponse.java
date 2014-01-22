@@ -56,7 +56,7 @@ extends ResponseMessage
      *          The number of bytes that the worker can use to generate extra
      *          nonce #2.
      */
-    public MiningSubscribeResponse(long id, String subscriptionId, byte[] extraNonce1, int extraNonce2ByteLength)
+    public MiningSubscribeResponse(String id, String subscriptionId, byte[] extraNonce1, int extraNonce2ByteLength)
     {
         super(id, createSubscriptionResult(subscriptionId, extraNonce1, extraNonce2ByteLength));
     }
@@ -156,7 +156,7 @@ extends ResponseMessage
     public byte[] getExtraNonce1()
     {
         List<Object> resultData  = this.getResult().getResultData();
-        String       extraNonce1 = resultData.get(0).toString();
+        String       extraNonce1 = resultData.get(RESULT_OFFSET_EXTRA_NONCE_1).toString();
 
         try
         {
@@ -178,7 +178,7 @@ extends ResponseMessage
     public int getExtraNonce2ByteLength()
     {
         List<Object> resultData  = this.getResult().getResultData();
-        int          extraNonce1 = (Integer)resultData.get(1);
+        int          extraNonce1 = (Integer)resultData.get(RESULT_OFFSET_EXTRA_NONCE_2_BYTE_LENGTH);
 
         return extraNonce1;
     }
@@ -190,9 +190,9 @@ extends ResponseMessage
     protected void validateParsedData(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        Result       result      = super.getResult();
-        ArrayResult  arrayResult;
-        List<Object>        resultData;
+        Result          result      = super.getResult();
+        ArrayResult     arrayResult;
+        List<Object>    resultData;
 
         super.validateParsedData(jsonMessage);
 

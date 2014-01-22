@@ -105,7 +105,7 @@ extends RequestMessage
      * @param   nonce
      *          The bytes of the nonce.
      */
-    public MiningSubmitRequest(long id, String workerName, String jobId, byte[] extraNonce2, long networkTime,
+    public MiningSubmitRequest(String id, String workerName, String jobId, byte[] extraNonce2, long networkTime,
                                byte[] nonce)
     {
         super(id, METHOD_NAME, workerName, jobId, extraNonce2, networkTime, nonce);

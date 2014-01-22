@@ -61,7 +61,7 @@ public class MessageMarshaller
      *
      * This map is purged as requests are answered or time-out.
      */
-    protected Cache<Long, Class<? extends ResponseMessage>> requestResponseMap;
+    protected Cache<String, Class<? extends ResponseMessage>> requestResponseMap;
 
     /**
      * The constructor for {@link MessageMarshaller}.
@@ -118,7 +118,7 @@ public class MessageMarshaller
      *          If {@code requestId} matches a request that is already
      *          registered as pending with this instance.
      */
-    public void registerPendingRequest(long requestId, Class<? extends ResponseMessage> responseType)
+    public void registerPendingRequest(String requestId, Class<? extends ResponseMessage> responseType)
     throws IllegalArgumentException
     {
         if (this.requestResponseMap.getIfPresent(requestId) != null)
@@ -295,7 +295,7 @@ public class MessageMarshaller
     {
         Message                     result;
         ResponseMessage             response     = new ResponseMessage(jsonMessage);
-        Long                        messageId    = response.getId(); // Must always be set in responses
+        String                      messageId    = response.getId(); // Must always be set in responses
         Class<? extends Message>    responseType = this.requestResponseMap.getIfPresent(messageId);
 
         if (responseType != null)
@@ -354,7 +354,7 @@ public class MessageMarshaller
      * @param   expectedResponseType
      *          The type of response that was expected for the message.
      */
-    protected void onRequestExpired(Long messageId, Class<? extends ResponseMessage> expectedResponseType)
+    protected void onRequestExpired(String messageId, Class<? extends ResponseMessage> expectedResponseType)
     {
         if (LOGGER.isErrorEnabled())
         {
@@ -373,15 +373,15 @@ public class MessageMarshaller
      *
      * @return  A new cache for waiting request responses.
      */
-    protected Cache<Long, Class<? extends ResponseMessage>> createRequestResponseMap()
+    protected Cache<String, Class<? extends ResponseMessage>> createRequestResponseMap()
     {
         return CacheBuilder
             .newBuilder()
             .expireAfterWrite(IGNORED_REQUEST_TIMEOUT_MINUTES, TimeUnit.MINUTES)
-            .removalListener(new RemovalListener<Long, Class<? extends ResponseMessage>>()
+            .removalListener(new RemovalListener<String, Class<? extends ResponseMessage>>()
             {
                 @Override
-                public void onRemoval(RemovalNotification<Long, Class<? extends ResponseMessage>> notification)
+                public void onRemoval(RemovalNotification<String, Class<? extends ResponseMessage>> notification)
                 {
                     if (notification.getCause() == RemovalCause.EXPIRED)
                     {

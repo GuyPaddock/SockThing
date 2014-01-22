@@ -72,16 +72,16 @@ extends Message
 
     /**
      * Constructor for {@link ResponseMessage} that initializes a new
-     * instance having the specified numeric ID and result.
+     * instance having the specified ID and result.
      *
      * @param   id
-     *          The unique, numeric identifier for the message. This may be
+     *          The unique identifier for the message. This may be
      *          {@code null}.
      *
      * @param   result
      *          The result of the method call.
      */
-    public ResponseMessage(long id, Result result)
+    public ResponseMessage(String id, Result result)
     {
         super(id);
 
@@ -93,13 +93,13 @@ extends Message
      * instance having the specified numeric ID and error.
      *
      * @param   id
-     *          The unique, numeric identifier for the message. This may be
+     *          The unique identifier for the message. This may be
      *          {@code null}.
      *
      * @param   error
      *          The error that occurred while processing the request.
      */
-    public ResponseMessage(long id, String error)
+    public ResponseMessage(String id, String error)
     {
         super(id);
 
@@ -150,7 +150,7 @@ extends Message
     }
 
     /**
-     * Sets the numeric identifier for this response, which must correspond
+     * Sets the unique identifier for this response, which must correspond
      * to the identifier provided in the original request.
      *
      * @param   id
@@ -161,7 +161,7 @@ extends Message
      *          If {@code id} is {@code null}.
      */
     @Override
-    protected void setId(Long id)
+    protected void setId(String id)
     throws IllegalArgumentException
     {
         if (id == null)
@@ -260,7 +260,7 @@ extends Message
     protected void parseError(JSONObject jsonMessage)
     throws MalformedStratumMessageException
     {
-        String error;
+        String error = null;
 
         if (!jsonMessage.has(JSON_STRATUM_KEY_ERROR))
         {
@@ -268,14 +268,17 @@ extends Message
                 jsonMessage, String.format("missing '%s'", JSON_STRATUM_KEY_ERROR));
         }
 
-        try
+        if (!jsonMessage.isNull(JSON_STRATUM_KEY_ERROR))
         {
-            error = jsonMessage.getString(JSON_STRATUM_KEY_ERROR);
-        }
+            try
+            {
+                error = jsonMessage.getString(JSON_STRATUM_KEY_ERROR);
+            }
 
-        catch (JSONException ex)
-        {
-            throw new MalformedStratumMessageException(jsonMessage, ex);
+            catch (JSONException ex)
+            {
+                throw new MalformedStratumMessageException(jsonMessage, ex);
+            }
         }
 
         this.setError(error);

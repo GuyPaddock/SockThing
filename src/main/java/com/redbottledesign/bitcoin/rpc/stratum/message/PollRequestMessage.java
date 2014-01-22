@@ -15,7 +15,7 @@ extends RequestMessage
 
     public PollRequestMessage()
     {
-        super(0, null);
+        super(null, null);
     }
 
     @Override

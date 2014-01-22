@@ -68,7 +68,7 @@ extends RequestMessage
      * @param   password
      *          The password of the worker.
      */
-    public MiningAuthorizeRequest(long id, String username, String password)
+    public MiningAuthorizeRequest(String id, String username, String password)
     {
         super(id, METHOD_NAME, username, password);
     }

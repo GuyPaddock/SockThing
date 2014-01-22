@@ -39,18 +39,35 @@ public interface ConnectionState
     public abstract MessageMarshaller getMarshaller();
 
     /**
-     * Notifies this connection state to process the provided request message.
+     * <p>Notifies this connection state to process the provided request
+     * message.</p>
+     *
+     * <p>This method returns a result that indicates whether or not the
+     * provided message was handled. This enables a
+     * "chain of responsibility"-style inheritance behavior, whereby states
+     * define a common set of messages that are always handled the same way
+     * and then define custom behaviors for other messages.</p>
      *
      * @param   message
      *          The request message to process.
      */
-    public abstract void processRequest(RequestMessage message);
+    public abstract boolean processRequest(RequestMessage message);
 
     /**
-     * Notifies this connection state to process the provided response message.
+     * <p>Notifies this connection state to process the provided response
+     * message.</p>
+     *
+     * <p>This method returns a result that indicates whether or not the
+     * provided message was handled. This enables a
+     * "chain of responsibility"-style inheritance behavior, whereby states
+     * define a common set of messages that are always handled the same way
+     * and then define custom behaviors for other messages.</p>
      *
      * @param   message
      *          The response message to process.
+     *
+     * @return  {@code true} if the message was handled; {@code false} if it
+     *          was ignored.
      */
-    public abstract void processResponse(ResponseMessage message);
+    public abstract boolean processResponse(ResponseMessage message);
 }

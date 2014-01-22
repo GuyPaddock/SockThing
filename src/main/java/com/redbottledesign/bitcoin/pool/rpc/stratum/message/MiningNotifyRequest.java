@@ -165,7 +165,7 @@ extends RequestMessage
      * @param   cleanJobs
      *          Whether or not to clean jobs.
      */
-    public MiningNotifyRequest(long id, String jobId, Sha256Hash previousBlockHash, byte[] coinbasePart1,
+    public MiningNotifyRequest(String id, String jobId, Sha256Hash previousBlockHash, byte[] coinbasePart1,
                                byte[] coinbasePart2, List<String> merkleBranches, byte[] blockVersion,
                                byte[] networkDifficultyBits, long networkTime, boolean cleanJobs)
     {
