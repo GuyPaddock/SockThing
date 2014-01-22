@@ -5,23 +5,51 @@ import com.redbottledesign.bitcoin.pool.rpc.stratum.client.MiningClientEventNoti
 import com.redbottledesign.bitcoin.pool.rpc.stratum.client.StratumMiningClient;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningNotifyRequest;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubmitResponse;
-import com.redbottledesign.bitcoin.rpc.stratum.message.MessageMarshaller;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
 
+/**
+ * <p>The connection state for the Stratum mining client when it is eligible
+ * to begin receiving work from the mining pool.</p>
+ *
+ * <p>Aside from the standard {@code mining.set_difficulty} and
+ * {@code client.get_version} requests that are accepted in all connection
+ * states, this state accepts the following type of request:</p>
+ *
+ * <dl>
+ *    <dt>{@code mining.notify}</dt>
+ *    <dd>Used to push new work to the miner.</dd>
+ * </dl>
+ *
+ * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ *
+ * @author Guy Paddock (guy.paddock@redbottledesign.com)
+ */
 public class JobProcessingState
 extends AbstractMiningConnectionState
 {
+    /**
+     * Constructor for {@link JobProcessingState} that configures
+     * the connection state for the specified Stratum mining transport.
+     *
+     * @param   transport
+     *          The Stratum mining client message transport.
+     */
     public JobProcessingState(StratumMiningClient transport)
     {
         super(transport);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void initializeHandlers()
     {
         super.initializeHandlers();
 
+        // mining.notify
         this.registerRequestHandler(
+            MiningNotifyRequest.METHOD_NAME,
             MiningNotifyRequest.class,
             new MessageListener<MiningNotifyRequest>()
             {
@@ -32,6 +60,7 @@ extends AbstractMiningConnectionState
                 }
             });
 
+        // mining.submit response
         this.registerResponseHandler(
             MiningSubmitResponse.class,
             new MessageListener<MiningSubmitResponse>()
@@ -44,16 +73,17 @@ extends AbstractMiningConnectionState
             });
     }
 
-    @Override
-    protected MessageMarshaller createMarshaller()
-    {
-        final MessageMarshaller marshaller = super.createMarshaller();
-
-        marshaller.registerRequestHandler(MiningNotifyRequest.METHOD_NAME, MiningNotifyRequest.class);
-
-        return marshaller;
-    }
-
+    /**
+     * <p>Handles the {@code mining.notify} message.</p>
+     *
+     * <p>This implementation does nothing other than notify listeners who
+     * subscribe to the
+     * {@link MiningClientEventListener#onNewWorkReceived(MiningNotifyRequest)}
+     * event.</p>
+     *
+     * @param   message
+     *          The incoming request message.
+     */
     protected void handleMiningNotifyRequest(final MiningNotifyRequest message)
     {
         this.getTransport().notifyEventListeners(
@@ -67,6 +97,18 @@ extends AbstractMiningConnectionState
             });
     }
 
+    /**
+     * <p>Handles the response returned by the pool for the
+     * {@code mining.submit} message.</p>
+     *
+     * <p>This implementation does nothing other than notify listeners who
+     * subscribe to the
+     * {@link MiningClientEventListener#onWorkSubmitted(MiningSubmitResponse)}
+     * event.</p>
+     *
+     * @param   message
+     *          The incoming response message.
+     */
     protected void handleMiningSubmitResponse(final MiningSubmitResponse message)
     {
         this.getTransport().notifyEventListeners(
