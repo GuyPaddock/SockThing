@@ -320,6 +320,10 @@ public class MessageMarshaller
      * @param   jsonMessage
      *          The JSON object containing the message.
      *
+     * @param   messageType
+     *          The type of message into which the JSON data will be
+     *          marshalled.
+     *
      * @return  A concrete {@link Message} that represents the
      *          information from the provided JSON message.
      *

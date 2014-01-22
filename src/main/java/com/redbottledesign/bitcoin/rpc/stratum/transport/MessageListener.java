@@ -9,8 +9,10 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.Message;
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *
- * @author Guy Paddock (guy.paddock@redbottledesign.com)
+ * @param   <T>
+ *          The type of message the listener is handling.
  *
+ * @author  Guy Paddock (guy.paddock@redbottledesign.com)
  */
 public interface MessageListener<T extends Message>
 {

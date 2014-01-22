@@ -50,6 +50,9 @@ public interface ConnectionState
      *
      * @param   message
      *          The request message to process.
+     *
+     * @return  {@code true} if the request was handled; {@code false} if it
+     *          was ignored.
      */
     public abstract boolean processRequest(RequestMessage message);
 
@@ -66,7 +69,7 @@ public interface ConnectionState
      * @param   message
      *          The response message to process.
      *
-     * @return  {@code true} if the message was handled; {@code false} if it
+     * @return  {@code true} if the response was handled; {@code false} if it
      *          was ignored.
      */
     public abstract boolean processResponse(ResponseMessage message);

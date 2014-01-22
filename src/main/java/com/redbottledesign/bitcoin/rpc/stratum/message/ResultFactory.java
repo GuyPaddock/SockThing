@@ -39,6 +39,8 @@ public class ResultFactory
      * @return  The appropriate result object.
      *
      * @throws  MalformedStratumMessageException
+     *          If the data parsed into the result from the provided JSON
+     *          was incorrect for the type of information that was expected.
      */
     public Result createResult(Object jsonObject) throws MalformedStratumMessageException
     {

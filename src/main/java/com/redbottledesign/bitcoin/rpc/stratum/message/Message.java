@@ -172,6 +172,8 @@ public abstract class Message
      *          The message to parse.
      *
      * @throws  MalformedStratumMessageException
+     *          If the data parsed into this object from the provided message
+     *          was incorrect for the type of message that was expected.
      */
     protected void parseId(JSONObject jsonMessage)
     throws MalformedStratumMessageException

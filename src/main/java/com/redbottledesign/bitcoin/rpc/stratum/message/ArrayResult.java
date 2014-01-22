@@ -72,7 +72,6 @@ implements Result
      *          the subject tuple).
      */
     public ArrayResult(Object... resultData)
-    throws IllegalArgumentException
     {
         this(null, null, resultData);
     }
