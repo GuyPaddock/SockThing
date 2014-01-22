@@ -15,7 +15,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
  *  identifier that was specified in the request.</li>
  *
  *  <li>a {@code result} field, which can be either an array, a single value,
- *      or must be {@code null} if the request could not be successfully
+ *      or can be {@code null} if the request could not be successfully
  *      processed.</li>
  *
  *  <li>an {@code error} field, which must be {@code null} if the request was
@@ -128,6 +128,23 @@ extends Message
     }
 
     /**
+     * <p>Returns whether or not the request was successfully processed.</p>
+     *
+     * <p>This is equivalent to the following code:</p>
+     *
+     * <pre>
+     * return (this.getError() == null);
+     * </pre>
+     *
+     * @return  {@code true} if the request was successfully processed;
+     *          {@code false}, otherwise.
+     */
+    public boolean wasRequestSuccessful()
+    {
+        return (this.getError() == null);
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -178,9 +195,6 @@ extends Message
      */
     protected void setResult(Result result)
     {
-        if ((result != null) && (this.getError() != null))
-            throw new IllegalArgumentException("Result must be null if an error is set.");
-
         this.result = result;
     }
 
@@ -193,9 +207,6 @@ extends Message
      */
     protected void setError(String error)
     {
-        if ((error != null) && (this.getResult() != null))
-            throw new IllegalArgumentException("Error must be null if a result is set.");
-
         this.error = error;
     }
 
@@ -272,7 +283,7 @@ extends Message
         {
             try
             {
-                error = jsonMessage.getString(JSON_STRATUM_KEY_ERROR);
+                error = jsonMessage.get(JSON_STRATUM_KEY_ERROR).toString();
             }
 
             catch (JSONException ex)

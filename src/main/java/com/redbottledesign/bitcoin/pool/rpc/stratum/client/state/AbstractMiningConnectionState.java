@@ -1,10 +1,14 @@
 package com.redbottledesign.bitcoin.pool.rpc.stratum.client.state;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.redbottledesign.bitcoin.pool.rpc.stratum.client.MiningClientEventListener;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.client.MiningClientEventNotifier;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.client.StratumMiningClient;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.ClientGetVersionRequest;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.ClientGetVersionResponse;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningNotifyRequest;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSetDifficultyRequest;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.AbstractConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
@@ -17,16 +21,24 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  *
  * <dl>
  *  <p>
- *    <dt>{@code mining.set_difficulty}</dt>
- *    <dd>Used to signal the miner to stop submitting shares under the new
- *        difficulty.</dd>
- *  </p>
- *
- *  <p>
  *    <dt>{@code client.get_version}</dt>
  *    <dd>Used to get the name and version of the mining software being
  *        used.</dd>
  *  </p>
+ *
+ *  <p>
+ *    <dt>{@code mining.set_difficulty}</dt>
+ *    <dd>Used to signal the miner to stop submitting shares under the new
+ *        difficulty.</dd>
+ *  </p>
+ * </dl>
+ *
+ * <p>This class also provides a no-op implementation for the following request
+ * message, which is handled normally in the {@link JobProcessingState}:</p>
+ *
+ * <dl>
+ *    <dt>{@code mining.notify}</dt>
+ *    <dd>Used to push new work to the miner.</dd>
  * </dl>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
@@ -37,6 +49,11 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
 public abstract class AbstractMiningConnectionState
 extends AbstractConnectionState
 {
+    /**
+     * The logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMiningConnectionState.class);
+
     /**
      * Constructor for {@link AbstractMiningConnectionState} that configures
      * the connection state for the specified Stratum mining transport.
@@ -57,6 +74,19 @@ extends AbstractConnectionState
     {
         super.initializeHandlers();
 
+        // client.get_version
+        this.registerRequestHandler(
+            ClientGetVersionRequest.METHOD_NAME,
+            ClientGetVersionRequest.class,
+            new MessageListener<ClientGetVersionRequest>()
+            {
+                @Override
+                public void onMessageReceived(ClientGetVersionRequest message)
+                {
+                    AbstractMiningConnectionState.this.handleGetVersionRequest(message);
+                }
+            });
+
         // mining.set_difficulty
         this.registerRequestHandler(
             MiningSetDifficultyRequest.METHOD_NAME,
@@ -70,16 +100,24 @@ extends AbstractConnectionState
                 }
             });
 
-        // client.get_version
+        // mining.notify (no-op)
         this.registerRequestHandler(
-            ClientGetVersionRequest.METHOD_NAME,
-            ClientGetVersionRequest.class,
-            new MessageListener<ClientGetVersionRequest>()
+            MiningNotifyRequest.METHOD_NAME,
+            MiningNotifyRequest.class,
+            new MessageListener<MiningNotifyRequest>()
             {
                 @Override
-                public void onMessageReceived(ClientGetVersionRequest message)
+                public void onMessageReceived(MiningNotifyRequest message)
                 {
-                    AbstractMiningConnectionState.this.handleGetVersionRequest(message);
+                    // No-op implementation until we're in the JobProcessingState
+                    if (LOGGER.isDebugEnabled())
+                    {
+                        LOGGER.debug(
+                            "A '%s' request was received and dropped because the Stratum mining client was not " +
+                            "prepared to receive it: ",
+                            MiningNotifyRequest.METHOD_NAME,
+                            message.toJson());
+                    }
                 }
             });
     }

@@ -94,7 +94,7 @@ implements ConnectionState
      *
      * <p>All states that expect to receive messages should override this
      * method with an implementation that makes appropriate calls to
-     * {@link #registerRequestHandler(Class, MessageListener)} and
+     * {@link #registerRequestHandler(String, Class, MessageListener)} and
      * {@link #registerResponseHandler(Class, MessageListener)}.</p>
      */
     protected void initializeHandlers()
@@ -143,21 +143,62 @@ implements ConnectionState
     /**
      * Registers a handler in this state for the specified type of request message.
      *
+     * @param   methodName
+     *          The name of the method, as it appears in requests.
+     *
      * @param   messageType
      *          The type of message for which a handler is being registered.
      *
      * @param   handler
      *          The handler to invoke for the message.
+     *
+     * @throws  IllegalArgumentException
+     *          If a handler for the method specified in {@code methodName} is
+     *          already registered.
+     */
+    protected <T extends RequestMessage> void registerRequestHandler(String methodName, Class<T> messageType,
+                                                                     MessageListener<T> handler)
+    throws IllegalArgumentException
+    {
+        this.registerRequestHandler(methodName, messageType, handler, false);
+    }
+
+    /**
+     * <p>Registers a handler in this state for the specified type of request
+     * message, optionally replacing any existing handler already registered
+     * for that type of request message.</p>
+     *
+     * @param   methodName
+     *          The name of the method, as it appears in requests.
+     *
+     * @param   messageType
+     *          The type of message for which a handler is being registered.
+     *
+     * @param   handler
+     *          The handler to invoke for the message.
+     *
+     * @param   replace
+     *          Whether or not to replace any existing handlers for the method
+     *          specified in {@code methodName}.
+     *
+     * @throws  IllegalArgumentException
+     *          If a handler for the method specified in {@code methodName} is
+     *          already registered and {@code replace} is {@code false}.
      */
     @SuppressWarnings("unchecked")
-    protected <T extends RequestMessage> void registerRequestHandler(Class<T> messageType, MessageListener<T> handler)
+    protected <T extends RequestMessage> void registerRequestHandler(String methodName, Class<T> messageType,
+                                                                     MessageListener<T> handler, boolean replace)
+    throws IllegalArgumentException
     {
-        if (this.requestHandlers.containsKey(messageType))
+        final MessageMarshaller marshaller = this.getMarshaller();
+
+        if (!replace && this.requestHandlers.containsKey(messageType))
         {
             throw new IllegalArgumentException(
                 "A handler is already registered for this request message type: " + messageType.getName());
         }
 
+        marshaller.registerRequestHandler(methodName, messageType);
         this.requestHandlers.put(messageType, (MessageListener<RequestMessage>)handler);
     }
 
@@ -185,7 +226,7 @@ implements ConnectionState
 
     /**
      * Factory method invoked to give sub-classes a chance to customize the
-     * marshaller with the messages that it is expecting.
+     * marshaller.
      *
      * @return  The Stratum message marshaller that should be used while in this
      *          connection state.
@@ -200,7 +241,7 @@ implements ConnectionState
      *
      * <p>This implementation dispatches the incoming request to the
      * appropriate handler, as registered by a prior call to
-     * {@link #registerRequestHandler(Class, MessageListener)}.</p>
+     * {@link #registerRequestHandler(String, Class, MessageListener)}.</p>
      *
      * @param   message
      *          The message to dispatch.

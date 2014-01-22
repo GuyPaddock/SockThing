@@ -14,9 +14,10 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  * <p>The connection state for the Stratum mining client after it has
  * connected to the mining pool but before it has authenticated.</p>
  *
- * <p>Aside from the standard {@code mining.set_difficulty} and
- * {@code client.get_version} requests that are accepted in all connection
- * states, this state does not accept any requests.</p>
+ * <p>Aside from the standard requests that are accepted in all connection
+ * states ({@code client.get_version}, {@code mining.set_difficulty}, and the
+ * no-op for {@code mining.notify}), this state does not accept any
+ * requests.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *

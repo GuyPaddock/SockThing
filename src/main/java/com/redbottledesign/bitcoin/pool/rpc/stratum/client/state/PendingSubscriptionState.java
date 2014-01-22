@@ -15,21 +15,17 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  * connected to the mining pool and authenticated the worker, but before it has
  * subscribed to receive work.</p>
  *
- * <p>Aside from the standard {@code mining.set_difficulty} and
- * {@code client.get_version} requests that are accepted in all connection
- * states, this state accepts the following type of request:</p>
- *
- * <dl>
- *    <dt>{@code mining.notify}</dt>
- *    <dd>Used to push new work to the miner.</dd>
- * </dl>
+ * <p>Aside from the standard requests that are accepted in all connection
+ * states ({@code client.get_version}, {@code mining.set_difficulty}, and the
+ * no-op for {@code mining.notify}), this state does not accept any
+ * requests.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
 public class PendingSubscriptionState
-extends JobProcessingState
+extends AbstractMiningConnectionState
 {
     /**
      * The logger.
@@ -103,10 +99,9 @@ extends JobProcessingState
      */
     protected void handleMiningSubscribe(final MiningSubscribeResponse message)
     {
-        final StratumMiningClient   transport   = this.getTransport();
-        final String                error       = message.getError();
+        final StratumMiningClient transport = this.getTransport();
 
-        if (error == null)
+        if (message.wasRequestSuccessful())
         {
             transport.notifyEventListeners(new MiningClientEventNotifier()
             {
@@ -127,7 +122,7 @@ extends JobProcessingState
                 LOGGER.error(
                     String.format(
                         "Failed to subscribe to work: %s",
-                        error));
+                        message.getError()));
             }
 
             // Close the connection; otherwise we'll be permanently stuck in this state.

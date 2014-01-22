@@ -11,9 +11,9 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  * <p>The connection state for the Stratum mining client when it is eligible
  * to begin receiving work from the mining pool.</p>
  *
- * <p>Aside from the standard {@code mining.set_difficulty} and
- * {@code client.get_version} requests that are accepted in all connection
- * states, this state accepts the following type of request:</p>
+ * <p>Aside from the standard requests that are accepted in all connection
+ * states ({@code client.get_version} and {@code mining.set_difficulty}), this
+ * state provides proper handling for the following type of request:</p>
  *
  * <dl>
  *    <dt>{@code mining.notify}</dt>
@@ -47,7 +47,7 @@ extends AbstractMiningConnectionState
     {
         super.initializeHandlers();
 
-        // mining.notify
+        // mining.notify (replaces no-op default)
         this.registerRequestHandler(
             MiningNotifyRequest.METHOD_NAME,
             MiningNotifyRequest.class,
@@ -58,7 +58,8 @@ extends AbstractMiningConnectionState
                 {
                     JobProcessingState.this.handleMiningNotifyRequest(message);
                 }
-            });
+            },
+            true);
 
         // mining.submit response
         this.registerResponseHandler(
