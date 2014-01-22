@@ -299,10 +299,16 @@ public class MessageMarshaller
         Class<? extends Message>    responseType = this.requestResponseMap.getIfPresent(messageId);
 
         if (responseType != null)
+        {
             result = this.marshalMessage(jsonMessage, responseType);
 
+            this.requestResponseMap.invalidate(messageId);
+        }
+
         else
+        {
             throw new MalformedStratumMessageException(jsonMessage);
+        }
 
         return result;
     }
