@@ -88,7 +88,7 @@ extends AbstractMiningConnectionState
      *
      * <p>In this implementation, if the subscription was successful,
      * listeners subscribed to the
-     * {@link MiningClientEventListener#onMinerSubscribed(MiningSubscribeResponse)}
+     * {@link MiningClientEventListener#onSubscribed(MiningSubscribeResponse)}
      * event are notified, and the Stratum client is moved to the
      * {@link JobProcessingState} state. If the subscription failed, an error
      * is logged and the client disconnects from the mining pool.</p>
@@ -108,7 +108,7 @@ extends AbstractMiningConnectionState
                 @Override
                 public void notifyListener(MiningClientEventListener listener)
                 {
-                    listener.onMinerSubscribed(message);
+                    listener.onSubscribed(message);
                 }
             });
 

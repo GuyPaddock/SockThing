@@ -90,7 +90,7 @@ extends AbstractMiningConnectionState
      *
      * <p>In this implementation, if the worker was successfully authenticated,
      * listeners subscribed to the
-     * {@link MiningClientEventListener#onWorkerAuthenticated(MiningAuthorizeResponse)}
+     * {@link MiningClientEventListener#onAuthenticated(MiningAuthorizeResponse)}
      * event are notified, and the Stratum client is moved to the
      * {@link PendingSubscriptionState} state. If the worker was not successfully
      * authenticated, an error is logged and the client disconnects from the
@@ -111,7 +111,7 @@ extends AbstractMiningConnectionState
                     @Override
                     public void notifyListener(MiningClientEventListener listener)
                     {
-                        listener.onWorkerAuthenticated(message);
+                        listener.onAuthenticated(message);
                     }
                 });
 
