@@ -5,6 +5,14 @@ import org.json.JSONObject;
 import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
 import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
+/**
+ * <p>Java representation of a Stratum {@code client.get_version} request
+ * message.</p>
+ *
+ * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ *
+ * @author Guy Paddock (gpaddock@redbottledesign.com)
+ */
 public class ClientGetVersionRequest
 extends RequestMessage
 {

@@ -6,6 +6,14 @@ import com.redbottledesign.bitcoin.rpc.stratum.MalformedStratumMessageException;
 import com.redbottledesign.bitcoin.rpc.stratum.message.ResponseMessage;
 import com.redbottledesign.bitcoin.rpc.stratum.message.ValueResult;
 
+/**
+ * <p>Java representation of a Stratum {@code client.get_version} response
+ * message.</p>
+ *
+ * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ *
+ * @author Guy Paddock (gpaddock@redbottledesign.com)
+ */
 public class ClientGetVersionResponse
 extends ResponseMessage
 {
