@@ -23,6 +23,10 @@ extends ResponseMessage
      *
      * @param   id
      *          The ID of the request to which this response corresponds.
+     *
+     * @param   submitted
+     *          {@code true} if the submission was accepted;
+     *          {@code false}, otherwise.
      */
     public MiningSubmitResponse(String id, boolean submitted)
     {
@@ -36,6 +40,9 @@ extends ResponseMessage
      *
      * @param   id
      *          The ID of the request to which this response corresponds.
+     *
+     * @param   error
+     *          An error message for why the submission could not be accepted.
      */
     public MiningSubmitResponse(String id, String error)
     {
@@ -48,6 +55,10 @@ extends ResponseMessage
      *
      * @param   jsonMessage
      *          The message in JSON format.
+     *
+     * @throws  MalformedStratumMessageException
+     *          If the provided JSON message object is not a properly-formed
+     *          Stratum message or cannot be understood.
      */
     public MiningSubmitResponse(JSONObject jsonMessage)
     throws MalformedStratumMessageException

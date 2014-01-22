@@ -117,6 +117,10 @@ extends RequestMessage
      *
      * @param   jsonMessage
      *          The message in JSON format.
+     *
+     * @throws  MalformedStratumMessageException
+     *          If the provided JSON message object is not a properly-formed
+     *          Stratum message or cannot be understood.
      */
     public MiningSubmitRequest(JSONObject jsonMessage)
     throws MalformedStratumMessageException

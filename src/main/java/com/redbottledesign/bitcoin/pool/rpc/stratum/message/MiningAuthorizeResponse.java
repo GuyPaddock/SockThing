@@ -56,6 +56,10 @@ extends ResponseMessage
      *
      * @param   jsonMessage
      *          The message in JSON format.
+     *
+     * @throws  MalformedStratumMessageException
+     *          If the provided JSON message object is not a properly-formed
+     *          Stratum message or cannot be understood.
      */
     public MiningAuthorizeResponse(JSONObject jsonMessage)
     throws MalformedStratumMessageException
