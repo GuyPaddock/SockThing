@@ -39,15 +39,6 @@ public interface MiningClientEventListener
     public void onSubscribed(MiningSubscribeResponse response);
 
     /**
-     * Event that is fired whenever the Stratum mining client receives new work
-     * from the mining pool.
-     *
-     * @param   request
-     *          A representation of the work request from the server.
-     */
-    public void onNewWorkReceived(MiningNotifyRequest request);
-
-    /**
      * Event that is fired whenever the Stratum mining client receives a new
      * target difficulty from the mining pool.
      *
@@ -55,6 +46,15 @@ public interface MiningClientEventListener
      *          A representation of the difficulty request from the server.
      */
     public void onDifficultySet(MiningSetDifficultyRequest request);
+
+    /**
+     * Event that is fired whenever the Stratum mining client receives new work
+     * from the mining pool.
+     *
+     * @param   request
+     *          A representation of the work request from the server.
+     */
+    public void onNewWorkReceived(MiningNotifyRequest request);
 
     /**
      * <p>Event that is fired as soon as the mining pool responds to work that

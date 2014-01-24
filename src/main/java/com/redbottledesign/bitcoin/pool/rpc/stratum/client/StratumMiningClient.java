@@ -3,6 +3,9 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.client;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.github.fireduck64.sockthing.Config;
+import com.github.fireduck64.sockthing.StratumServer;
+import com.redbottledesign.bitcoin.pool.rpc.bitcoin.PrefabCoinbase;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.client.state.PendingAuthorizationState;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningAuthorizeResponse;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningNotifyRequest;
@@ -265,6 +268,9 @@ extends StratumTcpClient
 
         client.registerEventListener(new MiningClientEventListener()
         {
+            protected byte[] extraNonce1;
+            private int extraNonce2Size;
+
             @Override
             public void onAuthenticated(MiningAuthorizeResponse response)
             {
@@ -278,21 +284,47 @@ extends StratumTcpClient
             }
 
             @Override
-            public void onNewWorkReceived(MiningNotifyRequest request)
-            {
-                System.out.println("New work received: " + request.toJson());
-            }
-
-            @Override
             public void onSubscribed(MiningSubscribeResponse response)
             {
                 System.out.println("Miner subscribed: " + response.toJson());
+
+                this.extraNonce1        = response.getExtraNonce1();
+                this.extraNonce2Size    = response.getExtraNonce2ByteLength();
             }
 
             @Override
             public void onDifficultySet(MiningSetDifficultyRequest request)
             {
                 System.out.println("Difficulty set: " + request.getDifficulty());
+            }
+
+            @Override
+            public void onNewWorkReceived(MiningNotifyRequest request)
+            {
+                byte[]          coinbasePart1 = request.getCoinbasePart1(),
+                                coinbasePart2 = request.getCoinbasePart2();
+                PrefabCoinbase  coinbase;
+
+                System.out.println("New work received: " + request.toJson());
+
+                try
+                {
+                    coinbase =
+                        new PrefabCoinbase(
+                            new StratumServer(
+                                new Config("C:/Users/gpaddock/Documents/Eclipse workspace/SockThing+/src/main/resources/config/pool_prodnet.cfg")),
+                            coinbasePart1,
+                            this.extraNonce1,
+                            this.extraNonce2Size,
+                            coinbasePart2);
+
+                    System.out.println(coinbase.getCoinbaseTransaction());
+                }
+
+                catch (Exception ex)
+                {
+                    ex.printStackTrace();
+                }
             }
         });
 

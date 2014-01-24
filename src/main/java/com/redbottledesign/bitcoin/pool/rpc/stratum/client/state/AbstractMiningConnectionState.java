@@ -113,10 +113,11 @@ extends AbstractConnectionState
                     if (LOGGER.isDebugEnabled())
                     {
                         LOGGER.debug(
-                            "A '%s' request was received and dropped because the Stratum mining client was not " +
-                            "prepared to receive it: ",
-                            MiningNotifyRequest.METHOD_NAME,
-                            message.toJson());
+                            String.format(
+                                "A '%s' request was received and dropped because the Stratum mining client was not " +
+                                "prepared to receive it: %s",
+                                MiningNotifyRequest.METHOD_NAME,
+                                message.toJson()));
                     }
                 }
             });
