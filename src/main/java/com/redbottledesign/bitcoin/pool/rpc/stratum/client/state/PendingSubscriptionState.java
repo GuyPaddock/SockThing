@@ -25,7 +25,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
 public class PendingSubscriptionState
-extends AbstractMiningConnectionState
+extends AbstractMiningClientConnectionState
 {
     /**
      * The logger.

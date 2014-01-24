@@ -14,7 +14,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.AbstractConnectionState
 import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
 
 /**
- * <p>Abstract base class for all Stratum mining connection states.</p>
+ * <p>Abstract base class for all Stratum mining client connection states.</p>
  *
  * <p>This class configures all connection states to be able to accept the
  * following request messages:</p>
@@ -46,22 +46,22 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  *
  */
-public abstract class AbstractMiningConnectionState
+public abstract class AbstractMiningClientConnectionState
 extends AbstractConnectionState
 {
     /**
      * The logger.
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMiningConnectionState.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMiningClientConnectionState.class);
 
     /**
-     * Constructor for {@link AbstractMiningConnectionState} that configures
+     * Constructor for {@link AbstractMiningClientConnectionState} that configures
      * the connection state for the specified Stratum mining transport.
      *
      * @param   transport
      *          The Stratum mining client message transport.
      */
-    public AbstractMiningConnectionState(StratumMiningClient transport)
+    public AbstractMiningClientConnectionState(StratumMiningClient transport)
     {
         super(transport);
     }
@@ -83,7 +83,7 @@ extends AbstractConnectionState
                 @Override
                 public void onMessageReceived(ClientGetVersionRequest message)
                 {
-                    AbstractMiningConnectionState.this.handleGetVersionRequest(message);
+                    AbstractMiningClientConnectionState.this.handleGetVersionRequest(message);
                 }
             });
 
@@ -96,7 +96,7 @@ extends AbstractConnectionState
                 @Override
                 public void onMessageReceived(MiningSetDifficultyRequest message)
                 {
-                    AbstractMiningConnectionState.this.handleSetDifficultyRequest(message);
+                    AbstractMiningClientConnectionState.this.handleSetDifficultyRequest(message);
                 }
             });
 
