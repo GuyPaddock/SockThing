@@ -16,7 +16,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
-public class StratumTcpServer
+public abstract class StratumTcpServer
 {
     /**
      * The logger.
@@ -24,61 +24,9 @@ public class StratumTcpServer
     private static final Logger LOGGER = LoggerFactory.getLogger(StratumTcpServer.class);
 
     /**
-     * The state that each connection will enter upon receiving a connection from a client.
-     */
-    private ConnectionState postConnectState;
-
-    /**
      * The server socket.
      */
     private ServerSocket serverSocket;
-
-    /**
-     * Default constructor for {@link StratumTcpServer}.
-     */
-    public StratumTcpServer()
-    {
-        this(null);
-    }
-
-    /**
-     * Constructor for {@link StratumTcpServer} that configures a new server
-     * with the specified post-connection state.
-     *
-     * @param   postConnectState
-     *          The state that each connection should enter upon receiving a
-     *          connection from a client.
-     */
-    public StratumTcpServer(ConnectionState postConnectState)
-    {
-        this.postConnectState = postConnectState;
-    }
-
-    /**
-     * Gets the state that each connection will enter upon receiving a
-     * connection from a client.
-     *
-     * @return  The post-connection state.
-     */
-    public ConnectionState getPostConnectState()
-    {
-        return this.postConnectState;
-    }
-
-    /**
-     * Sets the state that each connection should enter upon receiving a
-     * connection from a client.
-     *
-     * @param   postConnectState
-     *          The new post-connect state.
-     */
-    public void setPostConnectState(ConnectionState postConnectState)
-    {
-        if (this.isListening())
-            throw new IllegalStateException("The post-connect state cannot be set once the server is listening.");
-
-        this.postConnectState = postConnectState;
-    }
 
     /**
      * Returns whether or not the server is listening for connections.
@@ -109,15 +57,6 @@ public class StratumTcpServer
     public void startListening(int port)
     throws IOException
     {
-        final ConnectionState postConnectState = this.getPostConnectState();
-
-        if (postConnectState == null)
-        {
-            throw new IllegalStateException(
-                "The post-connect state must be specified through the constructor or set with setPostConnectState() " +
-                "before attempting to start listening.");
-        }
-
         if (this.isListening())
             throw new IllegalStateException("The server is already listening for connections.");
 
@@ -125,9 +64,15 @@ public class StratumTcpServer
 
         while (this.isListening())
         {
-            Socket connectionSocket = this.serverSocket.accept();
+            final Socket                        connectionSocket = this.serverSocket.accept();
+            final StratumTcpServerConnection    connection       = new StratumTcpServerConnection(connectionSocket);
+            final ConnectionState               postConnectState = this.getPostConnectState(connection);
 
-            new StratumTcpServerConnection(connectionSocket, postConnectState).open();
+            if (postConnectState == null)
+                throw new IllegalStateException("postConnectState cannot be null.");
+
+            connection.setPostConnectState(postConnectState);
+            connection.open();
         }
     }
 
@@ -142,7 +87,7 @@ public class StratumTcpServer
             {
                 this.getServerSocket().close();
             }
-    
+
             catch (IOException ex)
             {
                 if (LOGGER.isDebugEnabled())
@@ -171,4 +116,15 @@ public class StratumTcpServer
     {
         this.serverSocket = serverSocket;
     }
+
+    /**
+     * Gets the state that the provided connection should enter upon being
+     * opened.
+     *
+     * @param   connection
+     *          The connection being opened.
+     *
+     * @return  The post-connection state.
+     */
+    protected abstract ConnectionState getPostConnectState(StratumTcpServerConnection connection);
 }

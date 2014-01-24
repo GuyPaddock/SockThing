@@ -83,9 +83,6 @@ extends StatefulMessageTransport
      */
     public void setPostConnectState(ConnectionState postConnectState)
     {
-        if (postConnectState == null)
-            throw new IllegalArgumentException("postConnectState cannot be null.");
-
         if (this.isOpen())
             throw new IllegalStateException("The post-connect state cannot be set once the connection is open.");
 

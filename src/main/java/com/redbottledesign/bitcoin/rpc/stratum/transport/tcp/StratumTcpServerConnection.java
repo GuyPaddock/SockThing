@@ -16,7 +16,21 @@ extends AbstractTcpMessageTransport
 {
     /**
      * Constructor for {@link StratumTcpServerConnection} that initializes the
-     * connection to wrap the specified connected server-side socket.
+     * connection to wrap the specified connected server-side socket and start
+     * in the specified state.
+     *
+     * @param   connectionSocket
+     *          The server connection socket.
+     */
+    public StratumTcpServerConnection(Socket connectionSocket)
+    {
+        this(connectionSocket, null);
+    }
+
+    /**
+     * Constructor for {@link StratumTcpServerConnection} that initializes the
+     * connection to wrap the specified connected server-side socket and start
+     * in the specified state.
      *
      * @param   connectionSocket
      *          The server connection socket.
