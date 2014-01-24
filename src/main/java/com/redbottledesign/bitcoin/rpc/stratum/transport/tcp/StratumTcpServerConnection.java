@@ -11,7 +11,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
-class StratumTcpServerConnection
+public class StratumTcpServerConnection
 extends AbstractTcpMessageTransport
 {
     /**

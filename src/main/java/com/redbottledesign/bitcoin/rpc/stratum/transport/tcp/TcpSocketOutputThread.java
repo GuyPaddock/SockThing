@@ -18,7 +18,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
-class TcpSocketOutputThread
+public class TcpSocketOutputThread
 extends Thread
 {
     /**
