@@ -47,20 +47,6 @@ extends AbstractMiningClientConnectionState
     {
         super.initializeHandlers();
 
-        // mining.notify (replaces no-op default)
-        this.registerRequestHandler(
-            MiningNotifyRequest.METHOD_NAME,
-            MiningNotifyRequest.class,
-            new MessageListener<MiningNotifyRequest>()
-            {
-                @Override
-                public void onMessageReceived(MiningNotifyRequest message)
-                {
-                    JobProcessingState.this.handleMiningNotifyRequest(message);
-                }
-            },
-            true);
-
         // mining.submit response
         this.registerResponseHandler(
             MiningSubmitResponse.class,
@@ -77,14 +63,15 @@ extends AbstractMiningClientConnectionState
     /**
      * <p>Handles the {@code mining.notify} message.</p>
      *
-     * <p>This implementation does nothing other than notify listeners who
-     * subscribe to the
+     * <p>This implementation replaces the default, no-op implementation with one that
+     * notifies listeners who subscribe to the
      * {@link MiningClientEventListener#onNewWorkReceived(MiningNotifyRequest)}
      * event.</p>
      *
      * @param   message
      *          The incoming request message.
      */
+    @Override
     protected void handleMiningNotifyRequest(final MiningNotifyRequest message)
     {
         this.getTransport().notifyEventListeners(

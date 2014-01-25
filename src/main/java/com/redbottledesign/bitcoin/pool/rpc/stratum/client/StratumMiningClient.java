@@ -15,12 +15,11 @@ import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubscribeRespo
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpClient;
 
 /**
- * <p>Stratum mining protocol implementation over TCP.</p>
+ * <p>Stateful Stratum mining client implementation over TCP.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
- *
  */
 public class StratumMiningClient
 extends StratumTcpClient
@@ -331,7 +330,7 @@ extends StratumTcpClient
         client.connect("mint.bitminter.com", 3333);
 //        client.connect("stratum.btcguild.com", 3333);
 
-        client.getInThread().join();
-        client.getOutThread().join();
+        client.getInputThread().join();
+        client.getOutputThread().join();
     }
 }

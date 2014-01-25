@@ -15,22 +15,33 @@ public class StratumTcpServerConnection
 extends AbstractTcpMessageTransport
 {
     /**
+     * The server to which this connection corresponds.
+     */
+    protected final StratumTcpServer server;
+
+    /**
      * Constructor for {@link StratumTcpServerConnection} that initializes the
      * connection to wrap the specified connected server-side socket and start
      * in the specified state.
      *
+     * @param   server
+     *          The server.
+     *
      * @param   connectionSocket
      *          The server connection socket.
      */
-    public StratumTcpServerConnection(Socket connectionSocket)
+    public StratumTcpServerConnection(StratumTcpServer server, Socket connectionSocket)
     {
-        this(connectionSocket, null);
+        this(server, connectionSocket, null);
     }
 
     /**
      * Constructor for {@link StratumTcpServerConnection} that initializes the
      * connection to wrap the specified connected server-side socket and start
      * in the specified state.
+     *
+     * @param   server
+     *          The server.
      *
      * @param   connectionSocket
      *          The server connection socket.
@@ -39,14 +50,27 @@ extends AbstractTcpMessageTransport
      *          The state that the connection should enter when the client
      *          connects.
      */
-    public StratumTcpServerConnection(Socket connectionSocket, ConnectionState postConnectState)
+    public StratumTcpServerConnection(StratumTcpServer server, Socket connectionSocket,
+                                      ConnectionState postConnectState)
     {
         super(postConnectState);
 
         if (connectionSocket == null)
             throw new IllegalArgumentException("connectionSocket cannot be null.");
 
+        this.server = server;
+
         this.setSocket(connectionSocket);
+    }
+
+    /**
+     * Gets the server to which this connection corresponds.
+     *
+     * @return  The server.
+     */
+    public StratumTcpServer getServer()
+    {
+        return this.server;
     }
 
     /**

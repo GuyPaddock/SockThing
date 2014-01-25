@@ -109,16 +109,7 @@ extends AbstractConnectionState
                 @Override
                 public void onMessageReceived(MiningNotifyRequest message)
                 {
-                    // No-op implementation until we're in the JobProcessingState
-                    if (LOGGER.isDebugEnabled())
-                    {
-                        LOGGER.debug(
-                            String.format(
-                                "A '%s' request was received and dropped because the Stratum mining client was not " +
-                                "prepared to receive it: %s",
-                                MiningNotifyRequest.METHOD_NAME,
-                                message.toJson()));
-                    }
+                    AbstractMiningClientConnectionState.this.handleMiningNotifyRequest(message);
                 }
             });
     }
@@ -180,5 +171,28 @@ extends AbstractConnectionState
             new ClientGetVersionResponse(
                 message.getId(),
                 transport.getClientVersionString()));
+    }
+
+    /**
+     * <p>Handles the {@code mining.notify} message.</p>
+     *
+     * <p>This implementation does nothing other than log that the request was
+     * not handled.</p>
+     *
+     * @param   message
+     *          The incoming request message.
+     */
+    protected void handleMiningNotifyRequest(final MiningNotifyRequest message)
+    {
+        // No-op implementation until we're in the JobProcessingState
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug(
+                String.format(
+                    "A '%s' request was received and dropped because the Stratum mining client was not " +
+                    "prepared to receive it: %s",
+                    MiningNotifyRequest.METHOD_NAME,
+                    message.toJson()));
+        }
     }
 }

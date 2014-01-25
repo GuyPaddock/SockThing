@@ -18,6 +18,24 @@ public class MiningAuthorizeResponse
 extends ResponseMessage
 {
     /**
+     *
+     * Constructor for {@link MiningAuthorizeResponse} that creates a new
+     * instance for the specified request, with the specified authorization
+     * status.
+     *
+     * @param   request
+     *          The request to which this response corresponds.
+     *
+     * @param   authorized
+     *          {@code true} if the miner was successfully authorized;
+     *          {@code false}, otherwise.
+     */
+    public MiningAuthorizeResponse(MiningAuthorizeRequest request, boolean authorized)
+    {
+        this(request.getId(), authorized);
+    }
+
+    /**
      * Constructor for {@link MiningAuthorizeResponse} that creates a new
      * instance with the specified request ID and authorization status.
      *

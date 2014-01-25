@@ -19,18 +19,35 @@ extends ResponseMessage
 {
     /**
      * Constructor for {@link MiningSubmitResponse} that creates a new
+     * instance for the specified request, with the specified submission
+     * status.
+     *
+     * @param   request
+     *          The request to which this response corresponds.
+     *
+     * @param   accepted
+     *          {@code true} if the submission was accepted;
+     *          {@code false}, otherwise.
+     */
+    public MiningSubmitResponse(MiningSubmitRequest request, boolean accepted)
+    {
+        this(request.getId(), accepted);
+    }
+
+    /**
+     * Constructor for {@link MiningSubmitResponse} that creates a new
      * instance with the specified request ID and submission status.
      *
      * @param   id
      *          The ID of the request to which this response corresponds.
      *
-     * @param   submitted
+     * @param   accepted
      *          {@code true} if the submission was accepted;
      *          {@code false}, otherwise.
      */
-    public MiningSubmitResponse(String id, boolean submitted)
+    public MiningSubmitResponse(String id, boolean accepted)
     {
-        super(id, new ValueResult<>(submitted));
+        super(id, new ValueResult<>(accepted));
     }
 
     /**

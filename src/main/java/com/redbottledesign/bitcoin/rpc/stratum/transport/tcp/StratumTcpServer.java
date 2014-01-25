@@ -64,9 +64,9 @@ public abstract class StratumTcpServer
 
         while (this.isListening())
         {
-            final Socket                        connectionSocket = this.serverSocket.accept();
-            final StratumTcpServerConnection    connection       = new StratumTcpServerConnection(connectionSocket);
-            final ConnectionState               postConnectState = this.getPostConnectState(connection);
+            final Socket                     connectionSocket = this.serverSocket.accept();
+            final StratumTcpServerConnection connection       = this.createConnection(connectionSocket);
+            final ConnectionState            postConnectState = this.getPostConnectState(connection);
 
             if (postConnectState == null)
                 throw new IllegalStateException("postConnectState cannot be null.");
@@ -115,6 +115,19 @@ public abstract class StratumTcpServer
     protected void setServerSocket(final ServerSocket serverSocket)
     {
         this.serverSocket = serverSocket;
+    }
+
+    /**
+     * Creates a Stratum TCP server connection for the provided active socket.
+     *
+     * @param   connectionSocket
+     *          The socket for which a connection is desired.
+     *
+     * @return  The Stratum TCP server connection for the socket.
+     */
+    protected StratumTcpServerConnection createConnection(Socket connectionSocket)
+    {
+        return new StratumTcpServerConnection(this, connectionSocket);
     }
 
     /**

@@ -20,9 +20,8 @@ import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubscribeRespo
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
- *
  */
-public class MiningClientEventAdapter
+public abstract class MiningClientEventAdapter
 implements MiningClientEventListener
 {
     /**

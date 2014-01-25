@@ -19,6 +19,22 @@ extends ResponseMessage
 {
     /**
      * Constructor for {@link MiningResumeResponse} that creates a new
+     * instance for the specified request, with the specified resume status.
+     *
+     * @param   request
+     *          The request to which this response corresponds.
+     *
+     * @param   resumed
+     *          {@code true} if the session was resumed;
+     *          {@code false}, otherwise.
+     */
+    public MiningResumeResponse(MiningResumeRequest request, boolean resumed)
+    {
+        this(request.getId(), resumed);
+    }
+
+    /**
+     * Constructor for {@link MiningResumeResponse} that creates a new
      * instance with the specified request ID and resume status.
      *
      * @param   id

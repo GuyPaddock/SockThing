@@ -3,6 +3,14 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.server;
 import java.net.Socket;
 import java.util.Set;
 
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningAuthorizeRequest;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningAuthorizeResponse;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningResumeRequest;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningResumeResponse;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubmitRequest;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubmitResponse;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubscribeRequest;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubscribeResponse;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.server.state.PendingAuthorizationOrSubscriptionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServer;
@@ -95,5 +103,60 @@ extends StratumTcpServer
     protected ConnectionState getPostConnectState(StratumTcpServerConnection connection)
     {
         return new PendingAuthorizationOrSubscriptionState((MiningServerConnection)connection);
+    }
+
+    /**
+     * FIXME: Remove Test code.
+     */
+    public static void main(String[] args)
+    throws Exception
+    {
+        StratumMiningServer server = new StratumMiningServer();
+
+        server.registerEventListener(
+            new MiningServerEventAdapter()
+            {
+                @Override
+                public MiningAuthorizeResponse onClientAuthenticating(StratumTcpServerConnection connection,
+                                                                      MiningAuthorizeRequest request)
+                {
+                    return new MiningAuthorizeResponse(request, true);
+                }
+
+                @Override
+                public void onClientConnecting(StratumTcpServerConnection connection)
+                {
+                    System.out.println("Client connected.");
+                }
+
+                @Override
+                public MiningSubscribeResponse onClientSubscribing(StratumTcpServerConnection connection,
+                                                                   MiningSubscribeRequest request)
+                {
+                    System.out.println("Worker subscribing work: " + request.toJson());
+
+                    return new MiningSubscribeResponse(request, "abc123", new byte[] {'B', 'E', 'E', 'F'}, 2);
+                }
+
+                @Override
+                public MiningResumeResponse onClientResumingSession(StratumTcpServerConnection connection,
+                                                                    MiningResumeRequest request)
+                {
+                    System.out.println("Worker resuming session: " + request.toJson());
+
+                    return new MiningResumeResponse(request, false);
+                }
+
+                @Override
+                public MiningSubmitResponse onClientSubmittingWork(StratumTcpServerConnection connection,
+                                                                   MiningSubmitRequest request)
+                {
+                    System.out.println("Worker submitting work: " + request.toJson());
+
+                    return new MiningSubmitResponse(request, false);
+                }
+            });
+
+        server.startListening(3333);
     }
 }

@@ -26,7 +26,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerCon
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
-public class MiningServerEventAdapter
+public abstract class MiningServerEventAdapter
 implements MiningServerEventListener
 {
     /**

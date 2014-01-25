@@ -39,6 +39,31 @@ extends ResponseMessage
 
     /**
      * Constructor for {@link MiningSubscribeResponse} that creates a new
+     * instance for the specified request, with the specified subscription ID,
+     * extra nonce #1, and extra nonce #2 byte length.
+     *
+     * @param   request
+     *          The request to which this response corresponds.
+     *
+     * @param   subscriptionId
+     *          The unique subscription ID that the worker can use to refer to
+     *          this subscription later.
+     *
+     * @param   extraNonce1
+     *          The bytes the worker must use for extra nonce #1.
+     *
+     * @param   extraNonce2ByteLength
+     *          The number of bytes that the worker can use to generate extra
+     *          nonce #2.
+     */
+    public MiningSubscribeResponse(MiningSubscribeRequest request, String subscriptionId, byte[] extraNonce1,
+                                   int extraNonce2ByteLength)
+    {
+        this(request.getId(), subscriptionId, extraNonce1, extraNonce2ByteLength);
+    }
+
+    /**
+     * Constructor for {@link MiningSubscribeResponse} that creates a new
      * instance with the specified request ID, subscription ID, extra
      * nonce #1, and extra nonce #2 byte length.
      *
@@ -59,31 +84,6 @@ extends ResponseMessage
     public MiningSubscribeResponse(String id, String subscriptionId, byte[] extraNonce1, int extraNonce2ByteLength)
     {
         super(id, createSubscriptionResult(subscriptionId, extraNonce1, extraNonce2ByteLength));
-    }
-
-    /**
-     * Constructor for {@link MiningSubscribeResponse} that creates a new
-     * instance with the specified request, subscription ID, extra nonce #1,
-     * and extra nonce #2 byte length.
-     *
-     * @param   request
-     *          The request to which this response corresponds.
-     *
-     * @param   subscriptionId
-     *          The unique subscription ID that the worker can use to refer to
-     *          this subscription later.
-     *
-     * @param   extraNonce1
-     *          The bytes the worker must use for extra nonce #1.
-     *
-     * @param   extraNonce2ByteLength
-     *          The number of bytes that the worker can use to generate extra
-     *          nonce #2.
-     */
-    public MiningSubscribeResponse(MiningSubscribeRequest request, String subscriptionId, byte[] extraNonce1,
-                                   int extraNonce2ByteLength)
-    {
-        this(request.getId(), subscriptionId, extraNonce1, extraNonce2ByteLength);
     }
 
     /**
