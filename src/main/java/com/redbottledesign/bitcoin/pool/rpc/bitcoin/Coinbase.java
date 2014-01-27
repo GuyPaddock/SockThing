@@ -16,19 +16,19 @@ public interface Coinbase
 
     public abstract int getCoinbase1Offset();
 
-    public abstract int getCoinbase1Size();
+    public abstract int getCoinbase1Length();
 
     public abstract byte[] getExtraNonce1();
 
     public abstract int getExtraNonce1Offset();
 
-    public abstract int getExtraNonce1Size();
+    public abstract int getExtraNonce1Length();
 
     public abstract byte[] getExtraNonce2();
 
     public abstract int getExtraNonce2Offset();
 
-    public abstract int getExtraNonce2Size();
+    public abstract int getExtraNonce2Length();
 
     public abstract void setExtraNonce2(byte[] extraNonce2);
 
@@ -37,7 +37,7 @@ public interface Coinbase
 
     public abstract int getCoinbase2Offset();
 
-    public abstract int getCoinbase2Size();
+    public abstract int getCoinbase2Length();
 
     public abstract void regenerateCoinbaseTransaction(PoolUser user);
 

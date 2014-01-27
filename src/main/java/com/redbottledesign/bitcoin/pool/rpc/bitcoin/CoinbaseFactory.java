@@ -32,7 +32,7 @@ public class CoinbaseFactory
 
         else
         {
-            result = new StaticCoinbase(server, blockTemplate.getCoinbaseTransaction(), extraNonce1);
+            result = new PrefabCoinbase(server, blockTemplate.getCoinbaseTransaction(), extraNonce1);
         }
 
         return result;

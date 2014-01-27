@@ -66,11 +66,8 @@ implements Coinbase
 
         else
         {
-            /* This contains our standard 42 byte transaction header then 4 bytes
-             * of block height for block v2.
-             */
             int     coinbase1Offset = this.getCoinbase1Offset(),
-                    coinbase1Size   = this.getCoinbase1Size();
+                    coinbase1Size   = this.getCoinbase1Length();
             byte[]  buff            = new byte[coinbase1Size];
 
             for (int i = 0; i < coinbase1Size; i++)
@@ -87,7 +84,7 @@ implements Coinbase
     {
         byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
         int     extraNonce1Offset   = this.getExtraNonce1Offset(),
-                extraNonce1Size     = this.getExtraNonce1Size();
+                extraNonce1Size     = this.getExtraNonce1Length();
 
         if (scriptBytes == null)
             throw new IllegalStateException("No coinbase script data is available.");
@@ -99,7 +96,7 @@ implements Coinbase
     {
         byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
         int     extraNonce1Offset   = this.getExtraNonce1Offset(),
-                extraNonce1Size     = this.getExtraNonce1Size();
+                extraNonce1Size     = this.getExtraNonce1Length();
 
         if (scriptBytes == null)
         {
@@ -134,7 +131,7 @@ implements Coinbase
     {
         byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
         int     extraNonce2Offset   = this.getExtraNonce2Offset(),
-                extraNonce2Size     = this.getExtraNonce2Size();
+                extraNonce2Size     = this.getExtraNonce2Length();
 
         if (scriptBytes == null)
             throw new IllegalStateException("No coinbase script data is available.");
@@ -147,7 +144,7 @@ implements Coinbase
     {
         byte[]  scriptBytes         = this.getCoinbaseScriptBytes();
         int     extraNonce2Offset   = this.getExtraNonce2Offset(),
-                extraNonce2Size     = this.getExtraNonce2Size();
+                extraNonce2Size     = this.getExtraNonce2Length();
 
         if (scriptBytes == null)
         {
@@ -192,7 +189,7 @@ implements Coinbase
              * of block height for block v2.
              */
             int     coinbase2Offset = this.getCoinbase2Offset(),
-                    coinbase2Size   = this.getCoinbase2Size();
+                    coinbase2Size   = this.getCoinbase2Length();
             byte[]  buff            = new byte[coinbase2Size];
 
             for (int i = 0; i < coinbase2Size; i++)
@@ -282,8 +279,13 @@ implements Coinbase
     protected void setCoinbaseTransactionBytes(byte[] coinbaseTransactionBytes)
     throws ProtocolException
     {
-        this.coinbaseTransactionBytes   = coinbaseTransactionBytes;
-        this.coinbaseTransaction        = new Transaction(this.networkParams, coinbaseTransactionBytes);
+        this.setCoinbaseTransactionBytes(coinbaseTransactionBytes, true);
+    }
+
+    protected void setCoinbaseTransactionBytes(byte[] coinbaseTransactionBytes, boolean refreshTransaction)
+    throws ProtocolException
+    {
+        this.coinbaseTransactionBytes = coinbaseTransactionBytes;
 
         if (LOGGER.isDebugEnabled())
         {
@@ -294,7 +296,12 @@ implements Coinbase
                     Hex.encodeHexString(coinbaseTransactionBytes)));
         }
 
-        this.refreshCoinbaseScriptBytes();
+        if (refreshTransaction)
+        {
+            this.coinbaseTransaction = new Transaction(this.networkParams, coinbaseTransactionBytes);
+
+            this.refreshCoinbaseScriptBytes();
+        }
     }
 
     protected byte[] getCoinbaseScriptBytes()

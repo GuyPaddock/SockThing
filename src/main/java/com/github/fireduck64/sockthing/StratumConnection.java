@@ -323,7 +323,7 @@ public class StratumConnection
             JSONArray lst = new JSONArray();
             lst.put(lst2);
             lst.put(Hex.encodeHexString(this.coinbase.getExtraNonce1()));
-            lst.put(this.coinbase.getExtraNonce1Size());
+            lst.put(this.coinbase.getExtraNonce1Length());
             lst.put(RUNTIME_SESSION);
             reply.put("result", lst);
 

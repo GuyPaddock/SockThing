@@ -83,7 +83,7 @@ extends AbstractCoinbase
     }
 
     @Override
-    public int getCoinbase1Size()
+    public int getCoinbase1Length()
     {
         return TX_HEADER_LENGTH + BLOCK_HEIGHT_BYTE_LENGTH;
     }
@@ -95,7 +95,7 @@ extends AbstractCoinbase
     }
 
     @Override
-    public int getExtraNonce1Size()
+    public int getExtraNonce1Length()
     {
         return EXTRA1_BYTE_LENGTH;
     }
@@ -107,7 +107,7 @@ extends AbstractCoinbase
     }
 
     @Override
-    public int getExtraNonce2Size()
+    public int getExtraNonce2Length()
     {
         return EXTRA2_BYTE_LENGTH;
     }
@@ -119,7 +119,7 @@ extends AbstractCoinbase
     }
 
     @Override
-    public int getCoinbase2Size()
+    public int getCoinbase2Length()
     {
         //So coinbase1 size - extranonce(1+8)
         return this.getTotalCoinbaseTransactionLength() - TX_HEADER_LENGTH - BLOCK_HEIGHT_BYTE_LENGTH - EXTRA1_BYTE_LENGTH - EXTRA2_BYTE_LENGTH;
