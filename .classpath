@@ -10,7 +10,6 @@
 	<classpathentry kind="lib" path="lib/bcprov-jdk16-146.jar"/>
 	<classpathentry kind="lib" path="lib/commons-dbcp-1.4.jar"/>
 	<classpathentry kind="lib" path="lib/commons-pool-1.6.jar"/>
-	<classpathentry kind="lib" path="lib/google-collect-snapshot.jar"/>
 	<classpathentry kind="lib" path="lib/jsonjava.jar"/>
 	<classpathentry kind="lib" path="lib/mysql-connector-java-5.1.12-bin.jar"/>
 	<classpathentry kind="lib" path="lib/sc-light-jdk15on-1.47.0.2.jar"/>
