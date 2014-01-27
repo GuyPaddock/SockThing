@@ -29,10 +29,15 @@ extends ResponseMessage
      * @param   authorized
      *          {@code true} if the miner was successfully authorized;
      *          {@code false}, otherwise.
+     *
+     * @param   error
+     *          An error message for why the miner could not be successfully
+     *          authorized. This must be {@code null} if the miner
+     *          authenticated without issue.
      */
-    public MiningAuthorizeResponse(MiningAuthorizeRequest request, boolean authorized)
+    public MiningAuthorizeResponse(MiningAuthorizeRequest request, boolean authorized, String error)
     {
-        this(request.getId(), authorized);
+        this(request.getId(), authorized, error);
     }
 
     /**
@@ -45,27 +50,18 @@ extends ResponseMessage
      * @param   authorized
      *          {@code true} if the miner was successfully authorized;
      *          {@code false}, otherwise.
-     */
-    public MiningAuthorizeResponse(String id, boolean authorized)
-    {
-        super(id, new ValueResult<>(authorized));
-    }
-
-    /**
-     * Constructor for {@link MiningAuthorizeResponse} that creates a new
-     * instance with the specified request ID and error message (for log-in
-     * failures).
-     *
-     * @param   id
-     *          The ID of the request to which this response corresponds.
      *
      * @param   error
      *          An error message for why the miner could not be successfully
-     *          authorized.
+     *          authorized. This must be {@code null} if the miner
+     *          authenticated without issue.
      */
-    public MiningAuthorizeResponse(String id, String error)
+    public MiningAuthorizeResponse(String id, boolean authorized, String error)
     {
-        super(id, error);
+        super(id, new ValueResult<>(authorized), error);
+
+        if (authorized && (error != null))
+            throw new IllegalArgumentException("error must be null if authorized is not 'false'.");
     }
 
     /**
@@ -103,6 +99,8 @@ extends ResponseMessage
      */
     public boolean isAuthorized()
     {
-        return this.getResult().getValue();
+        final ValueResult<Boolean> result = this.getResult();
+
+        return ((result != null) && result.getValue());
     }
 }

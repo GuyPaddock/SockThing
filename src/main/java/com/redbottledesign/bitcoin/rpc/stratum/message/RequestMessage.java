@@ -154,6 +154,7 @@ extends Message
         try
         {
             object.put(JSON_STRATUM_KEY_METHOD, this.getMethodName());
+            object.put(JSON_STRATUM_KEY_PARAMS, new JSONArray());
 
             for (Object param : this.getParams())
             {

@@ -28,10 +28,15 @@ extends ResponseMessage
      * @param   accepted
      *          {@code true} if the submission was accepted;
      *          {@code false}, otherwise.
+     *
+     * @param   error
+     *          An error message for why the submission could not be accepted.
+     *          This must be {@code null} if the submission was accepted
+     *          without issue.
      */
-    public MiningSubmitResponse(MiningSubmitRequest request, boolean accepted)
+    public MiningSubmitResponse(MiningSubmitRequest request, boolean accepted, String error)
     {
-        this(request.getId(), accepted);
+        this(request.getId(), accepted, error);
     }
 
     /**
@@ -44,26 +49,18 @@ extends ResponseMessage
      * @param   accepted
      *          {@code true} if the submission was accepted;
      *          {@code false}, otherwise.
-     */
-    public MiningSubmitResponse(String id, boolean accepted)
-    {
-        super(id, new ValueResult<>(accepted));
-    }
-
-    /**
-     * Constructor for {@link MiningSubmitResponse} that creates a new
-     * instance with the specified request ID and error message (for submission
-     * failures).
-     *
-     * @param   id
-     *          The ID of the request to which this response corresponds.
      *
      * @param   error
      *          An error message for why the submission could not be accepted.
+     *          This must be {@code null} if the submission was accepted
+     *          without issue.
      */
-    public MiningSubmitResponse(String id, String error)
+    public MiningSubmitResponse(String id, boolean accepted, String error)
     {
-        super(id, error);
+        super(id, new ValueResult<>(accepted), error);
+
+        if (accepted && (error != null))
+            throw new IllegalArgumentException("error must be null if accepted is not 'false'.");
     }
 
     /**
@@ -101,6 +98,8 @@ extends ResponseMessage
      */
     public boolean wasAccepted()
     {
-        return this.getResult().getValue();
+        final ValueResult<Boolean> result = this.getResult();
+
+        return ((result != null) && result.getValue());
     }
 }

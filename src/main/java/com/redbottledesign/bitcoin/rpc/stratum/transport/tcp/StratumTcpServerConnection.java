@@ -17,7 +17,12 @@ extends AbstractTcpMessageTransport
     /**
      * The server to which this connection corresponds.
      */
-    protected final StratumTcpServer server;
+    private final StratumTcpServer server;
+
+    /**
+     * Whether or not this connection has been opened for servicing.
+     */
+    private volatile boolean isOpen;
 
     /**
      * Constructor for {@link StratumTcpServerConnection} that initializes the
@@ -59,6 +64,7 @@ extends AbstractTcpMessageTransport
             throw new IllegalArgumentException("connectionSocket cannot be null.");
 
         this.server = server;
+        this.isOpen = false;
 
         this.setSocket(connectionSocket);
     }
@@ -71,6 +77,20 @@ extends AbstractTcpMessageTransport
     public StratumTcpServer getServer()
     {
         return this.server;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Since the connection socket is opened before the TCP server
+     * connection is constructed, this implementation also takes into account
+     * whether the {@link #open()} method has been called on this
+     * connection, rather than just examining the socket status.</p>
+     */
+    @Override
+    public boolean isOpen()
+    {
+        return (this.isOpen && super.isOpen());
     }
 
     /**
@@ -87,5 +107,7 @@ extends AbstractTcpMessageTransport
 
         this.getOutputThread().start();
         this.getInputThread().start();
+
+        this.isOpen = true;
     }
 }

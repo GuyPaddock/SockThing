@@ -27,10 +27,15 @@ extends ResponseMessage
      * @param   resumed
      *          {@code true} if the session was resumed;
      *          {@code false}, otherwise.
+     *
+     * @param   error
+     *          An error message for why the session could not be resumed.
+     *          This must be {@code null} if the session was resumed without
+     *          issue.
      */
-    public MiningResumeResponse(MiningResumeRequest request, boolean resumed)
+    public MiningResumeResponse(MiningResumeRequest request, boolean resumed, String error)
     {
-        this(request.getId(), resumed);
+        this(request.getId(), resumed, error);
     }
 
     /**
@@ -43,26 +48,18 @@ extends ResponseMessage
      * @param   resumed
      *          {@code true} if the session was resumed;
      *          {@code false}, otherwise.
-     */
-    public MiningResumeResponse(String id, boolean resumed)
-    {
-        super(id, new ValueResult<>(resumed));
-    }
-
-    /**
-     * Constructor for {@link MiningResumeResponse} that creates a new
-     * instance with the specified request ID and error message (for resume
-     * failures).
-     *
-     * @param   id
-     *          The ID of the request to which this response corresponds.
      *
      * @param   error
      *          An error message for why the session could not be resumed.
+     *          This must be {@code null} if the session was resumed without
+     *          issue.
      */
-    public MiningResumeResponse(String id, String error)
+    public MiningResumeResponse(String id, boolean resumed, String error)
     {
-        super(id, error);
+        super(id, new ValueResult<>(resumed), error);
+
+        if (resumed && (error != null))
+            throw new IllegalArgumentException("error must be null if resumed is not 'false'.");
     }
 
     /**
@@ -100,6 +97,8 @@ extends ResponseMessage
      */
     public boolean wasResumed()
     {
-        return this.getResult().getValue();
+        final ValueResult<Boolean> result = this.getResult();
+
+        return ((result != null) && result.getValue());
     }
 }

@@ -90,7 +90,7 @@ extends Message
 
     /**
      * Constructor for {@link ResponseMessage} that initializes a new
-     * instance having the specified numeric ID and error.
+     * instance having the specified ID and error.
      *
      * @param   id
      *          The unique identifier for the message. This may be
@@ -103,6 +103,29 @@ extends Message
     {
         super(id);
 
+        this.setError(error);
+    }
+
+    /**
+     * Constructor for {@link ResponseMessage} that initializes a new
+     * instance having the specified ID, result, and error message
+     * (for graceful failures).
+     *
+     * @param   id
+     *          The unique identifier for the message. This may be
+     *          {@code null}.
+     *
+     * @param   result
+     *          The result of the method call.
+     *
+     * @param   error
+     *          Additional error details about the graceful failure.
+     */
+    public ResponseMessage(String id, Result result, String error)
+    {
+        super(id);
+
+        this.setResult(result);
         this.setError(error);
     }
 
@@ -154,7 +177,11 @@ extends Message
 
         try
         {
-            object.put(JSON_STRATUM_KEY_RESULT, this.getResult().toJson());
+            final Result result = this.getResult();
+            final String error = this.getError();
+
+            object.put(JSON_STRATUM_KEY_ERROR,  (error != null)  ? error           : JSONObject.NULL);
+            object.put(JSON_STRATUM_KEY_RESULT, (result != null) ? result.toJson() : JSONObject.NULL);
         }
 
         catch (JSONException ex)
@@ -273,13 +300,7 @@ extends Message
     {
         String error = null;
 
-        if (!jsonMessage.has(JSON_STRATUM_KEY_ERROR))
-        {
-            throw new MalformedStratumMessageException(
-                jsonMessage, String.format("missing '%s'", JSON_STRATUM_KEY_ERROR));
-        }
-
-        if (!jsonMessage.isNull(JSON_STRATUM_KEY_ERROR))
+        if (jsonMessage.has(JSON_STRATUM_KEY_ERROR) && !jsonMessage.isNull(JSON_STRATUM_KEY_ERROR))
         {
             try
             {

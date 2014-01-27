@@ -1,6 +1,7 @@
 package com.redbottledesign.bitcoin.pool.rpc.stratum.server;
 
 import java.net.Socket;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningAuthorizeRequest;
@@ -30,6 +31,11 @@ extends StratumTcpServer
      * The set of mining server event listeners.
      */
     protected Set<MiningServerEventListener> serverEventListeners;
+
+    public StratumMiningServer()
+    {
+        this.serverEventListeners = new LinkedHashSet<>();
+    }
 
     /**
      * Registers a new server event listener, which will be informed about all
@@ -120,7 +126,7 @@ extends StratumTcpServer
                 public MiningAuthorizeResponse onClientAuthenticating(StratumTcpServerConnection connection,
                                                                       MiningAuthorizeRequest request)
                 {
-                    return new MiningAuthorizeResponse(request, true);
+                    return new MiningAuthorizeResponse(request, true, null);
                 }
 
                 @Override
@@ -144,7 +150,7 @@ extends StratumTcpServer
                 {
                     System.out.println("Worker resuming session: " + request.toJson());
 
-                    return new MiningResumeResponse(request, false);
+                    return new MiningResumeResponse(request, false, "Not implemented");
                 }
 
                 @Override
@@ -153,7 +159,7 @@ extends StratumTcpServer
                 {
                     System.out.println("Worker submitting work: " + request.toJson());
 
-                    return new MiningSubmitResponse(request, false);
+                    return new MiningSubmitResponse(request, false, "Not implemented");
                 }
             });
 
