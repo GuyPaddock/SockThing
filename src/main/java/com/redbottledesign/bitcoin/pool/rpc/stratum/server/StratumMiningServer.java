@@ -32,6 +32,9 @@ extends StratumTcpServer
      */
     protected Set<MiningServerEventListener> serverEventListeners;
 
+    /**
+     * Default constructor for {@link StratumMiningServer}.
+     */
     public StratumMiningServer()
     {
         this.serverEventListeners = new LinkedHashSet<>();
