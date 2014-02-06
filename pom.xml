@@ -38,9 +38,16 @@
       <groupId>com.redbottledesign.drupal</groupId>
       <artifactId>DrupalRest4J</artifactId>
       <version>0.0.1-SNAPSHOT</version> 
-      <scope>compile</scope>     
+      <scope>compile</scope>
     </dependency>
-    
+  
+    <dependency>
+      <groupId>com.redbottledesign.bitcoin.rpc.stratum</groupId>
+      <artifactId>j-stratum</artifactId>
+      <version>1.0b</version>    
+      <scope>compile</scope>
+    </dependency>
+  
     <dependency>
       <groupId>com.google</groupId>
       <artifactId>bitcoinj</artifactId>
