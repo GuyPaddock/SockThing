@@ -1,7 +1,11 @@
 package com.redbottledesign.bitcoin.rpc.stratum.transport.tcp;
 
 import java.net.Socket;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
+import com.redbottledesign.bitcoin.rpc.stratum.message.Message;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 
 /**
@@ -15,9 +19,19 @@ public class StratumTcpServerConnection
 extends AbstractTcpMessageTransport
 {
     /**
+     * The maximum amount of time that a Stratum connection can sit idle.
+     */
+    public static final long MAX_IDLE_TIME_MSECS = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
+
+    /**
      * The server to which this connection corresponds.
      */
     private final StratumTcpServer server;
+
+    /**
+     * The unique identifier for this connection.
+     */
+    private final String connectionId;
 
     /**
      * Whether or not this connection has been opened for servicing.
@@ -64,7 +78,9 @@ extends AbstractTcpMessageTransport
             throw new IllegalArgumentException("connectionSocket cannot be null.");
 
         this.server = server;
-        this.isOpen = false;
+
+        this.connectionId   = UUID.randomUUID().toString();
+        this.isOpen         = false;
 
         this.setSocket(connectionSocket);
     }
@@ -77,6 +93,16 @@ extends AbstractTcpMessageTransport
     public StratumTcpServer getServer()
     {
         return this.server;
+    }
+
+    /**
+     * Gets the unique identifier for this connection.
+     *
+     * @return  The unique identifier for this connection.
+     */
+    public String getConnectionId()
+    {
+        return this.connectionId;
     }
 
     /**
@@ -109,5 +135,21 @@ extends AbstractTcpMessageTransport
         this.getInputThread().start();
 
         this.isOpen = true;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The timeout counter for this connection is also reset, in
+     * acknowledgment of the fact that receiving a message makes this
+     * connection active.</p>
+     */
+    @Override
+    protected void receiveMessages(List<Message> messages)
+    {
+        super.receiveMessages(messages);
+
+        // Mark this connection as active
+        this.getServer().resetConnectionTimeout(this);
     }
 }
