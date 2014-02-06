@@ -2,7 +2,6 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.server;
 
 import java.net.Socket;
 
-import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerConnection;
 
 /**
@@ -29,26 +28,6 @@ extends StratumTcpServerConnection
     public MiningServerConnection(StratumMiningServer server, Socket connectionSocket)
     {
         super(server, connectionSocket);
-    }
-
-    /**
-     * Constructor for {@link MiningServerConnection} that initializes the
-     * connection to wrap the specified connected server-side socket and start
-     * in the specified state.
-     *
-     * @param   server
-     *          The server.
-     *
-     * @param   connectionSocket
-     *          The server connection socket.
-     *
-     * @param   postConnectState
-     *          The state that the connection should enter when the client
-     *          connects.
-     */
-    public MiningServerConnection(StratumMiningServer server, Socket connectionSocket, ConnectionState postConnectState)
-    {
-        super(server, connectionSocket, postConnectState);
     }
 
     /**
