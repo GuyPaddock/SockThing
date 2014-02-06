@@ -4,6 +4,9 @@ import java.net.Socket;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.redbottledesign.bitcoin.pool.rpc.stratum.server.state.PendingAuthorizationOrSubscriptionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServer;
@@ -19,6 +22,11 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerCon
 public class StratumMiningServer
 extends StratumTcpServer
 {
+    /**
+     * The logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(StratumMiningServer.class);
+
     /**
      * The set of mining server event listeners.
      */
@@ -66,6 +74,15 @@ extends StratumTcpServer
      */
     public void notifyEventListeners(MiningServerEventNotifier notifier)
     {
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug(
+                String.format(
+                    "Notifying all event listeners about event (%s): %s",
+                    notifier.getClass().getName(),
+                    notifier.toString()));
+        }
+
         for (MiningServerEventListener listener : this.serverEventListeners)
         {
             notifier.notifyListener(listener);
@@ -74,16 +91,26 @@ extends StratumTcpServer
 
     /**
      * {@inheritDoc}
-     *
-     * <p>This implementation also notifies all listeners subscribed to the
-     * {@link MiningServerEventListener#onClientConnecting(StratumTcpServerConnection)}
-     * event about the new connection.</p>
      */
     @Override
-    protected StratumTcpServerConnection createConnection(Socket connectionSocket)
+    protected MiningServerConnection createConnection(Socket connectionSocket)
     {
-        final StratumTcpServerConnection connection = new MiningServerConnection(this, connectionSocket);
+        return new MiningServerConnection(this, connectionSocket);
+    }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation notifies all listeners subscribed to the
+     * {@link MiningServerEventListener#onClientConnecting(StratumTcpServerConnection)}
+     * event about the new connection.</p>
+     *
+     * @param   connection
+     *          The connection being accepted.
+     */
+    @Override
+    protected void acceptConnection(final StratumTcpServerConnection connection)
+    {
         this.notifyEventListeners(
             new MiningServerEventNotifier()
             {
@@ -93,8 +120,6 @@ extends StratumTcpServer
                     listener.onClientConnecting(connection);
                 }
             });
-
-        return connection;
     }
 
     /**

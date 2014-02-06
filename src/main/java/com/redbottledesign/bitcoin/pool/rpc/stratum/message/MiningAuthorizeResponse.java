@@ -18,7 +18,30 @@ public class MiningAuthorizeResponse
 extends ResponseMessage
 {
     /**
+     * The error message sent back to clients when a worker cannot be
+     * authenticated with the provided username and/or password.
+     */
+    public static final String ERROR_UNKNOWN_USER = "unknown user";
+
+    /**
+     * Constructor for {@link MiningAuthorizeResponse} that creates a new
+     * instance for the specified request, with the specified authorization
+     * status, and {@link #ERROR_UNKNOWN_USER} as the error message if
+     * {@code authorized} is {@code false}.
      *
+     * @param   request
+     *          The request to which this response corresponds.
+     *
+     * @param   authorized
+     *          {@code true} if the miner was successfully authorized;
+     *          {@code false}, otherwise.
+     */
+    public MiningAuthorizeResponse(MiningAuthorizeRequest request, boolean authorized)
+    {
+        this(request.getId(), authorized, (authorized ? null : ERROR_UNKNOWN_USER));
+    }
+
+    /**
      * Constructor for {@link MiningAuthorizeResponse} that creates a new
      * instance for the specified request, with the specified authorization
      * status.
