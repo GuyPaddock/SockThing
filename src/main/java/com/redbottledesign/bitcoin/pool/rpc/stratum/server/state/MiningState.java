@@ -40,6 +40,15 @@ extends PendingAuthorizationOrSubscriptionState
 
     /**
      * {@inheritDoc}
+     */
+    @Override
+    protected void initializeHandlers()
+    {
+        super.initializeHandlers();
+    }
+
+    /**
+     * {@inheritDoc}
      *
      * <p>In this implementation, the worker is always considered both
      * subscribed and authorized, regardless of what is passed-in.

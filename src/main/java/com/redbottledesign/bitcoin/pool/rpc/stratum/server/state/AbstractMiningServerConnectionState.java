@@ -19,7 +19,6 @@ import com.redbottledesign.bitcoin.pool.rpc.stratum.server.MiningServerEventNoti
 import com.redbottledesign.bitcoin.pool.rpc.stratum.server.UnhandledRequestEventException;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.AbstractConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
-import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerConnection;
 
 /**
@@ -107,45 +106,6 @@ extends AbstractConnectionState
     protected void initializeHandlers()
     {
         super.initializeHandlers();
-
-        // mining.subscribe
-        this.registerRequestHandler(
-            MiningSubscribeRequest.METHOD_NAME,
-            MiningSubscribeRequest.class,
-            new MessageListener<MiningSubscribeRequest>()
-            {
-                @Override
-                public void onMessageReceived(MiningSubscribeRequest message)
-                {
-                    AbstractMiningServerConnectionState.this.handleMiningSubscribeRequest(message);
-                }
-            });
-
-        // mining.resume
-        this.registerRequestHandler(
-            MiningResumeRequest.METHOD_NAME,
-            MiningResumeRequest.class,
-            new MessageListener<MiningResumeRequest>()
-            {
-                @Override
-                public void onMessageReceived(MiningResumeRequest message)
-                {
-                    AbstractMiningServerConnectionState.this.handleMiningResumeRequest(message);
-                }
-            });
-
-        // mining.authorize
-        this.registerRequestHandler(
-            MiningAuthorizeRequest.METHOD_NAME,
-            MiningAuthorizeRequest.class,
-            new MessageListener<MiningAuthorizeRequest>()
-            {
-                @Override
-                public void onMessageReceived(MiningAuthorizeRequest message)
-                {
-                    AbstractMiningServerConnectionState.this.handleMiningAuthorizeRequest(message);
-                }
-            });
     }
 
     /**

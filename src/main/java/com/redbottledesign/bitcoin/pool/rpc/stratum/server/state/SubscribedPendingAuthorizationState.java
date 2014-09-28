@@ -1,7 +1,9 @@
 package com.redbottledesign.bitcoin.pool.rpc.stratum.server.state;
 
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningAuthorizeRequest;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.server.MiningServerConnection;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
+import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
 
 /**
  * <p>The connection state for a Stratum mining server connection after
@@ -30,6 +32,28 @@ extends PendingAuthorizationOrSubscriptionState
     public SubscribedPendingAuthorizationState(MiningServerConnection transport)
     {
         super(transport);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void initializeHandlers()
+    {
+        super.initializeHandlers();
+
+        // mining.authorize
+        this.registerRequestHandler(
+            MiningAuthorizeRequest.METHOD_NAME,
+            MiningAuthorizeRequest.class,
+            new MessageListener<MiningAuthorizeRequest>()
+            {
+                @Override
+                public void onMessageReceived(MiningAuthorizeRequest message)
+                {
+                    SubscribedPendingAuthorizationState.this.handleMiningAuthorizeRequest(message);
+                }
+            });
     }
 
     /**
