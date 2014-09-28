@@ -9,7 +9,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.resume} request
- * message.</p>
+ * message, which is used by a worker to resume work from a previous
+ * connection.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *

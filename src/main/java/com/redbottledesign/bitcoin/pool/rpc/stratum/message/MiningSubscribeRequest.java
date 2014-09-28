@@ -7,7 +7,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.subscribe} request
- * message.</p>
+ * message, which is used by a worker to subscribe to notifications
+ * about work.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *

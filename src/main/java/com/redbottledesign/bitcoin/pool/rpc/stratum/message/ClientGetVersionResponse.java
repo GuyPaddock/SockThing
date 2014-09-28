@@ -8,7 +8,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.ValueResult;
 
 /**
  * <p>Java representation of a Stratum {@code client.get_version} response
- * message.</p>
+ * message, which is used to respond with what software a particular mining
+ * client is using.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *

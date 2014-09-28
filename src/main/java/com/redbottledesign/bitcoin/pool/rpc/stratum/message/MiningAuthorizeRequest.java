@@ -9,7 +9,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.authorize} request
- * message.</p>
+ * message, which is used by a worker to authenticate as a particular
+ * user.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *

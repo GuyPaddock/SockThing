@@ -9,7 +9,8 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
 
 /**
  * <p>Java representation of a Stratum {@code mining.set_difficulty} request
- * message.</p>
+ * message, which is used to set the minimum difficulty that a worker's shares
+ * should be.</p>
  *
  * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
  *
