@@ -2,6 +2,8 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.server;
 
 import java.net.Socket;
 
+import com.redbottledesign.bitcoin.pool.rpc.stratum.server.state.PendingAuthorizationOrSubscriptionState;
+import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerConnection;
 
 /**
@@ -41,5 +43,14 @@ extends StratumTcpServerConnection
     public StratumMiningServer getServer()
     {
         return (StratumMiningServer)super.getServer();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected ConnectionState createPostConnectState()
+    {
+        return new PendingAuthorizationOrSubscriptionState(this);
     }
 }

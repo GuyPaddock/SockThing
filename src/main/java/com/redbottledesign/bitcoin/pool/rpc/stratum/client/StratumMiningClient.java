@@ -4,6 +4,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import com.redbottledesign.bitcoin.pool.rpc.stratum.client.state.PendingAuthorizationState;
+import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpClient;
 
 /**
@@ -133,9 +134,6 @@ extends StratumTcpClient
         this.setWorkerPassword(workerPassword);
 
         this.clientEventListeners = new LinkedHashSet<>();
-
-        this.setPostConnectState(
-            new PendingAuthorizationState(this));
     }
 
     /**
@@ -245,5 +243,14 @@ extends StratumTcpClient
         {
             notifier.notifyListener(listener);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected ConnectionState createPostConnectState()
+    {
+        return new PendingAuthorizationState(this);
     }
 }

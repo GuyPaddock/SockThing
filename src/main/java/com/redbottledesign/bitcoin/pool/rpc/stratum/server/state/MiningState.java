@@ -1,7 +1,11 @@
 package com.redbottledesign.bitcoin.pool.rpc.stratum.server.state;
 
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningAuthorizeRequest;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningResumeRequest;
+import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubscribeRequest;
 import com.redbottledesign.bitcoin.pool.rpc.stratum.server.MiningServerConnection;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
+import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
 
 /**
  * <p>The connection state for a Stratum mining server connection when the

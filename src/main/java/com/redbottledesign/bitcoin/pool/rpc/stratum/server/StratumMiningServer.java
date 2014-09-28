@@ -7,8 +7,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.redbottledesign.bitcoin.pool.rpc.stratum.server.state.PendingAuthorizationOrSubscriptionState;
-import com.redbottledesign.bitcoin.rpc.stratum.transport.ConnectionState;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServer;
 import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerConnection;
 
@@ -120,14 +118,5 @@ extends StratumTcpServer
                     listener.onClientConnecting(connection);
                 }
             });
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected ConnectionState getPostConnectState(StratumTcpServerConnection connection)
-    {
-        return new PendingAuthorizationOrSubscriptionState((MiningServerConnection)connection);
     }
 }
