@@ -32,7 +32,7 @@ import com.google.bitcoin.core.TransactionInput;
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
-public class GeneratedCoinbase
+public class LocalCoinbase
 extends AbstractCoinbase
 {
     /**
@@ -89,7 +89,7 @@ extends AbstractCoinbase
     /**
      * The logger.
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(GeneratedCoinbase.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LocalCoinbase.class);
 
     /**
      * The pool-specific text that is being added to the coinbase script.
@@ -125,7 +125,7 @@ extends AbstractCoinbase
     private final PoolUser user;
 
     /**
-     * Constructor for {@link GeneratedCoinbase} that generates a new coinbase
+     * Constructor for {@link LocalCoinbase} that generates a new coinbase
      * for the specified network; with the specified coinbase and witty remark
      * text; for the block with the specified height; having the specified
      * rewards and total fees; and using the provided extra nonce value.
@@ -164,7 +164,7 @@ extends AbstractCoinbase
      * @param   user
      *          The user for which this coinbase is being tailored.
      */
-    public GeneratedCoinbase(NetworkParameters networkParameters, String coinbaseText, String wittyRemarkText,
+    public LocalCoinbase(NetworkParameters networkParameters, String coinbaseText, String wittyRemarkText,
                              long blockHeight, BigInteger blockReward, BigInteger feeTotal, byte[] extraNonce1,
                              OutputMonster outputMonster, PoolUser user)
     {

@@ -17,7 +17,7 @@ import com.google.bitcoin.core.Transaction;
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
-public class PrefabCoinbase
+public class UpstreamCoinbase
 extends AbstractCoinbase
 {
     /**
@@ -35,7 +35,7 @@ extends AbstractCoinbase
     /**
      * The logger.
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(PrefabCoinbase.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(UpstreamCoinbase.class);
 
     /**
      * The length, in bytes, of extra nonce #1.
@@ -67,7 +67,7 @@ extends AbstractCoinbase
     private byte[] coinbasePart2;
 
     /**
-     * <p>Constructor for {@link PrefabCoinbase} that initializes a new
+     * <p>Constructor for {@link UpstreamCoinbase} that initializes a new
      * coinbase for the specified network; having the specified bytes for
      * coinbase parts #1 and #2; with the specified bytes for extra nonce
      * #1; and accommodating the specified number of bytes for extra nonce
@@ -101,7 +101,7 @@ extends AbstractCoinbase
      *          transaction on the network for which this coinbase has been
      *          configured.
      */
-    public PrefabCoinbase(NetworkParameters networkParameters, byte[] coinbasePart1, byte[] extraNonce1,
+    public UpstreamCoinbase(NetworkParameters networkParameters, byte[] coinbasePart1, byte[] extraNonce1,
                           int extraNonce2Length, byte[] coinbasePart2)
     throws ProtocolException
     {
@@ -114,7 +114,7 @@ extends AbstractCoinbase
     }
 
     /**
-     * <p>Constructor for {@link PrefabCoinbase} that initializes a new
+     * <p>Constructor for {@link UpstreamCoinbase} that initializes a new
      * coinbase for the specified network, initialized from the contents of
      * the provided, pool-supplied coinbase transaction.</p>
      *
@@ -143,7 +143,7 @@ extends AbstractCoinbase
      * @param   extraNonce2Length
      *          The number of bytes to accommodate for extra nonce #2.
      */
-    public PrefabCoinbase(NetworkParameters networkParameters, Transaction coinbaseTransaction, byte[] extraNonce1,
+    public UpstreamCoinbase(NetworkParameters networkParameters, Transaction coinbaseTransaction, byte[] extraNonce1,
                           int extraNonce2Length)
     {
         super(networkParameters);
