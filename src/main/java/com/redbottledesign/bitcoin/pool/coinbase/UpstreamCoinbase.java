@@ -13,7 +13,7 @@ import com.google.bitcoin.core.Transaction;
  * <p>A {@link Coinbase} for constructing a Bitcoin coinbase transaction
  * according to specifications provided by an upstream mining pool.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

@@ -28,7 +28,7 @@ import com.google.bitcoin.core.TransactionInput;
  * Misc Text     [up to 42 bytes] |
  * </pre>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

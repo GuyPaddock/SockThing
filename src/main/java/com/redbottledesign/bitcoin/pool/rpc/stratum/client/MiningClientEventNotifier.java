@@ -10,7 +10,7 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.client;
  * that is passed into
  * {@link StratumMiningClient#notifyEventListeners(MiningClientEventNotifier)}.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  *

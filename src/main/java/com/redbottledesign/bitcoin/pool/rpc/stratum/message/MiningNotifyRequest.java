@@ -17,7 +17,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
  * <p>Java representation of a Stratum {@code mining.notify} request
  * message, which notifies a worker about new work / new jobs.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

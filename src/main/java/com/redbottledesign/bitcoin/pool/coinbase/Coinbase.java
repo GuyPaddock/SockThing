@@ -8,7 +8,7 @@ import com.google.bitcoin.core.Transaction;
  * is the transaction that credits the worker who solves the block with the
  * block reward and block transaction fees.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

@@ -41,7 +41,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  *    <dd>Used to push new work to the miner.</dd>
  * </dl>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  *

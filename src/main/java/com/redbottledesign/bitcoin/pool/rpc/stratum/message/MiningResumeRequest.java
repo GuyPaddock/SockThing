@@ -12,7 +12,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
  * message, which is used by a worker to resume work from a previous
  * connection.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

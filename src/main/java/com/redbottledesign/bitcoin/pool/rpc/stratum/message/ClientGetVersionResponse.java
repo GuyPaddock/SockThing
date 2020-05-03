@@ -11,7 +11,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.ValueResult;
  * message, which is used to respond with what software a particular mining
  * client is using.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

@@ -12,7 +12,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
  * message, which is used to set the minimum difficulty that a worker's shares
  * should be.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

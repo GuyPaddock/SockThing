@@ -13,7 +13,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
  * <p>Java representation of a Stratum {@code mining.submit} request
  * message, which is used by a worker to submit work.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

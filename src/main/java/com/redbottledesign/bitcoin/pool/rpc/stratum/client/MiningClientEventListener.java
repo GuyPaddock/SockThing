@@ -14,7 +14,7 @@ import com.redbottledesign.bitcoin.pool.rpc.stratum.message.MiningSubscribeRespo
  * subscribes to work, receives new work, authenticates, receives a new target
  * difficulty, and submits work.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

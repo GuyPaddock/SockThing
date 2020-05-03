@@ -22,7 +22,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerCon
  * for them all, so you only have to define methods for events you care about.)
  * </p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

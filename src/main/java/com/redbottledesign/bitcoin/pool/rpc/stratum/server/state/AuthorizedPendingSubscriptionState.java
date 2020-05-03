@@ -14,7 +14,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.MessageListener;
  * states ({@code mining.subscribe}, {@code mining.authorize}, and
  * {@code mining.resume}), this state does not accept any requests.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

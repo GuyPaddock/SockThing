@@ -4,7 +4,7 @@ package com.redbottledesign.bitcoin.pool.rpc.stratum.server;
  * <p>Exception thrown when a request that requires a response does not receive
  * any response from registered {@link MiningServerEventListener}s.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

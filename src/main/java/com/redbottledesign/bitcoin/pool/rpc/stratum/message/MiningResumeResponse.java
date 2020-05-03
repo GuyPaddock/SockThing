@@ -11,7 +11,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.ValueResult;
  * message, which is used to respond to a worker's request to resume work from
  * a previous connection.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

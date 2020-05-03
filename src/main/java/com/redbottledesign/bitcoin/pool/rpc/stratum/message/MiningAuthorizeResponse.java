@@ -11,7 +11,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.ValueResult;
  * message, which is used to approve or decline a worker's request to
  * authenticate as a particular user.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

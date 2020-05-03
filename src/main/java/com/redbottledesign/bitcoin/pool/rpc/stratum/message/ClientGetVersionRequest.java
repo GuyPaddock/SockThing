@@ -10,7 +10,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.RequestMessage;
  * message, which is used to ask what software a particular mining
  * client is using.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

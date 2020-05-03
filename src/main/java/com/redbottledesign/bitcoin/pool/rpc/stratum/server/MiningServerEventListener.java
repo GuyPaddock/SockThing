@@ -17,7 +17,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.transport.tcp.StratumTcpServerCon
  * <p>Stratum mining server events let you track when mining clients connect,
  * resume work, subscribe to work, authenticate, and submit work.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */

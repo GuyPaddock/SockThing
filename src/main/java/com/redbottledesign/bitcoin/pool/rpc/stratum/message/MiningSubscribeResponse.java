@@ -16,7 +16,7 @@ import com.redbottledesign.bitcoin.rpc.stratum.message.Result;
  * message, which is used to respond to a worker's request to subscribe to
  * work notifications.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (gpaddock@redbottledesign.com)
  */

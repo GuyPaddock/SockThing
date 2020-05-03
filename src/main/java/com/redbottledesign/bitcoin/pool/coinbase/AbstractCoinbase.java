@@ -18,7 +18,7 @@ import com.google.bitcoin.core.TransactionInput;
  * only refer to the {@linkplain Coinbase} interface and never make a direct
  * reference to this class.</p>
  *
- * <p>© 2013 - 2014 RedBottle Design, LLC.</p>
+ * <p>Â© 2013 - 2014 RedBottle Design, LLC.</p>
  *
  * @author Guy Paddock (guy.paddock@redbottledesign.com)
  */
